@@ -13,8 +13,9 @@
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
-    <!-- PapaParse -->
+    <!-- PapaParse & SheetJS -->
     <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
     <style>
         :root {
@@ -493,8 +494,8 @@
                 <div class="nav-kpi-val" id="topNavTime" style="color: var(--pluz-green); font-family: monospace;">🕒 --:--:--</div>
             </div>
             <div class="nav-kpi-item" style="border-left-color: var(--pluz-blue); display: flex; gap: 6px;">
-                <button class="btn-nav-primary" id="btn-download-base">📥 Base Pendientes</button>
-                <button class="btn-nav-primary" id="btn-download-ejecutados" style="background: var(--pluz-green);">📥 Base Ejecutados</button>
+                <button class="btn-nav-primary" id="btn-download-base">📥 Base Pendientes (Excel)</button>
+                <button class="btn-nav-primary" id="btn-download-ejecutados" style="background: var(--pluz-green);">📥 Base Ejecutados (Excel)</button>
             </div>
         </div>
     </div>
@@ -911,7 +912,9 @@
             document.getElementById("topNavCount").innerText = `🚨 ${count} Incidencias`;
         }
 
-        // Buscador y Limpiar en el Mapa
+        // Buscador y Limpiar en el Mapa (Búsqueda en tiempo real)
+        document.getElementById("inputTicket").addEventListener("input", filterMapMarkers);
+
         document.getElementById("btnBuscar").addEventListener("click", () => {
             const query = document.getElementById("inputTicket").value.trim().toLowerCase();
             if (!query) return;
@@ -1083,31 +1086,47 @@
             refreshDashboard();
         });
 
-        // Funciones de Descarga CSV
-        function downloadCSV(dataset, prefix) {
+        // Funciones de Descarga Excel (.xlsx)
+        function downloadExcel(dataset, prefix) {
             if (!dataset || dataset.length === 0) {
                 alert("⚠️ No hay datos registrados para descargar.");
                 return;
             }
             try {
-                const csvStr = Papa.unparse(dataset);
-                const blob = new Blob(["\ufeff" + csvStr], { type: 'text/csv;charset=utf-8;' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                const now = new Date().toISOString().slice(0, 10);
-                a.href = url;
-                a.download = `${prefix}_oms_${now}.csv`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
+                if (typeof XLSX !== 'undefined') {
+                    const worksheet = XLSX.utils.json_to_sheet(dataset);
+                    const keys = Object.keys(dataset[0] || {});
+                    worksheet['!cols'] = keys.map(key => {
+                        const maxLen = Math.max(
+                            key.length,
+                            ...dataset.slice(0, 100).map(row => String(row[key] || '').length)
+                        );
+                        return { wch: Math.min(Math.max(maxLen + 2, 10), 50) };
+                    });
+                    const workbook = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(workbook, worksheet, "Base_OMS");
+                    const now = new Date().toISOString().slice(0, 10);
+                    XLSX.writeFile(workbook, `${prefix}_oms_${now}.xlsx`);
+                } else {
+                    const csvStr = Papa.unparse(dataset);
+                    const blob = new Blob(["\ufeff" + csvStr], { type: 'text/csv;charset=utf-8;' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    const now = new Date().toISOString().slice(0, 10);
+                    a.href = url;
+                    a.download = `${prefix}_oms_${now}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }
             } catch (err) {
-                alert("❌ Error al generar archivo de descarga: " + err);
+                alert("❌ Error al generar archivo Excel: " + err);
             }
         }
 
         document.getElementById('btn-download-base').addEventListener('click', () => {
-            downloadCSV(rawData, 'base_pendientes');
+            downloadExcel(rawData, 'base_pendientes');
         });
 
         function downloadFallbackEjecutados() {
@@ -1116,7 +1135,7 @@
                 return st.includes('EJECU') || st.includes('ATENDID') || st.includes('FINALIZ') || st.includes('CERRAD');
             });
             const datasetToExport = ejecutados.length > 0 ? ejecutados : rawData;
-            downloadCSV(datasetToExport, 'base_ejecutados');
+            downloadExcel(datasetToExport, 'base_ejecutados');
         }
 
         const btnEjecutados = document.getElementById('btn-download-ejecutados');
@@ -1136,7 +1155,7 @@
                         skipEmptyLines: true,
                         complete: function(results) {
                             if (results.data && results.data.length > 0) {
-                                downloadCSV(results.data, 'base_ejecutados');
+                                downloadExcel(results.data, 'base_ejecutados');
                             } else {
                                 downloadFallbackEjecutados();
                             }
@@ -1192,16 +1211,12 @@
                     }
                 }
 
-                if (!csvUrl) {
-                    const localResp = await fetch('data.json');
-                    if (localResp.ok) {
-                        const json = await localResp.json();
-                        processRawData(json);
-                        return;
-                    }
+                let finalFetchUrl = csvUrl;
+                if (finalFetchUrl.includes('docs.google.com')) {
+                    finalFetchUrl += (finalFetchUrl.includes('?') ? '&' : '?') + '_nocache=' + Date.now();
                 }
 
-                Papa.parse(csvUrl, {
+                Papa.parse(finalFetchUrl, {
                     download: true,
                     header: true,
                     skipEmptyLines: true,
