@@ -1211,45 +1211,52 @@
 
         const btnEjecutados = document.getElementById('btn-download-ejecutados');
         if (btnEjecutados) {
-            btnEjecutados.addEventListener('click', () => {
-                let targetUrl = GOOGLE_SHEET_EJECUTADOS_URL;
-                
-                // Si no se configuró una URL separada para ejecutados, construirla automáticamente a partir de la URL principal de Sheets
-                if (!targetUrl && GOOGLE_SHEET_CSV_URL) {
-                    if (GOOGLE_SHEET_CSV_URL.includes('/pub')) {
-                        targetUrl = GOOGLE_SHEET_CSV_URL.replace(/sheet=[^&]+/, '').replace('/pub?', '/pub?sheet=BASE_EJECUTADOS&');
-                        if (!targetUrl.includes('sheet=BASE_EJECUTADOS')) {
-                            targetUrl += (targetUrl.includes('?') ? '&' : '?') + 'sheet=BASE_EJECUTADOS';
-                        }
-                    } else {
+            btnEjecutados.addEventListener('click', async () => {
+                let downloaded = false;
+
+                // 1. Intentar descargar directamente desde Google Sheets (pestaña BASE_EJECUTADOS)
+                if (GOOGLE_SHEET_EJECUTADOS_URL || GOOGLE_SHEET_CSV_URL) {
+                    let targetUrl = GOOGLE_SHEET_EJECUTADOS_URL;
+                    if (!targetUrl && GOOGLE_SHEET_CSV_URL) {
                         const match = GOOGLE_SHEET_CSV_URL.match(/\/d\/([a-zA-Z0-9-_]+)/);
                         if (match) {
                             targetUrl = `https://docs.google.com/spreadsheets/d/${match[1]}/gviz/tq?tqx=out:csv&sheet=BASE_EJECUTADOS`;
                         }
                     }
+                    if (targetUrl) {
+                        try {
+                            const fetchUrl = targetUrl + (targetUrl.includes('?') ? '&' : '?') + '_nocache=' + Date.now();
+                            const res = await fetch(fetchUrl);
+                            if (res.ok) {
+                                const text = await res.text();
+                                if (text && text.trim().length > 0 && !text.includes('<!DOCTYPE html>')) {
+                                    const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+                                    if (parsed.data && parsed.data.length > 0) {
+                                        downloadExcel(parsed.data, 'base_ejecutados');
+                                        downloaded = true;
+                                    }
+                                }
+                            }
+                        } catch (e) {}
+                    }
                 }
 
-                if (targetUrl) {
-                    let fetchUrl = targetUrl;
-                    if (fetchUrl.includes('docs.google.com')) {
-                        fetchUrl += (fetchUrl.includes('?') ? '&' : '?') + '_nocache=' + Date.now();
-                    }
-                    Papa.parse(fetchUrl, {
-                        download: true,
-                        header: true,
-                        skipEmptyLines: true,
-                        complete: function(results) {
-                            if (results.data && results.data.length > 0) {
-                                downloadExcel(results.data, 'base_ejecutados');
-                            } else {
-                                downloadFallbackEjecutados();
+                // 2. Si Google Sheets no estuvo disponible (offline), intentar con data_ejecutados.json generado localmente
+                if (!downloaded) {
+                    try {
+                        const resp = await fetch('data_ejecutados.json?_nocache=' + Date.now());
+                        if (resp.ok) {
+                            const dataExec = await resp.json();
+                            if (Array.isArray(dataExec) && dataExec.length > 0) {
+                                downloadExcel(dataExec, 'base_ejecutados');
+                                downloaded = true;
                             }
-                        },
-                        error: function() {
-                            downloadFallbackEjecutados();
                         }
-                    });
-                } else {
+                    } catch (e) {}
+                }
+
+                // 3. Respaldos finales si todo lo anterior fallara
+                if (!downloaded) {
                     downloadFallbackEjecutados();
                 }
             });
