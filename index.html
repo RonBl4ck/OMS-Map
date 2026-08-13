@@ -835,14 +835,28 @@
             if (timeEl) timeEl.innerText = `🕒 ${lastUploadTime}`;
 
             data.forEach(item => {
-                let lat = parseFloat(item.Latitud || item.Latitude || item.Lat);
-                let lon = parseFloat(item.Longitud || item.Longitude || item.Lon);
+                let lat = NaN;
+                let lon = NaN;
+
+                // 1. Priorizar lectura desde la columna combinada 'Coordenadas' (texto exacto de alta precisión)
+                const rawCoord = String(item.Coordenadas || item.Coordenada || item.Coordinates || '').trim();
+                if (rawCoord.includes(',')) {
+                    const parts = rawCoord.split(',');
+                    const cLat = parseFloat(parts[0].trim());
+                    const cLon = parseFloat(parts[1].trim());
+                    if (!isNaN(cLat) && !isNaN(cLon) && cLat >= -90 && cLat <= 90 && cLon >= -180 && cLon <= 180) {
+                        lat = cLat;
+                        lon = cLon;
+                    }
+                }
+
+                // 2. Fallback a columnas separadas Latitud / Longitud si Coordenadas no estaba presente o no era válida
                 if (isNaN(lat) || isNaN(lon)) {
-                    const rawCoord = String(item.Coordenadas || item.Coordenada || '');
-                    if (rawCoord.includes(',')) {
-                        const parts = rawCoord.split(',');
-                        lat = parseFloat(parts[0]);
-                        lon = parseFloat(parts[1]);
+                    const fLat = parseFloat(item.Latitud || item.Latitude || item.Lat);
+                    const fLon = parseFloat(item.Longitud || item.Longitude || item.Lon);
+                    if (!isNaN(fLat) && !isNaN(fLon) && fLat >= -90 && fLat <= 90 && fLon >= -180 && fLon <= 180) {
+                        lat = fLat;
+                        lon = fLon;
                     }
                 }
 
