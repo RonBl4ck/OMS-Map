@@ -669,19 +669,19 @@
                         <table id="tdOmsTable" style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: left;">
                             <thead>
                                 <tr style="background: var(--pluz-dark); color: white; position: sticky; top: 0; z-index: 5;">
-                                    <th style="padding: 8px 10px; font-weight: 600; white-space: nowrap;">Ticket</th>
-                                    <th style="padding: 8px 10px; font-weight: 600; white-space: nowrap;">Estado</th>
-                                    <th style="padding: 8px 10px; font-weight: 600; white-space: nowrap;">Empresa</th>
-                                    <th style="padding: 8px 10px; font-weight: 600; white-space: nowrap;">Falla</th>
-                                    <th style="padding: 8px 10px; font-weight: 600; white-space: nowrap;">Intervalo</th>
-                                    <th style="padding: 8px 10px; font-weight: 600; white-space: nowrap;">Día</th>
-                                    <th style="padding: 8px 10px; font-weight: 600; white-space: nowrap;">SED</th>
-                                    <th style="padding: 8px 10px; font-weight: 600; white-space: nowrap;">Afectación</th>
-                                    <th style="padding: 8px 10px; font-weight: 600; white-space: nowrap;">Llamadas</th>
-                                    <th style="padding: 8px 10px; font-weight: 600; white-space: nowrap;">ODM</th>
-                                    <th style="padding: 8px 10px; font-weight: 600; white-space: nowrap;">Hora de Inicio</th>
-                                    <th style="padding: 8px 10px; font-weight: 600; white-space: nowrap;">Latitud</th>
-                                    <th style="padding: 8px 10px; font-weight: 600; white-space: nowrap;">Longitud</th>
+                                    <th data-sort="ticket" data-label="Ticket" onclick="sortTdOmsTable('ticket')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Ticket">Ticket <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
+                                    <th data-sort="estado" data-label="Estado" onclick="sortTdOmsTable('estado')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Estado">Estado <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
+                                    <th data-sort="empresa" data-label="Empresa" onclick="sortTdOmsTable('empresa')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Empresa">Empresa <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
+                                    <th data-sort="falla" data-label="Falla" onclick="sortTdOmsTable('falla')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Falla">Falla <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
+                                    <th data-sort="intervalo" data-label="Intervalo" onclick="sortTdOmsTable('intervalo')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Intervalo">Intervalo <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
+                                    <th data-sort="dia" data-label="Día" onclick="sortTdOmsTable('dia')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Día">Día <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
+                                    <th data-sort="sed" data-label="SED" onclick="sortTdOmsTable('sed')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por SED">SED <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
+                                    <th data-sort="afectacion" data-label="Afectación" onclick="sortTdOmsTable('afectacion')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; text-align: center;" title="Ordenar por Afectación">Afectación <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
+                                    <th data-sort="llamadas" data-label="Llamadas" onclick="sortTdOmsTable('llamadas')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; text-align: center;" title="Ordenar por Llamadas">Llamadas <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
+                                    <th data-sort="odm" data-label="ODM" onclick="sortTdOmsTable('odm')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por ODM">ODM <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
+                                    <th data-sort="hora_inicio" data-label="Hora de Inicio" onclick="sortTdOmsTable('hora_inicio')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Hora de Inicio">Hora de Inicio <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
+                                    <th data-sort="latitud" data-label="Latitud" onclick="sortTdOmsTable('latitud')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Latitud">Latitud <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
+                                    <th data-sort="longitud" data-label="Longitud" onclick="sortTdOmsTable('longitud')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Longitud">Longitud <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
                                 </tr>
                             </thead>
                             <tbody id="tdOmsTableBody">
@@ -1241,6 +1241,33 @@
             }).join('');
         }
 
+        let currentSortCol = null;
+        let currentSortDir = 'asc';
+
+        function sortTdOmsTable(key) {
+            if (currentSortCol === key) {
+                currentSortDir = currentSortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSortCol = key;
+                currentSortDir = 'asc';
+            }
+            renderTdOmsTable(getFilteredTdOms());
+        }
+
+        function updateTableSortHeaderIcons() {
+            const tableHeaders = document.querySelectorAll("#tdOmsTable th[data-sort]");
+            tableHeaders.forEach(th => {
+                const key = th.getAttribute("data-sort");
+                const label = th.getAttribute("data-label");
+                if (key === currentSortCol) {
+                    const icon = currentSortDir === 'asc' ? ' ▲' : ' ▼';
+                    th.innerHTML = `${label} <span style="color: #38bdf8; font-weight: bold;">${icon}</span>`;
+                } else {
+                    th.innerHTML = `${label} <span style="opacity: 0.3; font-size: 9px;">↕</span>`;
+                }
+            });
+        }
+
         function renderTdOmsTable(records) {
             const tableBody = document.getElementById("tdOmsTableBody");
             const countEl = document.getElementById("tableCasesCount");
@@ -1265,6 +1292,38 @@
                     String(r.hora_inicio || r.fecha_inicio || '').toLowerCase().includes(query)
                 );
             }
+
+            if (currentSortCol) {
+                const mult = currentSortDir === 'desc' ? -1 : 1;
+                filtered = [...filtered].sort((a, b) => {
+                    let valA = a[currentSortCol];
+                    let valB = b[currentSortCol];
+
+                    if (currentSortCol === 'hora_inicio') {
+                        valA = a.hora_inicio || a.fecha_inicio || '';
+                        valB = b.hora_inicio || b.fecha_inicio || '';
+                    } else if (currentSortCol === 'latitud') {
+                        valA = a.latitud !== undefined && a.latitud !== null ? a.latitud : (a.lat !== undefined ? a.lat : '');
+                        valB = b.latitud !== undefined && b.latitud !== null ? b.latitud : (b.lat !== undefined ? b.lat : '');
+                    } else if (currentSortCol === 'longitud') {
+                        valA = a.longitud !== undefined && a.longitud !== null ? a.longitud : (a.lon !== undefined ? a.lon : '');
+                        valB = b.longitud !== undefined && b.longitud !== null ? b.longitud : (b.lon !== undefined ? b.lon : '');
+                    }
+
+                    if (valA === undefined || valA === null) valA = '';
+                    if (valB === undefined || valB === null) valB = '';
+
+                    const numA = Number(valA);
+                    const numB = Number(valB);
+                    if (!isNaN(numA) && !isNaN(numB) && String(valA).trim() !== '' && String(valB).trim() !== '') {
+                        return (numA - numB) * mult;
+                    }
+
+                    return String(valA).localeCompare(String(valB), 'es', { numeric: true, sensitivity: 'base' }) * mult;
+                });
+            }
+
+            updateTableSortHeaderIcons();
 
             if (countEl) countEl.innerText = filtered.length;
 
