@@ -909,13 +909,15 @@
                 let lat = NaN;
                 let lon = NaN;
 
+                const isZeroZero = (cLat, cLon) => Math.abs(cLat) < 0.0001 && Math.abs(cLon) < 0.0001;
+
                 // 1. Priorizar lectura desde la columna combinada 'Coordenadas' (texto exacto de alta precisión)
                 const rawCoord = String(item.Coordenadas || item.Coordenada || item.Coordinates || '').trim();
                 if (rawCoord.includes(',')) {
                     const parts = rawCoord.split(',');
                     const cLat = parseFloat(parts[0].trim());
                     const cLon = parseFloat(parts[1].trim());
-                    if (!isNaN(cLat) && !isNaN(cLon) && cLat >= -90 && cLat <= 90 && cLon >= -180 && cLon <= 180) {
+                    if (!isNaN(cLat) && !isNaN(cLon) && cLat >= -90 && cLat <= 90 && cLon >= -180 && cLon <= 180 && !isZeroZero(cLat, cLon)) {
                         lat = cLat;
                         lon = cLon;
                     }
@@ -925,7 +927,7 @@
                 if (isNaN(lat) || isNaN(lon)) {
                     const fLat = parseFloat(item.Latitud || item.Latitude || item.Lat);
                     const fLon = parseFloat(item.Longitud || item.Longitude || item.Lon);
-                    if (!isNaN(fLat) && !isNaN(fLon) && fLat >= -90 && fLat <= 90 && fLon >= -180 && fLon <= 180) {
+                    if (!isNaN(fLat) && !isNaN(fLon) && fLat >= -90 && fLat <= 90 && fLon >= -180 && fLon <= 180 && !isZeroZero(fLat, fLon)) {
                         lat = fLat;
                         lon = fLon;
                     }
@@ -935,7 +937,10 @@
                 const emp = getProp(item, 'Empresa', 'Contratista', 'CONTRATISTA', 'empresa');
                 const fal = getProp(item, 'Falla ODM2', 'Falla', 'Punto de Falla', 'Tipo de Equipo probable de falla', 'falla');
                 const ticket = getProp(item, 'Ticket', 'Ticket de Avería', 'ticket');
-                const odm = getProp(item, 'ODM', 'Orden', 'odm');
+                
+                const rawOdm = getProp(item, 'ODM', 'Orden', 'odm');
+                const odm = rawOdm;
+
                 const cadena = getProp(item, 'Cadena', 'cadena');
                 const suministro = getProp(item, 'Suministro', 'suministro');
                 const fechaIni = getProp(item, 'Hora de inicio', 'Fecha Iniciio', 'Fecha Inicio', 'fecha_inicio');
@@ -956,7 +961,7 @@
                     latitud: latitudVal, longitud: longitudVal, emoji: getEmoji(fal)
                 };
 
-                if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+                if (!isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180 && !isZeroZero(lat, lon)) {
                     mapLocations.push(record);
                 }
 
@@ -1279,6 +1284,9 @@
                 const latVal = r.latitud !== undefined && r.latitud !== null ? r.latitud : (r.lat !== undefined ? r.lat : 'N/A');
                 const lonVal = r.longitud !== undefined && r.longitud !== null ? r.longitud : (r.lon !== undefined ? r.lon : 'N/A');
 
+                let rawOdm = String(r.odm || '').trim();
+                let odmCellHtml = (!rawOdm || rawOdm === 'N/A' || rawOdm === 'Sin dato' || rawOdm === '0' || rawOdm === '0.0') ? '' : escapeHtml(rawOdm);
+
                 return `
                     <tr style="background: ${bg}; border-bottom: 1px solid #e2e8f0; transition: background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='${bg}'">
                         <td style="padding: 7px 10px; font-weight: 700; color: var(--pluz-blue, #375ab2); white-space: nowrap;">${escapeHtml(r.ticket)}</td>
@@ -1290,7 +1298,7 @@
                         <td style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.sed)}</td>
                         <td style="padding: 7px 10px; text-align: center; white-space: nowrap;">${escapeHtml(r.afectacion)}</td>
                         <td style="padding: 7px 10px; text-align: center; white-space: nowrap;">${escapeHtml(r.llamadas)}</td>
-                        <td style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.odm)}</td>
+                        <td style="padding: 7px 10px; white-space: nowrap;">${odmCellHtml}</td>
                         <td style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(horaIni)}</td>
                         <td style="padding: 7px 10px; font-family: monospace; white-space: nowrap;">${escapeHtml(latVal)}</td>
                         <td style="padding: 7px 10px; font-family: monospace; white-space: nowrap;">${escapeHtml(lonVal)}</td>
