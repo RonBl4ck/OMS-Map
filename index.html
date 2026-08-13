@@ -472,6 +472,63 @@
 </head>
 <body>
 
+    <!-- MODAL DE AUTENTICACIÓN / CANDADO PLUZ -->
+    <div id="authModalOverlay" style="
+        display: flex;
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        background: rgba(17, 28, 56, 0.96);
+        backdrop-filter: blur(12px);
+        align-items: center;
+        justify-content: center;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+    ">
+        <div style="
+            background: #ffffff;
+            width: 90%;
+            max-width: 380px;
+            border-radius: 14px;
+            padding: 30px 25px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+            text-align: center;
+            border: 2px solid var(--pluz-blue);
+        ">
+            <div style="font-size: 40px; margin-bottom: 8px;">🔒</div>
+            <h2 style="font-size: 18px; font-weight: 700; color: var(--pluz-dark); margin-bottom: 4px;">Acceso Restringido</h2>
+            <p style="font-size: 12px; color: #64748b; margin-bottom: 20px;">Pluz Energía — OMS Map</p>
+            
+            <input type="password" id="authPasswordInput" placeholder="Ingresa la contraseña..." style="
+                width: 100%;
+                padding: 10px 14px;
+                border: 1px solid #cbd5e1;
+                border-radius: 8px;
+                font-size: 14px;
+                margin-bottom: 8px;
+                outline: none;
+                box-sizing: border-box;
+                text-align: center;
+            ">
+            
+            <div id="authErrMsg" style="color: #ef4444; font-size: 12px; font-weight: 600; min-height: 20px; margin-bottom: 8px; display: none;">
+                ❌ Contraseña incorrecta
+            </div>
+
+            <button id="btnAuthLogin" style="
+                width: 100%;
+                background: var(--pluz-blue);
+                color: white;
+                border: 0;
+                padding: 10px;
+                border-radius: 8px;
+                font-weight: 700;
+                font-size: 14px;
+                cursor: pointer;
+                transition: background 0.2s;
+            ">Ingresar</button>
+        </div>
+    </div>
+
     <div id="map"></div>
 
     <!-- BARRA SUPERIOR CON LOGO PLUZ -->
@@ -1230,9 +1287,49 @@
             }
         }
 
+        const CORRECT_PASS = "OMS20_26";
+
+        function checkAuthentication() {
+            const authOverlay = document.getElementById("authModalOverlay");
+            const passInput = document.getElementById("authPasswordInput");
+            const btnLogin = document.getElementById("btnAuthLogin");
+            const errMsg = document.getElementById("authErrMsg");
+
+            if (sessionStorage.getItem("oms_auth_token") === "authenticated") {
+                if (authOverlay) authOverlay.style.display = "none";
+                initMap();
+                loadData();
+                return;
+            }
+
+            if (authOverlay) authOverlay.style.display = "flex";
+
+            function validateLogin() {
+                if (passInput && passInput.value === CORRECT_PASS) {
+                    sessionStorage.setItem("oms_auth_token", "authenticated");
+                    if (authOverlay) authOverlay.style.display = "none";
+                    initMap();
+                    loadData();
+                } else {
+                    if (errMsg) errMsg.style.display = "block";
+                    if (passInput) {
+                        passInput.value = "";
+                        passInput.focus();
+                    }
+                }
+            }
+
+            if (btnLogin) btnLogin.addEventListener("click", validateLogin);
+            if (passInput) {
+                passInput.focus();
+                passInput.addEventListener("keyup", (e) => {
+                    if (e.key === "Enter") validateLogin();
+                });
+            }
+        }
+
         document.addEventListener("DOMContentLoaded", () => {
-            initMap();
-            loadData();
+            checkAuthentication();
         });
     </script>
 </body>
