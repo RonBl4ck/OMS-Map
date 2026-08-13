@@ -1,0 +1,7 @@
+# Vercel & Node build artifacts
+.vercel
+node_modules/
+*.log
+
+# Datos de prueba local
+data.json

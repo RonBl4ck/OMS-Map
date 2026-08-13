@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OMS Map - Pluz Energía</title>
+    
+    <!-- Fuentes Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- PapaParse -->
+    <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+
+    <style>
+        :root {
+            --pluz-blue: #375ab2;
+            --pluz-blue-hover: #2b4791;
+            --pluz-yellow: #f4b428;
+            --pluz-green: #65a557;
+            --pluz-dark: #111c38;
+            --dark-panel: rgba(17, 28, 56, 0.94);
+            --card-bg: #ffffff;
+            --text-dark: #1e293b;
+            --text-muted: #64748b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: var(--pluz-dark);
+        }
+
+        #map {
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+
+        /* BARRA SUPERIOR (TOP NAVBAR ESTILO PLUZ) */
+        .top-navbar {
+            position: absolute;
+            top: 10px;
+            left: 50px;
+            right: 15px;
+            z-index: 1000;
+            background: var(--dark-panel);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: 8px 16px;
+            border-radius: 10px;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.35);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .brand-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 15px;
+            letter-spacing: 0.3px;
+        }
+
+        .brand-title span {
+            background: linear-gradient(135deg, #ffffff 0%, var(--pluz-yellow) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .map-tabs-nav {
+            display: flex;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 7px;
+            padding: 3px;
+        }
+        .map-tabs-nav button.btn-floating-modal {
+            border: 1px solid rgba(244, 180, 40, 0.4);
+            padding: 6px 14px;
+            border-radius: 5px;
+            background: rgba(244, 180, 40, 0.15);
+            color: var(--pluz-yellow);
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 12px;
+            transition: all 0.2s ease;
+        }
+        .map-tabs-nav button.btn-floating-modal:hover {
+            background: var(--pluz-yellow);
+            color: #0f172a;
+        }
+
+        .kpi-badges-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-kpi-item {
+            background: rgba(255, 255, 255, 0.08);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            border-left: 3px solid var(--pluz-blue);
+        }
+        .nav-kpi-title { font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
+        .nav-kpi-val { font-size: 13px; font-weight: 700; color: #f8fafc; }
+
+        .btn-nav-primary {
+            background: var(--pluz-blue);
+            color: white;
+            border: 0;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-nav-primary:hover { background: var(--pluz-blue-hover); }
+
+        /* BUSCADOR Y FILTROS DESPLEGABLES EN EL MAPA */
+        .search-container-map {
+            position: absolute;
+            top: 65px;
+            left: 50px;
+            z-index: 999;
+            background: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            font-family: 'Segoe UI', sans-serif;
+            border: 1px solid rgba(55, 90, 178, 0.2);
+        }
+
+        .search-container-map input {
+            padding: 6px 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 12px;
+            width: 170px;
+            outline: none;
+        }
+        .search-container-map input:focus {
+            border-color: var(--pluz-blue);
+        }
+
+        .btn-action-sm {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .btn-search { background: var(--pluz-blue); color: white; }
+        .btn-search:hover { background: var(--pluz-blue-hover); }
+        .btn-reset { background: #ef4444; color: white; }
+        .btn-reset:hover { background: #dc2626; }
+
+        /* COMPONENTE MULTI-CHECKBOX DESPLEGABLE */
+        .custom-multiselect {
+            position: relative;
+            display: inline-block;
+        }
+        .multiselect-btn {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #1e293b;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+            min-width: 145px;
+            user-select: none;
+        }
+        .multiselect-btn:after {
+            content: '▾';
+            font-size: 10px;
+            color: #64748b;
+        }
+        .multiselect-dropdown-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            z-index: 1300;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.18);
+            padding: 6px 0;
+            margin-top: 4px;
+            min-width: 200px;
+            max-height: 240px;
+            overflow-y: auto;
+        }
+        .multiselect-dropdown-menu.show {
+            display: block;
+        }
+        .multiselect-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            font-size: 12px;
+            color: #1e293b;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.15s;
+        }
+        .multiselect-item:hover {
+            background: #f1f5f9;
+        }
+        .multiselect-item input[type="checkbox"] {
+            cursor: pointer;
+            accent-color: var(--pluz-blue);
+            width: 14px;
+            height: 14px;
+        }
+        .multiselect-divider {
+            height: 1px;
+            background: #e2e8f0;
+            margin: 4px 0;
+        }
+
+        /* LEYENDA PEQUEÑA EN ESQUINA INFERIOR DERECHA */
+        .map-legend-bottom-right {
+            position: absolute;
+            bottom: 25px;
+            right: 15px;
+            z-index: 999;
+            background: var(--dark-panel);
+            backdrop-filter: blur(8px);
+            color: #ffffff;
+            padding: 10px 14px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+            font-size: 11px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        .legend-title-box {
+            font-weight: 700;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--pluz-yellow);
+            margin-bottom: 6px;
+            border-bottom: 1px solid rgba(244, 180, 40, 0.3);
+            padding-bottom: 4px;
+        }
+        .legend-items-list {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 4px;
+        }
+        .legend-item-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #f1f5f9;
+        }
+        .legend-emoji-icon {
+            font-size: 14px;
+            width: 18px;
+            text-align: center;
+        }
+
+        .custom-leaflet-emoji {
+            font-size: 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.15s ease;
+        }
+        .custom-leaflet-emoji:hover {
+            transform: scale(1.3);
+        }
+
+        /* VENTANA FLOTANTE MODAL TD OMS */
+        .td-oms-modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 2000;
+            background: rgba(17, 28, 56, 0.75);
+            backdrop-filter: blur(6px);
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .td-oms-modal-content {
+            background: #f4f6fa;
+            width: 95%;
+            max-width: 1250px;
+            height: 90vh;
+            border-radius: 14px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .modal-header-bar {
+            background: var(--pluz-dark);
+            color: white;
+            padding: 14px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--pluz-blue);
+        }
+        .modal-header-title {
+            font-weight: 700;
+            font-size: 16px;
+            color: var(--pluz-yellow);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-close-modal {
+            background: transparent;
+            border: 0;
+            color: #94a3b8;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        .btn-close-modal:hover { color: #ffffff; }
+
+        .modal-scroll-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .kpi-cards-grid {
+            max-width: 1200px;
+            margin: 0 auto 20px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+        }
+        .exec-kpi-card {
+            background: white;
+            border-radius: 10px;
+            padding: 14px 18px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            border-left: 4px solid var(--pluz-blue);
+            display: flex;
+            flex-direction: column;
+        }
+        .exec-kpi-card.kpi-pending { border-left-color: #ef4444; }
+        .exec-kpi-card.kpi-execution { border-left-color: var(--pluz-green); }
+        .exec-kpi-card.kpi-company { border-left-color: var(--pluz-yellow); }
+
+        .kpi-lbl { font-size: 11px; text-transform: uppercase; font-weight: 700; color: #64748b; margin-bottom: 4px; }
+        .kpi-num { font-size: 24px; font-weight: 800; color: #0f172a; }
+        .kpi-sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+
+        .filters-toolbar {
+            max-width: 1200px;
+            margin: 0 auto 20px;
+            background: white;
+            border-radius: 10px;
+            padding: 12px 18px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+            min-width: 160px;
+        }
+        .filter-group label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #475569;
+            text-transform: uppercase;
+        }
+
+        .charts-grid {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        .chart-card {
+            background: white;
+            border-radius: 10px;
+            padding: 18px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            min-height: 320px;
+        }
+        .chart-card h3 {
+            margin: 0 0 12px 0;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--pluz-blue);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #f1f5f9;
+            padding-bottom: 8px;
+        }
+
+        .chart-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 10px;
+            font-size: 11px;
+            color: #475569;
+            justify-content: center;
+        }
+        .chart-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .legend-color {
+            width: 10px;
+            height: 10px;
+            border-radius: 3px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .status-badge.ejecucion { background: #d1fae5; color: #047857; }
+        .status-badge.pendiente { background: #fee2e2; color: #b91c1c; }
+        .status-badge.otros { background: #e0f2fe; color: #0369a1; }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+
+    <!-- BARRA SUPERIOR CON LOGO PLUZ -->
+    <div class="top-navbar">
+        <div class="brand-title">
+            ⚡ <span>OMS Map</span>
+        </div>
+        <div class="navbar-center">
+            <div class="map-tabs-nav">
+                <button id="tabTdOms" class="btn-floating-modal" type="button">📊 Indicadores TD OMS</button>
+            </div>
+        </div>
+        <div class="kpi-badges-row">
+            <div class="nav-kpi-item">
+                <div class="nav-kpi-title">Pendientes BT</div>
+                <div class="nav-kpi-val" id="topNavCount">🚨 0 Incidencias</div>
+            </div>
+            <div class="nav-kpi-item" style="border-left-color: var(--pluz-green);">
+                <div class="nav-kpi-title">Última Subida</div>
+                <div class="nav-kpi-val" id="topNavTime" style="color: var(--pluz-green); font-family: monospace;">🕒 --:--:--</div>
+            </div>
+            <div class="nav-kpi-item" style="border-left-color: var(--pluz-blue); display: flex; gap: 6px;">
+                <button class="btn-nav-primary" id="btn-download-base">📥 Base Pendientes</button>
+                <button class="btn-nav-primary" id="btn-download-ejecutados" style="background: var(--pluz-green);">📥 Base Ejecutados</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Buscador y Filtros Multi-Checkbox en el Mapa -->
+    <div class="search-container-map" id="mapSearchToolbar">
+        <input type="text" id="inputTicket" placeholder="Buscar por Ticket...">
+        <div id="mapMultiEstado"></div>
+        <div id="mapMultiEmpresa"></div>
+        <div id="mapMultiFalla"></div>
+        <button class="btn-action-sm btn-search" id="btnBuscar">Buscar</button>
+        <button class="btn-action-sm btn-reset" id="btnLimpiar">Limpiar</button>
+    </div>
+
+    <!-- Leyenda de Emojis en Esquina Inferior Derecha -->
+    <div class="map-legend-bottom-right" id="mapEmojiLegend">
+        <div class="legend-title-box">🛠️ Tipo de Falla</div>
+        <div class="legend-items-list">
+            <div class="legend-item-row"><span class="legend-emoji-icon">🚚</span> Red Subterránea</div>
+            <div class="legend-item-row"><span class="legend-emoji-icon">🪜</span> Red / Cnx Aérea</div>
+            <div class="legend-item-row"><span class="legend-emoji-icon">🛻</span> Cnx Subterránea</div>
+            <div class="legend-item-row"><span class="legend-emoji-icon">👤</span> Suministro</div>
+            <div class="legend-item-row"><span class="legend-emoji-icon">📦</span> Fusible</div>
+            <div class="legend-item-row"><span class="legend-emoji-icon">🏗️</span> Poste</div>
+            <div class="legend-item-row"><span class="legend-emoji-icon">📍</span> General / Otro</div>
+        </div>
+    </div>
+
+    <!-- Ventana Flotante Modal de Indicadores TD OMS -->
+    <div id="tdOmsModalOverlay" class="td-oms-modal-overlay">
+        <div class="td-oms-modal-content">
+            <div class="modal-header-bar">
+                <div class="modal-header-title">
+                    📊 Indicadores TD OMS — Tablero Ejecutivo Pluz
+                </div>
+                <button id="btnCloseModal" class="btn-close-modal" title="Cerrar (Esc)">✖</button>
+            </div>
+            <div class="modal-scroll-body">
+                <div class="kpi-cards-grid">
+                    <div class="exec-kpi-card">
+                        <div class="kpi-lbl">Total Incidencias</div>
+                        <div class="kpi-num" id="kpiTotalInc">0</div>
+                        <div class="kpi-sub">En el filtro actual</div>
+                    </div>
+                    <div class="exec-kpi-card kpi-execution">
+                        <div class="kpi-lbl">En Ejecución</div>
+                        <div class="kpi-num" id="kpiEnEjecucion">0</div>
+                        <div class="kpi-sub" id="kpiEjecucionPct">0% del total</div>
+                    </div>
+                    <div class="exec-kpi-card kpi-pending">
+                        <div class="kpi-lbl">Pendientes</div>
+                        <div class="kpi-num" id="kpiPendientes">0</div>
+                        <div class="kpi-sub" id="kpiPendientesPct">0% del total</div>
+                    </div>
+                    <div class="exec-kpi-card kpi-company">
+                        <div class="kpi-lbl">Top Contratista</div>
+                        <div class="kpi-num" id="kpiTopEmpresa" style="font-size: 16px; font-weight:700;">-</div>
+                        <div class="kpi-sub" id="kpiTopEmpresaCount">0 tickets</div>
+                    </div>
+                </div>
+
+                <div class="filters-toolbar">
+                    <div class="filter-group">
+                        <label>Intervalo de Tiempo</label>
+                        <div id="tdMultiIntervalo"></div>
+                    </div>
+                    <div class="filter-group">
+                        <label>Empresa / Contratista</label>
+                        <div id="tdMultiEmpresa"></div>
+                    </div>
+                    <div class="filter-group">
+                        <label>Tipo de Falla</label>
+                        <div id="tdMultiFalla"></div>
+                    </div>
+                    <div class="filter-group">
+                        <label>Estado</label>
+                        <div id="tdMultiEstado"></div>
+                    </div>
+                    <div style="display: flex; align-items: flex-end;">
+                        <button class="btn-action-sm btn-reset" id="btnResetFilters">Limpiar Filtros</button>
+                    </div>
+                </div>
+
+                <div id="tdOmsCharts" class="charts-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        let GOOGLE_SHEET_CSV_URL = "";
+        let GOOGLE_SHEET_EJECUTADOS_URL = "";
+        let mapLocations = [];
+        let tdOmsRecords = [];
+        let rawData = [];
+
+        let leafletMap = null;
+        let markersGroup = null;
+        const markerMap = new Map();
+
+        const escapeHtml = (val) => String(val || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+        function getEmoji(falla) {
+            const f = String(falla || '').trim();
+            if (f === "Red Subterranea") return "🚚";
+            if (f === "Red Aerea" || f === "Cnx Aerea") return "🪜";
+            if (f === "Cnx Subterranea") return "🛻";
+            if (f === "Suministro") return "👤";
+            if (f === "Fusible") return "📦";
+            if (f === "Poste") return "🏗️";
+            return "📍";
+        }
+
+        // Función para ordenar intervalos de tiempo numéricamente
+        function sortIntervals(a, b) {
+            const parseNum = (str) => {
+                const match = String(str).match(/\d+/);
+                return match ? parseInt(match[0], 10) : 999;
+            };
+            const numA = parseNum(a);
+            const numB = parseNum(b);
+            if (numA !== numB) return numA - numB;
+            return String(a).localeCompare(String(b), 'es');
+        }
+
+        // === COMPONENTE MULTI-SELECT CHECKBOX ===
+        function initMultiSelect(containerId, titlePrefix, valuesList, onChangeCallback) {
+            const container = document.getElementById(containerId);
+            if (!container) return null;
+            container.innerHTML = "";
+            container.className = "custom-multiselect";
+
+            const sortFn = (titlePrefix === "Intervalo") ? sortIntervals : (a, b) => String(a).localeCompare(String(b), 'es');
+            const options = [...new Set(valuesList)].filter(Boolean).sort(sortFn);
+            let selectedVals = new Set(options);
+
+            const btn = document.createElement("button");
+            btn.className = "multiselect-btn";
+            btn.type = "button";
+
+            const menu = document.createElement("div");
+            menu.className = "multiselect-dropdown-menu";
+
+            // Evitar que el menú se cierre al hacer clic dentro
+            menu.addEventListener("click", (e) => {
+                e.stopPropagation();
+            });
+
+            function updateBtnLabel() {
+                if (selectedVals.size === options.length) {
+                    btn.innerText = `${titlePrefix}: Todos (${options.length})`;
+                } else if (selectedVals.size === 0) {
+                    btn.innerText = `${titlePrefix}: Ninguno (0)`;
+                } else if (selectedVals.size === 1) {
+                    btn.innerText = `${titlePrefix}: ${Array.from(selectedVals)[0]}`;
+                } else {
+                    btn.innerText = `${titlePrefix}: ${selectedVals.size} selec.`;
+                }
+            }
+
+            const allItem = document.createElement("label");
+            allItem.className = "multiselect-item";
+            allItem.style.fontWeight = "bold";
+            const allCb = document.createElement("input");
+            allCb.type = "checkbox";
+            allCb.checked = true;
+            allItem.appendChild(allCb);
+            allItem.appendChild(document.createTextNode("(Seleccionar todos)"));
+            menu.appendChild(allItem);
+
+            const divider = document.createElement("div");
+            divider.className = "multiselect-divider";
+            menu.appendChild(divider);
+
+            const optionCbs = [];
+
+            options.forEach(val => {
+                const item = document.createElement("label");
+                item.className = "multiselect-item";
+                const cb = document.createElement("input");
+                cb.type = "checkbox";
+                cb.value = val;
+                cb.checked = true;
+
+                cb.addEventListener("change", () => {
+                    if (cb.checked) {
+                        selectedVals.add(val);
+                    } else {
+                        selectedVals.delete(val);
+                        allCb.checked = false;
+                    }
+                    if (selectedVals.size === options.length) {
+                        allCb.checked = true;
+                    }
+                    updateBtnLabel();
+                    onChangeCallback(Array.from(selectedVals));
+                });
+
+                item.appendChild(cb);
+                item.appendChild(document.createTextNode(val));
+                menu.appendChild(item);
+                optionCbs.push(cb);
+            });
+
+            allCb.addEventListener("change", () => {
+                const checkAll = allCb.checked;
+                selectedVals.clear();
+                optionCbs.forEach(cb => {
+                    cb.checked = checkAll;
+                    if (checkAll) selectedVals.add(cb.value);
+                });
+                updateBtnLabel();
+                onChangeCallback(Array.from(selectedVals));
+            });
+
+            btn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                document.querySelectorAll(".multiselect-dropdown-menu.show").forEach(m => {
+                    if (m !== menu) m.classList.remove("show");
+                });
+                menu.classList.toggle("show");
+            });
+
+            container.appendChild(btn);
+            container.appendChild(menu);
+            updateBtnLabel();
+
+            return {
+                getSelected: () => Array.from(selectedVals),
+                reset: () => {
+                    selectedVals = new Set(options);
+                    allCb.checked = true;
+                    optionCbs.forEach(cb => cb.checked = true);
+                    updateBtnLabel();
+                }
+            };
+        }
+
+        document.addEventListener("click", () => {
+            document.querySelectorAll(".multiselect-dropdown-menu.show").forEach(m => m.classList.remove("show"));
+        });
+
+        // Inicializar Mapa Leaflet
+        function initMap() {
+            leafletMap = L.map('map', {
+                zoomControl: false,
+                preferCanvas: true
+            }).setView([-12.046374, -77.042793], 11);
+
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap &copy; CARTO',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(leafletMap);
+
+            L.control.zoom({ position: 'bottomright' }).addTo(leafletMap);
+
+            markersGroup = L.layerGroup().addTo(leafletMap);
+        }
+
+        let mapCtrlEstado, mapCtrlEmpresa, mapCtrlFalla;
+        let tdCtrlIntervalo, tdCtrlEmpresa, tdCtrlFalla, tdCtrlEstado;
+
+        function processRawData(data) {
+            rawData = data;
+            mapLocations = [];
+            tdOmsRecords = [];
+
+            // Detectar Fecha y Hora de la última subida
+            let lastUploadTime = "";
+            if (data && data.length > 0) {
+                lastUploadTime = data[0].FECHA_ACTUALIZACION_SISTEMA || data[0].fecha_actualizacion || "";
+            }
+            if (!lastUploadTime) {
+                lastUploadTime = new Date().toLocaleTimeString();
+            }
+            const timeEl = document.getElementById("topNavTime");
+            if (timeEl) timeEl.innerText = `🕒 ${lastUploadTime}`;
+
+            data.forEach(item => {
+                let lat = parseFloat(item.Latitud || item.Latitude || item.Lat);
+                let lon = parseFloat(item.Longitud || item.Longitude || item.Lon);
+                if (isNaN(lat) || isNaN(lon)) {
+                    const rawCoord = String(item.Coordenadas || item.Coordenada || '');
+                    if (rawCoord.includes(',')) {
+                        const parts = rawCoord.split(',');
+                        lat = parseFloat(parts[0]);
+                        lon = parseFloat(parts[1]);
+                    }
+                }
+
+                const est = String(item.Estados || item.Estado || item.WO_STATUS_NAME || 'SIN ESTADO').trim();
+                const emp = String(item.Empresa || item.Contratista || item.CONTRATISTA || 'SIN EMPRESA').trim();
+                const fal = String(item['Falla ODM2'] || item.Falla || item['Punto de Falla'] || 'SIN FALLA').trim();
+                const ticket = String(item.Ticket || item['Ticket de Avería'] || 'N/A').trim();
+                const odm = String(item.ODM || item.Orden || 'N/A').trim();
+                const cadena = String(item.Cadena || 'N/A').trim();
+                const suministro = String(item.Suministro || 'N/A').trim();
+                const fechaIni = String(item['Fecha Iniciio'] || item['Fecha Inicio'] || 'N/A').trim();
+                const direccion = String(item.Dirección || item.Direccion || 'N/A').trim();
+                const distrito = String(item.Distrito2 || item.Distrito || 'N/A').trim();
+                const intervalo = String(item.Intervalo || item.PERIODO || 'Sin dato').trim();
+                const dia = String(item.día || item.Día || item['Día'] || 'Sin dato').trim();
+
+                const record = {
+                    lat, lon, ticket, odm, estado: est, empresa: emp, falla: fal,
+                    cadena, suministro, fecha_inicio: fechaIni, direccion, distrito,
+                    intervalo, dia, emoji: getEmoji(fal)
+                };
+
+                if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+                    mapLocations.push(record);
+                }
+
+                tdOmsRecords.push(record);
+            });
+
+            // Filtros en el Mapa
+            mapCtrlEstado = initMultiSelect("mapMultiEstado", "Estado", mapLocations.map(m => m.estado), filterMapMarkers);
+            mapCtrlEmpresa = initMultiSelect("mapMultiEmpresa", "Empresa", mapLocations.map(m => m.empresa), filterMapMarkers);
+            mapCtrlFalla = initMultiSelect("mapMultiFalla", "Falla", mapLocations.map(m => m.falla), filterMapMarkers);
+
+            // Filtros en el Modal TD OMS
+            tdCtrlIntervalo = initMultiSelect("tdMultiIntervalo", "Intervalo", tdOmsRecords.map(r => r.intervalo), refreshDashboard);
+            tdCtrlEmpresa = initMultiSelect("tdMultiEmpresa", "Empresa", tdOmsRecords.map(r => r.empresa), refreshDashboard);
+            tdCtrlFalla = initMultiSelect("tdMultiFalla", "Falla", tdOmsRecords.map(r => r.falla), refreshDashboard);
+            tdCtrlEstado = initMultiSelect("tdMultiEstado", "Estado", tdOmsRecords.map(r => r.estado), refreshDashboard);
+
+            setupMapMarkers();
+            filterMapMarkers();
+            refreshDashboard();
+        }
+
+        function setupMapMarkers() {
+            markersGroup.clearLayers();
+            markerMap.clear();
+
+            mapLocations.forEach(loc => {
+                let stateClass = "otros";
+                if (loc.estado.toLowerCase().includes("ejecuc")) stateClass = "ejecucion";
+                else if (loc.estado.toLowerCase().includes("pendient")) stateClass = "pendiente";
+
+                const popupHtml = `
+                    <div style="font-family: Arial, sans-serif; font-size: 12px; min-width: 250px; line-height: 1.5;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #375ab2; padding-bottom:4px; margin-bottom:6px;">
+                            <h4 style="margin:0; color:#375ab2; font-size:13px;">${loc.emoji} Ticket: ${loc.ticket}</h4>
+                            <span class="status-badge ${stateClass}">${escapeHtml(loc.estado)}</span>
+                        </div>
+                        <b>ODM:</b> ${escapeHtml(loc.odm)}<br>
+                        <b>Cadena:</b> ${escapeHtml(loc.cadena)}<br>
+                        <b>Empresa:</b> ${escapeHtml(loc.empresa)}<br>
+                        <b>Falla:</b> ${escapeHtml(loc.falla)}<br>
+                        <b>Suministro:</b> ${escapeHtml(loc.suministro)}<br>
+                        <b>Fecha Inicio:</b> ${escapeHtml(loc.fecha_inicio)}<br>
+                        <b>Dirección:</b> ${escapeHtml(loc.direccion)}<br>
+                        <b>Distrito:</b> ${escapeHtml(loc.distrito)}
+                        <div style="margin-top: 10px; text-align: center;">
+                            <a href="https://www.google.com/maps?q=${loc.lat},${loc.lon}" target="_blank" style="
+                                display: inline-block;
+                                background-color: #65a557;
+                                color: white;
+                                text-decoration: none;
+                                padding: 6px 12px;
+                                font-weight: bold;
+                                border-radius: 5px;
+                                font-size: 11px;
+                            ">📍 Ir a Google Maps</a>
+                        </div>
+                    </div>
+                `;
+
+                const customIcon = L.divIcon({
+                    className: 'custom-leaflet-emoji',
+                    html: `<div style="font-size: 24px; text-align: center; cursor: pointer;">${loc.emoji}</div>`,
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15]
+                });
+
+                const marker = L.marker([loc.lat, loc.lon], { icon: customIcon }).bindPopup(popupHtml);
+                markerMap.set(loc.ticket.toLowerCase(), { marker, loc });
+            });
+        }
+
+        function filterMapMarkers() {
+            const query = document.getElementById("inputTicket").value.trim().toLowerCase();
+            const selEsts = mapCtrlEstado ? mapCtrlEstado.getSelected() : [];
+            const selEmps = mapCtrlEmpresa ? mapCtrlEmpresa.getSelected() : [];
+            const selFallas = mapCtrlFalla ? mapCtrlFalla.getSelected() : [];
+
+            markersGroup.clearLayers();
+            let count = 0;
+            const bounds = [];
+
+            mapLocations.forEach(loc => {
+                const matchTicket = !query || loc.ticket.toLowerCase().includes(query) || loc.odm.toLowerCase().includes(query);
+                const matchEst = selEsts.includes(loc.estado);
+                const matchEmp = selEmps.includes(loc.empresa);
+                const matchFal = selFallas.includes(loc.falla);
+
+                if (matchTicket && matchEst && matchEmp && matchFal) {
+                    if (markerMap.has(loc.ticket.toLowerCase())) {
+                        markersGroup.addLayer(markerMap.get(loc.ticket.toLowerCase()).marker);
+                        bounds.push([loc.lat, loc.lon]);
+                        count++;
+                    }
+                }
+            });
+
+            if (bounds.length > 0) {
+                leafletMap.fitBounds(L.latLngBounds(bounds).pad(0.1));
+            }
+            document.getElementById("topNavCount").innerText = `🚨 ${count} Incidencias`;
+        }
+
+        // Buscador y Limpiar en el Mapa
+        document.getElementById("btnBuscar").addEventListener("click", () => {
+            const query = document.getElementById("inputTicket").value.trim().toLowerCase();
+            if (!query) return;
+            if (markerMap.has(query)) {
+                const target = markerMap.get(query);
+                leafletMap.flyTo([target.loc.lat, target.loc.lon], 17, { animate: true, duration: 1.2 });
+                setTimeout(() => target.marker.openPopup(), 1200);
+            } else {
+                alert("Ticket no encontrado.");
+            }
+        });
+
+        document.getElementById("btnLimpiar").addEventListener("click", () => {
+            document.getElementById("inputTicket").value = "";
+            if (mapCtrlEstado) mapCtrlEstado.reset();
+            if (mapCtrlEmpresa) mapCtrlEmpresa.reset();
+            if (mapCtrlFalla) mapCtrlFalla.reset();
+            filterMapMarkers();
+        });
+
+        // === 4 GRÁFICOS & KPIS TD OMS ESTILO PLUZ ===
+        function getFilteredTdOms() {
+            const selIntervalos = tdCtrlIntervalo ? tdCtrlIntervalo.getSelected() : [];
+            const selEmps = tdCtrlEmpresa ? tdCtrlEmpresa.getSelected() : [];
+            const selFallas = tdCtrlFalla ? tdCtrlFalla.getSelected() : [];
+            const selStates = tdCtrlEstado ? tdCtrlEstado.getSelected() : [];
+
+            return tdOmsRecords.filter(r =>
+                selIntervalos.includes(r.intervalo) &&
+                selEmps.includes(r.empresa) &&
+                selFallas.includes(r.falla) &&
+                selStates.includes(r.estado)
+            );
+        }
+
+        function updateKpiCards(records) {
+            const total = records.length;
+            const enEjecucion = records.filter(r => r.estado.toLowerCase().includes("ejecuc")).length;
+            const pendientes = records.filter(r => r.estado.toLowerCase().includes("pendient")).length;
+
+            document.getElementById("kpiTotalInc").innerText = total;
+            document.getElementById("kpiEnEjecucion").innerText = enEjecucion;
+            document.getElementById("kpiEjecucionPct").innerText = total ? `${(enEjecucion / total * 100).toFixed(1)}% del total` : "0%";
+            document.getElementById("kpiPendientes").innerText = pendientes;
+            document.getElementById("kpiPendientesPct").innerText = total ? `${(pendientes / total * 100).toFixed(1)}% del total` : "0%";
+
+            const countsByEmpresa = {};
+            records.forEach(r => { countsByEmpresa[r.empresa] = (countsByEmpresa[r.empresa] || 0) + 1; });
+            let topEmp = "-", topCount = 0;
+            Object.entries(countsByEmpresa).forEach(([emp, count]) => {
+                if (count > topCount) { topCount = count; topEmp = emp; }
+            });
+            document.getElementById("kpiTopEmpresa").innerText = topEmp;
+            document.getElementById("kpiTopEmpresaCount").innerText = `${topCount} tickets`;
+        }
+
+        function renderModernCharts(records) {
+            const target = document.getElementById("tdOmsCharts");
+            // Paleta de Colores Pluz Oficial: Azul Royal, Amarillo Dorado, Verde Energía, Rojo Emergencia, Púrpura
+            const palette = ['#375ab2', '#f4b428', '#65a557', '#e11d48', '#8b5cf6'];
+
+            const chartDefs = [
+                ['Tickets por EE.CC', 'empresa', true],
+                ['Tickets por Tipo de Falla', 'falla', true],
+                ['Tickets por Intervalo', 'intervalo', false],
+                ['Tickets por Día', 'dia', false]
+            ];
+
+            target.innerHTML = chartDefs.map(([title, field, isHorizontal]) => {
+                const sortFn = (field === 'intervalo') ? sortIntervals : (a,b) => String(a).localeCompare(String(b), 'es');
+                const categories = [...new Set(records.map(r => r[field]))].sort(sortFn);
+                if (!categories.length) {
+                    return `<section class="chart-card"><h3>${escapeHtml(title)}</h3><p style="color:#64748b; font-size:12px;">Sin registros para los filtros seleccionados.</p></section>`;
+                }
+
+                const allStates = [...new Set(records.map(r => r.estado))].sort((a,b) => String(a).localeCompare(String(b), 'es'));
+                const series = allStates.map(st => ({
+                    name: st,
+                    values: categories.map(cat => records.filter(r => r[field] === cat && r.estado === st).length)
+                }));
+
+                const maxVal = Math.max(1, ...series.flatMap(s => s.values));
+                const W = 500, H = 260;
+                let svgContent = '';
+
+                if (isHorizontal) {
+                    const leftMargin = 120, topMargin = 20, bottomMargin = 30, rightMargin = 20;
+                    const plotW = W - leftMargin - rightMargin;
+                    const plotH = H - topMargin - bottomMargin;
+                    const groupH = plotH / Math.max(categories.length, 1);
+                    const barH = Math.max(3, Math.min(18, (groupH * 0.75) / Math.max(series.length, 1)));
+
+                    categories.forEach((cat, cIdx) => {
+                        const y0 = topMargin + cIdx * groupH + (groupH - barH * series.length) / 2;
+                        series.forEach((s, sIdx) => {
+                            const val = s.values[cIdx] || 0;
+                            const barW = (val / maxVal) * plotW;
+                            const y = y0 + sIdx * barH;
+                            const color = palette[sIdx % palette.length];
+
+                            if (val > 0) {
+                                svgContent += `<rect x="${leftMargin}" y="${y}" width="${Math.max(2, barW)}" height="${barH - 1}" fill="${color}" rx="3" ry="3"><title>${escapeHtml(s.name)}: ${val}</title></rect>`;
+                                svgContent += `<text x="${leftMargin + barW + 5}" y="${y + barH - 3}" font-size="9" font-weight="600" fill="#334155">${val}</text>`;
+                            }
+                        });
+                        const label = escapeHtml(String(cat));
+                        svgContent += `<text x="${leftMargin - 8}" y="${y0 + (groupH*0.4)}" text-anchor="end" font-size="10" font-weight="600" fill="#475569">${label.length > 16 ? label.substring(0,14)+'…' : label}</text>`;
+                    });
+                } else {
+                    const leftMargin = 40, topMargin = 20, bottomMargin = 50, rightMargin = 15;
+                    const plotW = W - leftMargin - rightMargin;
+                    const plotH = H - topMargin - bottomMargin;
+                    const groupW = plotW / Math.max(categories.length, 1);
+                    const barW = Math.max(3, Math.min(22, (groupW * 0.75) / Math.max(series.length, 1)));
+
+                    for (let tick = 0; tick <= 4; tick++) {
+                        const val = Math.round(maxVal * tick / 4);
+                        const y = topMargin + plotH - (plotH * tick / 4);
+                        svgContent += `<line x1="${leftMargin}" y1="${y}" x2="${W - rightMargin}" y2="${y}" stroke="#e2e8f0" stroke-dasharray="3 3"/><text x="${leftMargin - 6}" y="${y + 3}" text-anchor="end" font-size="9" fill="#94a3b8">${val}</text>`;
+                    }
+
+                    categories.forEach((cat, cIdx) => {
+                        const x0 = leftMargin + cIdx * groupW + (groupW - barW * series.length) / 2;
+                        series.forEach((s, sIdx) => {
+                            const val = s.values[cIdx] || 0;
+                            const barH = (val / maxVal) * plotH;
+                            const x = x0 + sIdx * barW;
+                            const y = topMargin + plotH - barH;
+                            const color = palette[sIdx % palette.length];
+
+                            if (val > 0) {
+                                svgContent += `<rect x="${x}" y="${y}" width="${Math.max(2, barW - 1)}" height="${barH}" fill="${color}" rx="3" ry="3"><title>${escapeHtml(s.name)}: ${val}</title></rect>`;
+                                svgContent += `<text x="${x + barW/2}" y="${Math.max(topMargin + 8, y - 3)}" text-anchor="middle" font-size="8" font-weight="700" fill="#334155">${val}</text>`;
+                            }
+                        });
+                        const label = escapeHtml(String(cat));
+                        svgContent += `<text x="${leftMargin + cIdx * groupW + groupW/2}" y="${topMargin + plotH + 15}" text-anchor="middle" font-size="10" font-weight="600" fill="#475569">${label}</text>`;
+                    });
+                }
+
+                const legendHtml = series.map((s, idx) => `
+                    <div class="chart-legend-item">
+                        <span class="legend-color" style="background:${palette[idx % palette.length]}"></span>
+                        <span>${escapeHtml(s.name)}</span>
+                    </div>
+                `).join('');
+
+                return `
+                    <section class="chart-card">
+                        <h3>${escapeHtml(title)}</h3>
+                        <svg viewBox="0 0 ${W} ${H}" style="width:100%; height:230px; overflow:visible;">${svgContent}</svg>
+                        <div class="chart-legend">${legendHtml}</div>
+                    </section>
+                `;
+            }).join('');
+        }
+
+        function refreshDashboard() {
+            const records = getFilteredTdOms();
+            updateKpiCards(records);
+            renderModernCharts(records);
+        }
+
+        document.getElementById("btnResetFilters").addEventListener("click", () => {
+            if (tdCtrlIntervalo) tdCtrlIntervalo.reset();
+            if (tdCtrlEmpresa) tdCtrlEmpresa.reset();
+            if (tdCtrlFalla) tdCtrlFalla.reset();
+            if (tdCtrlEstado) tdCtrlEstado.reset();
+            refreshDashboard();
+        });
+
+        // Funciones de Descarga CSV
+        function downloadCSV(dataset, prefix) {
+            if (!dataset || dataset.length === 0) {
+                alert("⚠️ No hay datos registrados para descargar.");
+                return;
+            }
+            try {
+                const csvStr = Papa.unparse(dataset);
+                const blob = new Blob(["\ufeff" + csvStr], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                const now = new Date().toISOString().slice(0, 10);
+                a.href = url;
+                a.download = `${prefix}_oms_${now}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (err) {
+                alert("❌ Error al generar archivo de descarga: " + err);
+            }
+        }
+
+        document.getElementById('btn-download-base').addEventListener('click', () => {
+            downloadCSV(rawData, 'base_pendientes');
+        });
+
+        function downloadFallbackEjecutados() {
+            const ejecutados = rawData.filter(r => {
+                const st = String(r.Estados || r.Estado || r.WO_STATUS_NAME || '').toUpperCase();
+                return st.includes('EJECU') || st.includes('ATENDID') || st.includes('FINALIZ') || st.includes('CERRAD');
+            });
+            const datasetToExport = ejecutados.length > 0 ? ejecutados : rawData;
+            downloadCSV(datasetToExport, 'base_ejecutados');
+        }
+
+        const btnEjecutados = document.getElementById('btn-download-ejecutados');
+        if (btnEjecutados) {
+            btnEjecutados.addEventListener('click', () => {
+                if (GOOGLE_SHEET_EJECUTADOS_URL) {
+                    let csvUrl = GOOGLE_SHEET_EJECUTADOS_URL;
+                    if (csvUrl.includes('docs.google.com/spreadsheets') && !csvUrl.includes('gviz/tq')) {
+                        const match = csvUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+                        if (match) {
+                            csvUrl = `https://docs.google.com/spreadsheets/d/${match[1]}/gviz/tq?tqx=out:csv&sheet=BASE_EJECUTADOS`;
+                        }
+                    }
+                    Papa.parse(csvUrl, {
+                        download: true,
+                        header: true,
+                        skipEmptyLines: true,
+                        complete: function(results) {
+                            if (results.data && results.data.length > 0) {
+                                downloadCSV(results.data, 'base_ejecutados');
+                            } else {
+                                downloadFallbackEjecutados();
+                            }
+                        },
+                        error: function() {
+                            downloadFallbackEjecutados();
+                        }
+                    });
+                } else {
+                    downloadFallbackEjecutados();
+                }
+            });
+        }
+
+        // Modal Controls
+        const modalOverlay = document.getElementById("tdOmsModalOverlay");
+        const btnCloseModal = document.getElementById("btnCloseModal");
+        const tabTdOms = document.getElementById("tabTdOms");
+
+        function openModal() {
+            modalOverlay.style.display = "flex";
+            refreshDashboard();
+        }
+        function closeModal() {
+            modalOverlay.style.display = "none";
+        }
+
+        tabTdOms.addEventListener("click", openModal);
+        const tabMapaEl = document.getElementById("tabMapa");
+        if (tabMapaEl) tabMapaEl.addEventListener("click", closeModal);
+        btnCloseModal.addEventListener("click", closeModal);
+        modalOverlay.addEventListener("click", (e) => { if (e.target === modalOverlay) closeModal(); });
+
+        // Carga de Datos
+        async function loadData() {
+            try {
+                if (!GOOGLE_SHEET_CSV_URL || !GOOGLE_SHEET_EJECUTADOS_URL) {
+                    try {
+                        const cfgResp = await fetch('config.json');
+                        if (cfgResp.ok) {
+                            const cfg = await cfgResp.json();
+                            if (cfg.sheets_url) GOOGLE_SHEET_CSV_URL = cfg.sheets_url;
+                            if (cfg.sheets_url_ejecutados) GOOGLE_SHEET_EJECUTADOS_URL = cfg.sheets_url_ejecutados;
+                        }
+                    } catch (e) {}
+                }
+
+                let csvUrl = GOOGLE_SHEET_CSV_URL;
+                if (csvUrl && csvUrl.includes('docs.google.com/spreadsheets') && !csvUrl.includes('gviz/tq')) {
+                    const match = csvUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+                    if (match) {
+                        csvUrl = `https://docs.google.com/spreadsheets/d/${match[1]}/gviz/tq?tqx=out:csv&sheet=BASE_PENDIENTES`;
+                    }
+                }
+
+                if (!csvUrl) {
+                    const localResp = await fetch('data.json');
+                    if (localResp.ok) {
+                        const json = await localResp.json();
+                        processRawData(json);
+                        return;
+                    }
+                }
+
+                Papa.parse(csvUrl, {
+                    download: true,
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        processRawData(results.data);
+                    }
+                });
+
+            } catch (err) {
+                console.error("Error cargando datos:", err);
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            initMap();
+            loadData();
+        });
+    </script>
+</body>
+</html>
