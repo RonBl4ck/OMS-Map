@@ -1212,15 +1212,29 @@
         const btnEjecutados = document.getElementById('btn-download-ejecutados');
         if (btnEjecutados) {
             btnEjecutados.addEventListener('click', () => {
-                if (GOOGLE_SHEET_EJECUTADOS_URL) {
-                    let csvUrl = GOOGLE_SHEET_EJECUTADOS_URL;
-                    if (csvUrl.includes('docs.google.com/spreadsheets') && !csvUrl.includes('gviz/tq') && !csvUrl.includes('/pub')) {
-                        const match = csvUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+                let targetUrl = GOOGLE_SHEET_EJECUTADOS_URL;
+                
+                // Si no se configuró una URL separada para ejecutados, construirla automáticamente a partir de la URL principal de Sheets
+                if (!targetUrl && GOOGLE_SHEET_CSV_URL) {
+                    if (GOOGLE_SHEET_CSV_URL.includes('/pub')) {
+                        targetUrl = GOOGLE_SHEET_CSV_URL.replace(/sheet=[^&]+/, '').replace('/pub?', '/pub?sheet=BASE_EJECUTADOS&');
+                        if (!targetUrl.includes('sheet=BASE_EJECUTADOS')) {
+                            targetUrl += (targetUrl.includes('?') ? '&' : '?') + 'sheet=BASE_EJECUTADOS';
+                        }
+                    } else {
+                        const match = GOOGLE_SHEET_CSV_URL.match(/\/d\/([a-zA-Z0-9-_]+)/);
                         if (match) {
-                            csvUrl = `https://docs.google.com/spreadsheets/d/${match[1]}/gviz/tq?tqx=out:csv&sheet=BASE_EJECUTADOS`;
+                            targetUrl = `https://docs.google.com/spreadsheets/d/${match[1]}/gviz/tq?tqx=out:csv&sheet=BASE_EJECUTADOS`;
                         }
                     }
-                    Papa.parse(csvUrl, {
+                }
+
+                if (targetUrl) {
+                    let fetchUrl = targetUrl;
+                    if (fetchUrl.includes('docs.google.com')) {
+                        fetchUrl += (fetchUrl.includes('?') ? '&' : '?') + '_nocache=' + Date.now();
+                    }
+                    Papa.parse(fetchUrl, {
                         download: true,
                         header: true,
                         skipEmptyLines: true,
