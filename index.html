@@ -314,11 +314,11 @@
         .td-oms-full-view {
             display: none;
             position: fixed;
-            top: 55px;
+            top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            z-index: 1500;
+            z-index: 2500;
             background: #f4f6fa;
             overflow-y: auto;
             font-family: 'Segoe UI', system-ui, sans-serif;
@@ -720,7 +720,7 @@
             const objKeys = Object.keys(obj);
             for (const target of keys) {
                 const normTarget = target.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                const foundKey = objKeys.find(k => k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(normTarget));
+                const foundKey = objKeys.find(k => k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === normTarget);
                 if (foundKey && obj[foundKey] !== undefined && obj[foundKey] !== null && String(obj[foundKey]).trim() !== '') {
                     return String(obj[foundKey]).trim();
                 }
