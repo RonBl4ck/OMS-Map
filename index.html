@@ -1124,7 +1124,7 @@
             btnEjecutados.addEventListener('click', () => {
                 if (GOOGLE_SHEET_EJECUTADOS_URL) {
                     let csvUrl = GOOGLE_SHEET_EJECUTADOS_URL;
-                    if (csvUrl.includes('docs.google.com/spreadsheets') && !csvUrl.includes('gviz/tq')) {
+                    if (csvUrl.includes('docs.google.com/spreadsheets') && !csvUrl.includes('gviz/tq') && !csvUrl.includes('/pub')) {
                         const match = csvUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
                         if (match) {
                             csvUrl = `https://docs.google.com/spreadsheets/d/${match[1]}/gviz/tq?tqx=out:csv&sheet=BASE_EJECUTADOS`;
@@ -1185,7 +1185,7 @@
                 }
 
                 let csvUrl = GOOGLE_SHEET_CSV_URL;
-                if (csvUrl && csvUrl.includes('docs.google.com/spreadsheets') && !csvUrl.includes('gviz/tq')) {
+                if (csvUrl && csvUrl.includes('docs.google.com/spreadsheets') && !csvUrl.includes('gviz/tq') && !csvUrl.includes('/pub')) {
                     const match = csvUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
                     if (match) {
                         csvUrl = `https://docs.google.com/spreadsheets/d/${match[1]}/gviz/tq?tqx=out:csv&sheet=BASE_PENDIENTES`;
