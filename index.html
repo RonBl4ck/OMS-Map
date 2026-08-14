@@ -853,13 +853,13 @@
     <div class="map-legend-bottom-right" id="mapEmojiLegend">
         <div class="legend-title-box">🛠️ Tipo de Falla</div>
         <div class="legend-items-list">
-            <div class="legend-item-row"><span class="legend-emoji-icon">🚚</span> Red Subterránea</div>
-            <div class="legend-item-row"><span class="legend-emoji-icon">🪜</span> Red / Cnx Aérea</div>
-            <div class="legend-item-row"><span class="legend-emoji-icon">🛻</span> Cnx Subterránea</div>
-            <div class="legend-item-row"><span class="legend-emoji-icon">👤</span> Suministro</div>
-            <div class="legend-item-row"><span class="legend-emoji-icon">📦</span> Fusible</div>
-            <div class="legend-item-row"><span class="legend-emoji-icon">🏗️</span> Poste</div>
-            <div class="legend-item-row"><span class="legend-emoji-icon">📍</span> General / Otro</div>
+            <div class="legend-item-row"><span class="legend-emoji-icon">🚚</span> RED SUBTERRÁNEA</div>
+            <div class="legend-item-row"><span class="legend-emoji-icon">🪜</span> RED / CNX AÉREA</div>
+            <div class="legend-item-row"><span class="legend-emoji-icon">🛻</span> CNX SUBTERRÁNEA</div>
+            <div class="legend-item-row"><span class="legend-emoji-icon">👤</span> SUMINISTRO</div>
+            <div class="legend-item-row"><span class="legend-emoji-icon">📦</span> FUSIBLE</div>
+            <div class="legend-item-row"><span class="legend-emoji-icon">🏗️</span> POSTE</div>
+            <div class="legend-item-row"><span class="legend-emoji-icon">📍</span> GENERAL / OTRO</div>
         </div>
     </div>
 
@@ -1006,13 +1006,13 @@
         }
 
         function getEmoji(falla) {
-            const f = String(falla || '').trim();
-            if (f === "Red Subterranea") return "🚚";
-            if (f === "Red Aerea" || f === "Cnx Aerea") return "🪜";
-            if (f === "Cnx Subterranea") return "🛻";
-            if (f === "Suministro") return "👤";
-            if (f === "Fusible") return "📦";
-            if (f === "Poste") return "🏗️";
+            const f = String(falla || '').trim().toUpperCase();
+            if (f.includes("RED SUBTERRANEA") || f.includes("RED SUBTERRÁNEA")) return "🚚";
+            if (f.includes("RED AEREA") || f.includes("RED AÉREA") || f.includes("CNX AEREA") || f.includes("CNX AÉREA") || f.includes("LÍNEA AÉREA BT") || f.includes("LINEA AEREA BT")) return "🪜";
+            if (f.includes("CNX SUBTERRANEA") || f.includes("CNX SUBTERRÁNEA")) return "🛻";
+            if (f.includes("SUMINISTRO")) return "👤";
+            if (f.includes("FUSIBLE")) return "📦";
+            if (f.includes("POSTE")) return "🏗️";
             return "📍";
         }
 
@@ -1221,7 +1221,7 @@
 
                 const est = getProp(item, 'Estados', 'Estado', 'WO_STATUS_NAME', 'estado');
                 const emp = getProp(item, 'Empresa', 'Contratista', 'CONTRATISTA', 'empresa');
-                const fal = getProp(item, 'Falla ODM2', 'Falla', 'Punto de Falla', 'Tipo de Equipo probable de falla', 'falla');
+                const fal = getProp(item, 'Falla ODM2', 'Falla', 'Punto de Falla', 'Tipo de Equipo probable de falla', 'falla').toUpperCase();
                 const ticket = getProp(item, 'Ticket', 'Ticket de Avería', 'ticket');
                 
                 const rawOdm = getProp(item, 'ODM', 'Orden', 'odm');
