@@ -833,6 +833,14 @@
                 <input type="checkbox" id="chk7LlamadasMap" style="cursor: pointer; accent-color: #e11d48; width: 14px; height: 14px;">
                 <span>📞 ≥ 7 Llamadas</span>
             </label>
+            <label class="checkbox-filter-label" style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; color: #dc2626; user-select: none;" title="Filtrar por SEDs con más de 2 fallas en los últimos 7 días">
+                <input type="checkbox" id="chkReincSedMap" style="cursor: pointer; accent-color: #dc2626; width: 14px; height: 14px;">
+                <span>🚨 SED >2 Fallas (7D)</span>
+            </label>
+            <label class="checkbox-filter-label" style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; background: #ccfbf1; border: 1px solid #99f6e4; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; color: #0d9488; user-select: none;" title="Filtrar por Suministros con 2 o más fallas en los últimos 7 días">
+                <input type="checkbox" id="chkReincSuminMap" style="cursor: pointer; accent-color: #0d9488; width: 14px; height: 14px;">
+                <span>👤 Sum. ≥2 Fallas (7D)</span>
+            </label>
             <button class="btn-action-sm btn-search" id="btnBuscar">Buscar</button>
             <button class="btn-action-sm btn-reset" id="btnLimpiar">Limpiar</button>
         </div>
@@ -905,10 +913,18 @@
                         <label>Estado</label>
                         <div id="tdMultiEstado"></div>
                     </div>
-                    <div style="display: flex; align-items: flex-end;">
+                    <div style="display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap;">
                         <label class="checkbox-filter-label" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700; color: #be123c; user-select: none;">
                             <input type="checkbox" id="chk7LlamadasModal" style="cursor: pointer; accent-color: #e11d48; width: 15px; height: 15px;">
                             <span>📞 ≥ 7 Llamadas</span>
+                        </label>
+                        <label class="checkbox-filter-label" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700; color: #dc2626; user-select: none;" title="Filtrar por SEDs con más de 2 fallas en 7 días">
+                            <input type="checkbox" id="chkReincSedModal" style="cursor: pointer; accent-color: #dc2626; width: 15px; height: 15px;">
+                            <span>🚨 SED >2 Fallas (7D)</span>
+                        </label>
+                        <label class="checkbox-filter-label" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #ccfbf1; border: 1px solid #99f6e4; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700; color: #0d9488; user-select: none;" title="Filtrar por Suministros con 2 o más fallas en 7 días">
+                            <input type="checkbox" id="chkReincSuminModal" style="cursor: pointer; accent-color: #0d9488; width: 15px; height: 15px;">
+                            <span>👤 Sum. ≥2 Fallas (7D)</span>
                         </label>
                     </div>
                     <div style="display: flex; align-items: flex-end;">
@@ -1224,10 +1240,18 @@
                 const latitudVal = isNaN(lat) ? getProp(item, 'Latitud', 'Latitude', 'Lat') : lat;
                 const longitudVal = isNaN(lon) ? getProp(item, 'Longitud', 'Longitude', 'Lon') : lon;
 
+                const rawSedCount = getProp(item, 'Conteo_Fallas_SED_7D', 'Fallas_SED_7D');
+                const sedCount = parseInt(rawSedCount, 10) || 0;
+                const sedReincidenteStr = getProp(item, 'SED_Reincidente_>2', 'SED_Reincidente');
+                const sedReincidente = sedReincidenteStr.toUpperCase() === 'SÍ' || sedReincidenteStr.toUpperCase() === 'SI' || sedCount > 2;
+
+                const rawSuminCount = getProp(item, 'Conteo_Fallas_Suministro_7D', 'Fallas_Suministro_7D');
+                const suministroCount = parseInt(rawSuminCount, 10) || 0;
+
                 const record = {
                     lat, lon, ticket, odm, estado: est, empresa: emp, falla: fal,
-                    cadena, suministro, fecha_inicio: fechaIni, hora_inicio: fechaIni,
-                    direccion, distrito, intervalo, dia, sed, afectacion, llamadas,
+                    cadena, suministro, suministro_count: suministroCount, fecha_inicio: fechaIni, hora_inicio: fechaIni,
+                    direccion, distrito, intervalo, dia, sed, sed_count: sedCount, sed_reincidente: sedReincidente, afectacion, llamadas,
                     latitud: latitudVal, longitud: longitudVal, emoji: getEmoji(fal)
                 };
 
@@ -1264,30 +1288,43 @@
                 else if (loc.estado.toLowerCase().includes("pendient")) stateClass = "pendiente";
 
                 const popupHtml = `
-                    <div style="font-family: Arial, sans-serif; font-size: 12px; min-width: 250px; line-height: 1.5;">
+                    <div style="font-family: Arial, sans-serif; font-size: 12px; min-width: 260px; line-height: 1.5;">
                         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #375ab2; padding-bottom:4px; margin-bottom:6px;">
-                            <h4 style="margin:0; color:#375ab2; font-size:13px;">${loc.emoji} Ticket: ${loc.ticket}</h4>
+                            <h4 style="margin:0; color:#375ab2; font-size:13px;">${loc.emoji} Ticket: ${escapeHtml(loc.ticket)}</h4>
                             <span class="status-badge ${stateClass}">${escapeHtml(loc.estado)}</span>
                         </div>
                         <b>ODM:</b> ${escapeHtml(loc.odm)}<br>
                         <b>Cadena:</b> ${escapeHtml(loc.cadena)}<br>
                         <b>Empresa:</b> ${escapeHtml(loc.empresa)}<br>
                         <b>Falla:</b> ${escapeHtml(loc.falla)}<br>
-                        <b>Suministro:</b> ${escapeHtml(loc.suministro)}<br>
+                        <b>SED Llave:</b> ${escapeHtml(loc.sed)} ${loc.sed_count > 0 ? `<span style="font-size:10px; font-weight:bold; color:${loc.sed_reincidente ? '#dc2626' : '#2b4791'}; background:${loc.sed_reincidente ? '#fee2e2' : '#dbeafe'}; padding:1px 6px; border-radius:4px;">(7D: ${loc.sed_count}${loc.sed_reincidente ? ' 🚨 REINCIDENTE >2' : ' fallas'})</span>` : ''}<br>
+                        <b>Suministro:</b> ${escapeHtml(loc.suministro)} ${loc.suministro_count > 0 ? `<span style="font-size:10px; font-weight:bold; color:#0d9488; background:#ccfbf1; padding:1px 6px; border-radius:4px;">(7D: ${loc.suministro_count} fallas)</span>` : ''}<br>
                         <b>Fecha Inicio:</b> ${escapeHtml(loc.fecha_inicio)}<br>
                         <b>Dirección:</b> ${escapeHtml(loc.direccion)}<br>
                         <b>Distrito:</b> ${escapeHtml(loc.distrito)}
-                        <div style="margin-top: 10px; text-align: center;">
+                        <div style="margin-top: 10px; display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
                             <a href="https://www.google.com/maps?q=${loc.lat},${loc.lon}" target="_blank" style="
                                 display: inline-block;
                                 background-color: #65a557;
                                 color: white;
                                 text-decoration: none;
-                                padding: 6px 12px;
+                                padding: 6px 10px;
                                 font-weight: bold;
                                 border-radius: 5px;
                                 font-size: 11px;
-                            ">📍 Ir a Google Maps</a>
+                                box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+                            ">📍 Google Maps</a>
+                            <a href="https://waze.com/ul?ll=${loc.lat},${loc.lon}&navigate=yes" target="_blank" style="
+                                display: inline-block;
+                                background-color: #33ccff;
+                                color: #0f172a;
+                                text-decoration: none;
+                                padding: 6px 10px;
+                                font-weight: bold;
+                                border-radius: 5px;
+                                font-size: 11px;
+                                box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+                            ">🚗 Waze</a>
                         </div>
                     </div>
                 `;
@@ -1377,16 +1414,18 @@
                                 </div>
                             `).join('')}
                         </div>
-                        <div style="margin-top: 8px; text-align: center;">
-                            <a href="https://www.google.com/maps/search/?api=1&query=${lat},${lon}" target="_blank" style="color: #4ade80; font-weight: 700; text-decoration: underline;">🗺️ Abrir ubicación en Google Maps</a>
+                        <div style="margin-top: 8px; display: flex; gap: 8px; justify-content: center;">
+                            <a href="https://www.google.com/maps/search/?api=1&query=${lat},${lon}" target="_blank" style="color: #4ade80; font-weight: 700; text-decoration: underline;">🗺️ Google Maps</a>
+                            <a href="https://waze.com/ul?ll=${lat},${lon}&navigate=yes" target="_blank" style="color: #38bdf8; font-weight: 700; text-decoration: underline;">🚗 Waze</a>
                         </div>
                     `;
                 } else {
                     resBox.innerHTML = `
                         <div style="font-weight: 700; color: #38bdf8; margin-bottom: 4px;">📍 ${escapeHtml(resultados[0].display_name)}</div>
                         <div style="color: #4ade80; font-weight: 700; margin-bottom: 6px;">✅ No hay incidencias BT en un radio de ${radio}m.</div>
-                        <div style="text-align: center;">
-                            <a href="https://www.google.com/maps/search/?api=1&query=${lat},${lon}" target="_blank" style="color: #38bdf8; font-weight: 700; text-decoration: underline;">🗺️ Abrir ubicación en Google Maps</a>
+                        <div style="display: flex; gap: 8px; justify-content: center;">
+                            <a href="https://www.google.com/maps/search/?api=1&query=${lat},${lon}" target="_blank" style="color: #4ade80; font-weight: 700; text-decoration: underline;">🗺️ Google Maps</a>
+                            <a href="https://waze.com/ul?ll=${lat},${lon}&navigate=yes" target="_blank" style="color: #38bdf8; font-weight: 700; text-decoration: underline;">🚗 Waze</a>
                         </div>
                     `;
                 }
@@ -1403,6 +1442,10 @@
             const selFallas = mapCtrlFalla ? mapCtrlFalla.getSelected() : [];
             const chk7 = document.getElementById("chk7LlamadasMap");
             const only7Llamadas = chk7 ? chk7.checked : false;
+            const chkSed = document.getElementById("chkReincSedMap");
+            const onlyReincSed = chkSed ? chkSed.checked : false;
+            const chkSum = document.getElementById("chkReincSuminMap");
+            const onlyReincSum = chkSum ? chkSum.checked : false;
 
             markersGroup.clearLayers();
             let count = 0;
@@ -1421,8 +1464,10 @@
                 const matchFal = selFallas.includes(loc.falla);
                 const numLlamadas = parseInt(loc.llamadas || 0, 10) || 0;
                 const matchLlamadas = !only7Llamadas || numLlamadas >= 7;
+                const matchSed = !onlyReincSed || (loc.sed_reincidente || loc.sed_count > 2);
+                const matchSum = !onlyReincSum || (loc.suministro_count >= 2);
 
-                if (matchQuery && matchEst && matchEmp && matchFal && matchLlamadas) {
+                if (matchQuery && matchEst && matchEmp && matchFal && matchLlamadas && matchSed && matchSum) {
                     if (markerMap.has(loc.ticket.toLowerCase())) {
                         markersGroup.addLayer(markerMap.get(loc.ticket.toLowerCase()).marker);
                         bounds.push([loc.lat, loc.lon]);
@@ -1506,6 +1551,11 @@
             }
             const chk7Map = document.getElementById("chk7LlamadasMap");
             if (chk7Map) chk7Map.checked = false;
+            const chkSedMap = document.getElementById("chkReincSedMap");
+            if (chkSedMap) chkSedMap.checked = false;
+            const chkSumMap = document.getElementById("chkReincSuminMap");
+            if (chkSumMap) chkSumMap.checked = false;
+
             if (mapCtrlEstado) mapCtrlEstado.reset();
             if (mapCtrlEmpresa) mapCtrlEmpresa.reset();
             if (mapCtrlFalla) mapCtrlFalla.reset();
@@ -1514,6 +1564,10 @@
 
         const chkMap7 = document.getElementById("chk7LlamadasMap");
         if (chkMap7) chkMap7.addEventListener("change", filterMapMarkers);
+        const chkMapSed = document.getElementById("chkReincSedMap");
+        if (chkMapSed) chkMapSed.addEventListener("change", filterMapMarkers);
+        const chkMapSum = document.getElementById("chkReincSuminMap");
+        if (chkMapSum) chkMapSum.addEventListener("change", filterMapMarkers);
 
         // === 4 GRÁFICOS & KPIS TD OMS ESTILO PLUZ ===
         function getFilteredTdOms() {
@@ -1523,16 +1577,24 @@
             const selStates = tdCtrlEstado ? tdCtrlEstado.getSelected() : [];
             const chk7Modal = document.getElementById("chk7LlamadasModal");
             const only7Llamadas = chk7Modal ? chk7Modal.checked : false;
+            const chkSedModal = document.getElementById("chkReincSedModal");
+            const onlyReincSed = chkSedModal ? chkSedModal.checked : false;
+            const chkSumModal = document.getElementById("chkReincSuminModal");
+            const onlyReincSum = chkSumModal ? chkSumModal.checked : false;
 
             return tdOmsRecords.filter(r => {
                 const numLlamadas = parseInt(r.llamadas || 0, 10) || 0;
                 const matchLlamadas = !only7Llamadas || numLlamadas >= 7;
+                const matchSed = !onlyReincSed || (r.sed_reincidente || r.sed_count > 2);
+                const matchSum = !onlyReincSum || (r.suministro_count >= 2);
                 return (
                     selIntervalos.includes(r.intervalo) &&
                     selEmps.includes(r.empresa) &&
                     selFallas.includes(r.falla) &&
                     selStates.includes(r.estado) &&
-                    matchLlamadas
+                    matchLlamadas &&
+                    matchSed &&
+                    matchSum
                 );
             });
         }
@@ -1800,10 +1862,19 @@
 
         const chkModal7 = document.getElementById("chk7LlamadasModal");
         if (chkModal7) chkModal7.addEventListener("change", refreshDashboard);
+        const chkModalSed = document.getElementById("chkReincSedModal");
+        if (chkModalSed) chkModalSed.addEventListener("change", refreshDashboard);
+        const chkModalSum = document.getElementById("chkReincSuminModal");
+        if (chkModalSum) chkModalSum.addEventListener("change", refreshDashboard);
 
         document.getElementById("btnResetFilters").addEventListener("click", () => {
             const chk7Mod = document.getElementById("chk7LlamadasModal");
             if (chk7Mod) chk7Mod.checked = false;
+            const chkSedMod = document.getElementById("chkReincSedModal");
+            if (chkSedMod) chkSedMod.checked = false;
+            const chkSumMod = document.getElementById("chkReincSuminModal");
+            if (chkSumMod) chkSumMod.checked = false;
+
             if (tdCtrlIntervalo) tdCtrlIntervalo.reset();
             if (tdCtrlEmpresa) tdCtrlEmpresa.reset();
             if (tdCtrlFalla) tdCtrlFalla.reset();
@@ -1814,11 +1885,17 @@
         // Funciones de Descarga Excel (.xlsx)
         function downloadExcel(dataset, prefix) {
             const assignedContractor = sessionStorage.getItem("oms_assigned_contractor");
-            if (assignedContractor && assignedContractor !== "*") {
+
+            if (!assignedContractor) {
+                alert("⚠️ No hay datos registrados para descargar para tu empresa asignada.");
+                return;
+            }
+
+            if (assignedContractor !== "*") {
                 const targetEmp = assignedContractor.trim().toUpperCase();
                 dataset = (dataset || []).filter(item => {
-                    const emp = getProp(item, 'Empresa', 'Contratista', 'CONTRATISTA', 'empresa').toUpperCase();
-                    return emp.includes(targetEmp);
+                    const emp = getProp(item, 'Contratista', 'Empresa', 'CONTRATISTA', 'empresa', 'Pto.tbjo.responsable').toUpperCase();
+                    return emp !== 'N/A' && (emp.includes(targetEmp) || targetEmp.includes(emp));
                 });
             }
 
