@@ -1303,28 +1303,17 @@
                         <b>Dirección:</b> ${escapeHtml(loc.direccion)}<br>
                         <b>Distrito:</b> ${escapeHtml(loc.distrito)}
                         <div style="margin-top: 10px; display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
-                            <a href="https://www.google.com/maps?q=${loc.lat},${loc.lon}" target="_blank" style="
+                            <a href="https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lon}" target="_blank" title="Ruta en Google Maps" style="
                                 display: inline-block;
-                                background-color: #65a557;
+                                background-color: #2563eb;
                                 color: white;
                                 text-decoration: none;
-                                padding: 6px 10px;
+                                padding: 6px 16px;
                                 font-weight: bold;
-                                border-radius: 5px;
-                                font-size: 11px;
-                                box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-                            ">📍 Google Maps</a>
-                            <a href="https://waze.com/ul?ll=${loc.lat},${loc.lon}&navigate=yes" target="_blank" style="
-                                display: inline-block;
-                                background-color: #33ccff;
-                                color: #0f172a;
-                                text-decoration: none;
-                                padding: 6px 10px;
-                                font-weight: bold;
-                                border-radius: 5px;
-                                font-size: 11px;
-                                box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-                            ">🚗 Waze</a>
+                                border-radius: 6px;
+                                font-size: 14px;
+                                box-shadow: 0 2px 5px rgba(37,99,235,0.3);
+                            ">🚗</a>
                         </div>
                     </div>
                 `;
@@ -1414,18 +1403,16 @@
                                 </div>
                             `).join('')}
                         </div>
-                        <div style="margin-top: 8px; display: flex; gap: 8px; justify-content: center;">
-                            <a href="https://www.google.com/maps/search/?api=1&query=${lat},${lon}" target="_blank" style="color: #4ade80; font-weight: 700; text-decoration: underline;">🗺️ Google Maps</a>
-                            <a href="https://waze.com/ul?ll=${lat},${lon}&navigate=yes" target="_blank" style="color: #38bdf8; font-weight: 700; text-decoration: underline;">🚗 Waze</a>
+                        <div style="margin-top: 8px; display: flex; justify-content: center;">
+                            <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}" target="_blank" title="Ruta en Google Maps" style="color: #38bdf8; font-weight: 700; font-size: 14px; text-decoration: none;">🚗</a>
                         </div>
                     `;
                 } else {
                     resBox.innerHTML = `
                         <div style="font-weight: 700; color: #38bdf8; margin-bottom: 4px;">📍 ${escapeHtml(resultados[0].display_name)}</div>
                         <div style="color: #4ade80; font-weight: 700; margin-bottom: 6px;">✅ No hay incidencias BT en un radio de ${radio}m.</div>
-                        <div style="display: flex; gap: 8px; justify-content: center;">
-                            <a href="https://www.google.com/maps/search/?api=1&query=${lat},${lon}" target="_blank" style="color: #4ade80; font-weight: 700; text-decoration: underline;">🗺️ Google Maps</a>
-                            <a href="https://waze.com/ul?ll=${lat},${lon}&navigate=yes" target="_blank" style="color: #38bdf8; font-weight: 700; text-decoration: underline;">🚗 Waze</a>
+                        <div style="display: flex; justify-content: center;">
+                            <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}" target="_blank" title="Ruta en Google Maps" style="color: #38bdf8; font-weight: 700; font-size: 14px; text-decoration: none;">🚗</a>
                         </div>
                     `;
                 }
