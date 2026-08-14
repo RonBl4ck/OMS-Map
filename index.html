@@ -476,17 +476,231 @@
         .status-badge.ejecucion { background: #d1fae5; color: #047857; }
         .status-badge.pendiente { background: #fee2e2; color: #b91c1c; }
         .status-badge.otros { background: #e0f2fe; color: #0369a1; }
+
+        /* =========================================================
+           ESTILOS RESPONSIVOS PARA DISPOSITIVOS MÓVILES (MÓVIL / TABLET)
+           ========================================================= */
+        .mobile-filter-toggle-btn {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            /* 1. Ajustes en la Barra Superior */
+            .top-navbar {
+                left: 10px;
+                right: 10px;
+                top: 8px;
+                padding: 8px 10px;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+
+            .brand-title {
+                font-size: 14px;
+                justify-content: space-between;
+            }
+
+            .navbar-center {
+                width: 100%;
+            }
+
+            .map-tabs-nav {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .map-tabs-nav button.tab-btn {
+                flex: 1;
+                text-align: center;
+                padding: 6px 8px;
+                font-size: 11px;
+            }
+
+            .kpi-badges-row {
+                width: 100%;
+                overflow-x: auto;
+                white-space: nowrap;
+                padding-bottom: 4px;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+            }
+
+            .kpi-badges-row::-webkit-scrollbar {
+                display: none;
+            }
+
+            .nav-kpi-item {
+                flex-shrink: 0;
+            }
+
+            .btn-nav-primary {
+                padding: 5px 10px;
+                font-size: 11px;
+                white-space: nowrap;
+            }
+
+            /* 2. Ajustes en el Buscador y Filtros del Mapa */
+            .search-container-map {
+                left: 10px;
+                right: 10px;
+                top: auto;
+                bottom: 25px;
+                padding: 8px 10px;
+                gap: 6px;
+                max-height: 55vh;
+                overflow-y: auto;
+                flex-direction: column;
+                align-items: stretch;
+                box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+            }
+
+            .mobile-filter-toggle-btn {
+                display: flex !important;
+                align-items: center;
+                justify-content: space-between;
+                width: 100%;
+                background: var(--pluz-blue);
+                color: white;
+                border: 0;
+                padding: 7px 12px;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: 700;
+                cursor: pointer;
+            }
+
+            .map-filter-content-wrapper {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 6px !important;
+            }
+
+            .map-filter-content-wrapper.collapsed-mobile {
+                display: none !important;
+            }
+
+            .search-container-map input {
+                width: 100%;
+            }
+
+            #searchTypeMap {
+                width: 100%;
+            }
+
+            .custom-multiselect {
+                width: 100%;
+            }
+
+            .multiselect-btn {
+                width: 100%;
+            }
+
+            .multiselect-dropdown-menu {
+                width: 100%;
+                max-height: 180px;
+            }
+
+            .checkbox-filter-label {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .btn-action-sm {
+                width: 100%;
+                text-align: center;
+            }
+
+            /* 3. Leyenda en Esquina Inferior */
+            .map-legend-bottom-right {
+                display: none; /* Ocultar leyenda en móvil para dejar máximo espacio al mapa */
+            }
+
+            /* 4. Tablero Indicadores TD OMS (Full-View) */
+            .td-oms-full-view {
+                padding: 12px 10px;
+            }
+
+            .view-header-bar {
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
+                padding: 12px 14px;
+            }
+
+            .modal-header-title {
+                font-size: 14px;
+                justify-content: center;
+            }
+
+            .kpi-cards-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+
+            .exec-kpi-card {
+                padding: 10px 12px;
+            }
+
+            .kpi-num {
+                font-size: 20px;
+            }
+
+            .filters-toolbar {
+                flex-direction: column;
+                align-items: stretch;
+                padding: 12px;
+                gap: 10px;
+            }
+
+            .filter-group {
+                width: 100%;
+                min-width: 100%;
+            }
+
+            .charts-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .chart-card {
+                padding: 12px;
+                min-height: 280px;
+            }
+
+            .table-section-card {
+                padding: 12px !important;
+            }
+
+            #inputFilterTable {
+                width: 100% !important;
+            }
+
+            #addressResultBox {
+                left: 10px !important;
+                right: 10px !important;
+                max-width: none !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .kpi-cards-grid {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
 
     <!-- MODAL DE AUTENTICACIÓN / CANDADO PLUZ -->
     <div id="authModalOverlay" style="
-        display: flex;
+        display: none;
         position: fixed;
-        inset: 0;
-        z-index: 99999;
-        background: rgba(17, 28, 56, 0.96);
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(15, 23, 42, 0.95);
         backdrop-filter: blur(12px);
         align-items: center;
         justify-content: center;
@@ -504,19 +718,46 @@
         ">
             <div style="font-size: 40px; margin-bottom: 8px;">🔒</div>
             <h2 style="font-size: 18px; font-weight: 700; color: var(--pluz-dark); margin-bottom: 4px;">Acceso Restringido</h2>
-            <p style="font-size: 12px; color: #64748b; margin-bottom: 20px;">Pluz Energía — OMS Map</p>
-            
-            <input type="password" id="authPasswordInput" placeholder="Ingresa la contraseña..." style="
-                width: 100%;
-                padding: 10px 14px;
-                border: 1px solid #cbd5e1;
-                border-radius: 8px;
-                font-size: 14px;
-                margin-bottom: 8px;
-                outline: none;
-                box-sizing: border-box;
-                text-align: center;
-            ">
+            <p style="font-size: 12px; color: #64748b; margin-bottom: 16px;">Pluz Energía — OMS Map</p>
+
+            <div style="text-align: left; margin-bottom: 12px;">
+                <label style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 4px; display: block;">Perfil / Usuario</label>
+                <select id="authUserInput" style="
+                    width: 100%;
+                    padding: 9px 12px;
+                    border: 1px solid #cbd5e1;
+                    border-radius: 8px;
+                    font-size: 13px;
+                    font-weight: 600;
+                    color: #1e293b;
+                    outline: none;
+                    box-sizing: border-box;
+                    background: #f8fafc;
+                    cursor: pointer;
+                ">
+                    <option value="COBRA">COBRA (Contratista)</option>
+                    <option value="DOMINION">DOMINION (Contratista)</option>
+                    <option value="INMEL">INMEL (Contratista)</option>
+                    <option value="LARI">LARI (Contratista)</option>
+                    <option value="PA">PA (Contratista)</option>
+                    <option value="PLUZ" selected>PLUZ (Administrador General)</option>
+                </select>
+            </div>
+
+            <div style="text-align: left; margin-bottom: 12px;">
+                <label style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 4px; display: block;">Contraseña</label>
+                <input type="password" id="authPasswordInput" placeholder="Ingresa la contraseña..." style="
+                    width: 100%;
+                    padding: 10px 14px;
+                    border: 1px solid #cbd5e1;
+                    border-radius: 8px;
+                    font-size: 14px;
+                    margin-bottom: 4px;
+                    outline: none;
+                    box-sizing: border-box;
+                    text-align: center;
+                ">
+            </div>
             
             <div id="authErrMsg" style="color: #ef4444; font-size: 12px; font-weight: 600; min-height: 20px; margin-bottom: 8px; display: none;">
                 ❌ Contraseña incorrecta
@@ -551,6 +792,13 @@
             </div>
         </div>
         <div class="kpi-badges-row">
+            <div class="nav-kpi-item" id="navUserBadge" style="border-left-color: var(--pluz-yellow); display: flex; align-items: center; gap: 8px;">
+                <div>
+                    <div class="nav-kpi-title">Usuario</div>
+                    <div class="nav-kpi-val" id="navUserName" style="font-size: 12px; color: var(--pluz-yellow);">👤 --</div>
+                </div>
+                <button id="btnLogout" title="Cerrar Sesión" style="background: rgba(239,68,68,0.2); color: #fca5a5; border: 1px solid rgba(239,68,68,0.4); padding: 3px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; font-weight: 700;">Salir</button>
+            </div>
             <div class="nav-kpi-item">
                 <div class="nav-kpi-title">Pendientes BT</div>
                 <div class="nav-kpi-val" id="topNavCount">🚨 0 Incidencias</div>
@@ -568,17 +816,30 @@
 
     <!-- Buscador y Filtros Multi-Checkbox en el Mapa -->
     <div class="search-container-map" id="mapSearchToolbar">
-        <input type="text" id="inputTicket" placeholder="Buscar por Ticket...">
-        <div id="mapMultiEstado"></div>
-        <div id="mapMultiEmpresa"></div>
-        <div id="mapMultiFalla"></div>
-        <label class="checkbox-filter-label" style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; color: #be123c; user-select: none;">
-            <input type="checkbox" id="chk7LlamadasMap" style="cursor: pointer; accent-color: #e11d48; width: 14px; height: 14px;">
-            <span>📞 ≥ 7 Llamadas</span>
-        </label>
-        <button class="btn-action-sm btn-search" id="btnBuscar">Buscar</button>
-        <button class="btn-action-sm btn-reset" id="btnLimpiar">Limpiar</button>
+        <button id="btnToggleMobileFilterBar" class="mobile-filter-toggle-btn" type="button">
+            <span>🔍 Filtros y Búsqueda</span> <span id="mobileFilterIcon">▼</span>
+        </button>
+        <div id="mapFilterContentWrapper" class="map-filter-content-wrapper" style="display: flex; gap: 8px; flex-wrap: wrap; width: 100%;">
+            <select id="searchTypeMap" style="padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; font-weight: 700; color: #1e293b; outline: none; background: #ffffff; cursor: pointer;">
+                <option value="ticket">Ticket / ODM</option>
+                <option value="sed">SED</option>
+                <option value="address">📍 Dirección / Ref.</option>
+            </select>
+            <input type="text" id="inputTicket" placeholder="Buscar por Ticket o ODM...">
+            <div id="mapMultiEstado"></div>
+            <div id="mapMultiEmpresa"></div>
+            <div id="mapMultiFalla"></div>
+            <label class="checkbox-filter-label" style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; color: #be123c; user-select: none;">
+                <input type="checkbox" id="chk7LlamadasMap" style="cursor: pointer; accent-color: #e11d48; width: 14px; height: 14px;">
+                <span>📞 ≥ 7 Llamadas</span>
+            </label>
+            <button class="btn-action-sm btn-search" id="btnBuscar">Buscar</button>
+            <button class="btn-action-sm btn-reset" id="btnLimpiar">Limpiar</button>
+        </div>
     </div>
+
+    <!-- Panel de Resultados de Búsqueda por Dirección -->
+    <div id="addressResultBox" style="display: none; position: absolute; top: 115px; left: 50px; z-index: 999; background: rgba(15, 23, 42, 0.94); backdrop-filter: blur(10px); color: white; padding: 12px 16px; border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,0.35); font-size: 11px; max-width: 350px; border: 1px solid rgba(255, 255, 255, 0.18);"></div>
 
     <!-- Leyenda de Emojis en Esquina Inferior Derecha -->
     <div class="map-legend-bottom-right" id="mapEmojiLegend">
@@ -890,6 +1151,15 @@
         let tdCtrlIntervalo, tdCtrlEmpresa, tdCtrlFalla, tdCtrlEstado;
 
         function processRawData(data) {
+            const assignedContractor = sessionStorage.getItem("oms_assigned_contractor");
+            if (assignedContractor && assignedContractor !== "*") {
+                const targetEmp = assignedContractor.trim().toUpperCase();
+                data = (data || []).filter(item => {
+                    const emp = getProp(item, 'Empresa', 'Contratista', 'CONTRATISTA', 'empresa').toUpperCase();
+                    return emp.includes(targetEmp);
+                });
+            }
+
             rawData = data;
             mapLocations = [];
             tdOmsRecords = [];
@@ -1034,7 +1304,99 @@
             });
         }
 
+        let addressSearchMarker = null;
+
+        function calcularDistanciaMetros(lat1, lon1, lat2, lon2) {
+            const R = 6371000;
+            const p1 = lat1 * Math.PI / 180;
+            const p2 = lat2 * Math.PI / 180;
+            const dp = (lat2 - lat1) * Math.PI / 180;
+            const dl = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dp / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2;
+            return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        }
+
+        async function buscarDireccionEnMapa() {
+            const query = document.getElementById("inputTicket").value.trim();
+            const resBox = document.getElementById("addressResultBox");
+            if (!resBox) return;
+
+            if (!query) {
+                resBox.style.display = "block";
+                resBox.innerHTML = '<span style="color: #f87171; font-weight: 700;">⚠️ Escribe una dirección o referencia urbana.</span>';
+                return;
+            }
+
+            resBox.style.display = "block";
+            resBox.innerHTML = '🔎 Buscando dirección...';
+
+            try {
+                const consulta = encodeURIComponent(query + ', Lima, Perú');
+                const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=pe&q=${consulta}`;
+                const resp = await fetch(url, { headers: { 'Accept-Language': 'es' } });
+                if (!resp.ok) throw new Error('No se pudo consultar el servicio de mapas');
+                const resultados = await resp.json();
+
+                if (!resultados || resultados.length === 0) {
+                    throw new Error('No se encontró esa dirección. Intenta agregar el distrito y Lima.');
+                }
+
+                const lat = Number(resultados[0].lat);
+                const lon = Number(resultados[0].lon);
+
+                if (addressSearchMarker) {
+                    leafletMap.removeLayer(addressSearchMarker);
+                }
+
+                const searchIcon = L.divIcon({
+                    className: 'custom-address-pin',
+                    html: `<div style="font-size: 28px; text-shadow: 0 2px 6px rgba(0,0,0,0.5);">📍</div>`,
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 32]
+                });
+
+                addressSearchMarker = L.marker([lat, lon], { icon: searchIcon, title: 'Dirección buscada' }).addTo(leafletMap);
+                addressSearchMarker.bindPopup(`<b>📍 Dirección buscada:</b><br>${escapeHtml(resultados[0].display_name)}`).openPopup();
+                leafletMap.setView([lat, lon], 16);
+
+                const radio = 500;
+                const cercanos = mapLocations.map(r => ({
+                    r,
+                    d: calcularDistanciaMetros(lat, lon, Number(r.lat), Number(r.lon))
+                })).filter(x => !isNaN(x.d) && x.d <= radio).sort((a, b) => a.d - b.d);
+
+                if (cercanos.length > 0) {
+                    resBox.innerHTML = `
+                        <div style="font-weight: 700; color: #38bdf8; margin-bottom: 4px;">📍 ${escapeHtml(resultados[0].display_name)}</div>
+                        <div style="color: #f43f5e; font-weight: 700; margin-bottom: 6px;">🚨 ${cercanos.length} incidencia(s) en radio de ${radio}m:</div>
+                        <div style="max-height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; font-size: 10px;">
+                            ${cercanos.slice(0, 6).map(x => `
+                                <div style="background: rgba(255,255,255,0.1); padding: 3px 6px; border-radius: 4px; display: flex; justify-content: space-between;">
+                                    <span>🎫 <b>${escapeHtml(x.r.ticket)}</b> (${escapeHtml(x.r.sed || 'Sin SED')})</span>
+                                    <span style="color: #fbbf24; font-family: monospace;">${Math.round(x.d)}m</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div style="margin-top: 8px; text-align: center;">
+                            <a href="https://www.google.com/maps/search/?api=1&query=${lat},${lon}" target="_blank" style="color: #4ade80; font-weight: 700; text-decoration: underline;">🗺️ Abrir ubicación en Google Maps</a>
+                        </div>
+                    `;
+                } else {
+                    resBox.innerHTML = `
+                        <div style="font-weight: 700; color: #38bdf8; margin-bottom: 4px;">📍 ${escapeHtml(resultados[0].display_name)}</div>
+                        <div style="color: #4ade80; font-weight: 700; margin-bottom: 6px;">✅ No hay incidencias BT en un radio de ${radio}m.</div>
+                        <div style="text-align: center;">
+                            <a href="https://www.google.com/maps/search/?api=1&query=${lat},${lon}" target="_blank" style="color: #38bdf8; font-weight: 700; text-decoration: underline;">🗺️ Abrir ubicación en Google Maps</a>
+                        </div>
+                    `;
+                }
+            } catch (err) {
+                resBox.innerHTML = `<span style="color: #f87171; font-weight: 700;">⚠️ ${escapeHtml(err.message)}</span>`;
+            }
+        }
+
         function filterMapMarkers() {
+            const searchType = document.getElementById("searchTypeMap") ? document.getElementById("searchTypeMap").value : "ticket";
             const query = document.getElementById("inputTicket").value.trim().toLowerCase();
             const selEsts = mapCtrlEstado ? mapCtrlEstado.getSelected() : [];
             const selEmps = mapCtrlEmpresa ? mapCtrlEmpresa.getSelected() : [];
@@ -1047,14 +1409,20 @@
             const bounds = [];
 
             mapLocations.forEach(loc => {
-                const matchTicket = !query || loc.ticket.toLowerCase().includes(query) || loc.odm.toLowerCase().includes(query);
+                let matchQuery = true;
+                if (query && searchType === "ticket") {
+                    matchQuery = loc.ticket.toLowerCase().includes(query) || loc.odm.toLowerCase().includes(query);
+                } else if (query && searchType === "sed") {
+                    matchQuery = String(loc.sed || '').toLowerCase().includes(query);
+                }
+
                 const matchEst = selEsts.includes(loc.estado);
                 const matchEmp = selEmps.includes(loc.empresa);
                 const matchFal = selFallas.includes(loc.falla);
                 const numLlamadas = parseInt(loc.llamadas || 0, 10) || 0;
                 const matchLlamadas = !only7Llamadas || numLlamadas >= 7;
 
-                if (matchTicket && matchEst && matchEmp && matchFal && matchLlamadas) {
+                if (matchQuery && matchEst && matchEmp && matchFal && matchLlamadas) {
                     if (markerMap.has(loc.ticket.toLowerCase())) {
                         markersGroup.addLayer(markerMap.get(loc.ticket.toLowerCase()).marker);
                         bounds.push([loc.lat, loc.lon]);
@@ -1069,23 +1437,73 @@
             document.getElementById("topNavCount").innerText = `🚨 ${count} Incidencias`;
         }
 
-        // Buscador y Limpiar en el Mapa (Búsqueda en tiempo real)
-        document.getElementById("inputTicket").addEventListener("input", filterMapMarkers);
+        const searchTypeMapEl = document.getElementById("searchTypeMap");
+        const inputTicketEl = document.getElementById("inputTicket");
+        const resBox = document.getElementById("addressResultBox");
+
+        if (searchTypeMapEl && inputTicketEl) {
+            searchTypeMapEl.addEventListener("change", () => {
+                const mode = searchTypeMapEl.value;
+                if (mode === "ticket") {
+                    inputTicketEl.placeholder = "Buscar por Ticket o ODM...";
+                    if (resBox) resBox.style.display = "none";
+                } else if (mode === "sed") {
+                    inputTicketEl.placeholder = "Buscar por SED (ej. 03033A)...";
+                    if (resBox) resBox.style.display = "none";
+                } else if (mode === "address") {
+                    inputTicketEl.placeholder = "Ej. Av. Faucett 200, Callao...";
+                }
+                filterMapMarkers();
+            });
+
+            inputTicketEl.addEventListener("input", () => {
+                if (searchTypeMapEl.value !== "address") {
+                    filterMapMarkers();
+                }
+            });
+
+            inputTicketEl.addEventListener("keyup", (e) => {
+                if (e.key === "Enter") {
+                    if (searchTypeMapEl.value === "address") {
+                        buscarDireccionEnMapa();
+                    } else {
+                        document.getElementById("btnBuscar").click();
+                    }
+                }
+            });
+        }
 
         document.getElementById("btnBuscar").addEventListener("click", () => {
+            const mode = searchTypeMapEl ? searchTypeMapEl.value : "ticket";
             const query = document.getElementById("inputTicket").value.trim().toLowerCase();
             if (!query) return;
+
+            if (mode === "address") {
+                buscarDireccionEnMapa();
+                return;
+            }
+
+            if (mode === "sed") {
+                filterMapMarkers();
+                return;
+            }
+
             if (markerMap.has(query)) {
                 const target = markerMap.get(query);
                 leafletMap.flyTo([target.loc.lat, target.loc.lon], 17, { animate: true, duration: 1.2 });
                 setTimeout(() => target.marker.openPopup(), 1200);
             } else {
-                alert("Ticket no encontrado.");
+                filterMapMarkers();
             }
         });
 
         document.getElementById("btnLimpiar").addEventListener("click", () => {
             document.getElementById("inputTicket").value = "";
+            if (resBox) resBox.style.display = "none";
+            if (addressSearchMarker) {
+                leafletMap.removeLayer(addressSearchMarker);
+                addressSearchMarker = null;
+            }
             const chk7Map = document.getElementById("chk7LlamadasMap");
             if (chk7Map) chk7Map.checked = false;
             if (mapCtrlEstado) mapCtrlEstado.reset();
@@ -1395,8 +1813,17 @@
 
         // Funciones de Descarga Excel (.xlsx)
         function downloadExcel(dataset, prefix) {
+            const assignedContractor = sessionStorage.getItem("oms_assigned_contractor");
+            if (assignedContractor && assignedContractor !== "*") {
+                const targetEmp = assignedContractor.trim().toUpperCase();
+                dataset = (dataset || []).filter(item => {
+                    const emp = getProp(item, 'Empresa', 'Contratista', 'CONTRATISTA', 'empresa').toUpperCase();
+                    return emp.includes(targetEmp);
+                });
+            }
+
             if (!dataset || dataset.length === 0) {
-                alert("⚠️ No hay datos registrados para descargar.");
+                alert("⚠️ No hay datos registrados para descargar para tu empresa asignada.");
                 return;
             }
             try {
@@ -1525,20 +1952,47 @@
             if (e.key === "Escape") showMapView();
         });
 
+        let APP_USERS = [
+            { user: "COBRA", password: "COBRA2026", contractor: "COBRA", role: "contractor" },
+            { user: "DOMINION", password: "DOMINION2026", contractor: "DOMINION", role: "contractor" },
+            { user: "INMEL", password: "INMEL2026", contractor: "INMEL", role: "contractor" },
+            { user: "LARI", password: "LARI2026", contractor: "LARI", role: "contractor" },
+            { user: "PA", password: "PA2026", contractor: "PA", role: "contractor" },
+            { user: "PLUZ", password: "PLUZ2026", contractor: "*", role: "admin" }
+        ];
+
+        function updateUserBadge() {
+            const userId = sessionStorage.getItem("oms_user_id") || "Invitado";
+            const contractor = sessionStorage.getItem("oms_assigned_contractor") || "*";
+            const navUserName = document.getElementById("navUserName");
+            if (navUserName) {
+                navUserName.innerText = contractor === "*" ? `👤 ${userId} (Admin)` : `👤 ${userId} (${contractor})`;
+            }
+
+            const btnLogout = document.getElementById("btnLogout");
+            if (btnLogout) {
+                btnLogout.onclick = () => {
+                    sessionStorage.clear();
+                    location.reload();
+                };
+            }
+        }
+
         // Carga de Datos
         async function loadData() {
             try {
-                if (!GOOGLE_SHEET_CSV_URL || !GOOGLE_SHEET_EJECUTADOS_URL) {
-                    try {
-                        const cfgResp = await fetch('config.json');
-                        if (cfgResp.ok) {
-                            const cfg = await cfgResp.json();
-                            if (cfg.sheets_url) GOOGLE_SHEET_CSV_URL = cfg.sheets_url;
-                            if (cfg.sheets_url_ejecutados) GOOGLE_SHEET_EJECUTADOS_URL = cfg.sheets_url_ejecutados;
-                        }
-                    } catch (e) {}
+                const cfgResp = await fetch('config.json?_nocache=' + Date.now());
+                if (cfgResp.ok) {
+                    const cfg = await cfgResp.json();
+                    if (cfg.sheets_url) GOOGLE_SHEET_CSV_URL = cfg.sheets_url;
+                    if (cfg.sheets_url_ejecutados) GOOGLE_SHEET_EJECUTADOS_URL = cfg.sheets_url_ejecutados;
+                    if (Array.isArray(cfg.users) && cfg.users.length > 0) {
+                        APP_USERS = cfg.users;
+                    }
                 }
+            } catch (e) {}
 
+            try {
                 let csvUrl = GOOGLE_SHEET_CSV_URL;
                 if (csvUrl && csvUrl.includes('docs.google.com/spreadsheets') && !csvUrl.includes('gviz/tq') && !csvUrl.includes('/pub')) {
                     const match = csvUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
@@ -1566,16 +2020,24 @@
             }
         }
 
-        const CORRECT_PASS = "OMS20_26";
-
         function checkAuthentication() {
             const authOverlay = document.getElementById("authModalOverlay");
+            const userInput = document.getElementById("authUserInput");
             const passInput = document.getElementById("authPasswordInput");
             const btnLogin = document.getElementById("btnAuthLogin");
             const errMsg = document.getElementById("authErrMsg");
 
+            fetch('config.json?_nocache=' + Date.now())
+                .then(r => r.json())
+                .then(cfg => {
+                    if (cfg && Array.isArray(cfg.users) && cfg.users.length > 0) {
+                        APP_USERS = cfg.users;
+                    }
+                }).catch(() => {});
+
             if (sessionStorage.getItem("oms_auth_token") === "authenticated") {
                 if (authOverlay) authOverlay.style.display = "none";
+                updateUserBadge();
                 initMap();
                 loadData();
                 return;
@@ -1584,9 +2046,19 @@
             if (authOverlay) authOverlay.style.display = "flex";
 
             function validateLogin() {
-                if (passInput && passInput.value === CORRECT_PASS) {
+                const selectedUser = userInput ? userInput.value : "PLUZ";
+                const passVal = passInput ? passInput.value.trim() : "";
+
+                const userObj = APP_USERS.find(u => u.user.toUpperCase() === selectedUser.toUpperCase() && u.password === passVal);
+
+                if (userObj) {
                     sessionStorage.setItem("oms_auth_token", "authenticated");
+                    sessionStorage.setItem("oms_user_id", userObj.user);
+                    sessionStorage.setItem("oms_assigned_contractor", userObj.contractor);
+                    sessionStorage.setItem("oms_user_role", userObj.role);
+
                     if (authOverlay) authOverlay.style.display = "none";
+                    updateUserBadge();
                     initMap();
                     loadData();
                 } else {
@@ -1598,16 +2070,25 @@
                 }
             }
 
-            if (btnLogin) btnLogin.addEventListener("click", validateLogin);
+            if (btnLogin) btnLogin.onclick = validateLogin;
             if (passInput) {
                 passInput.focus();
-                passInput.addEventListener("keyup", (e) => {
+                passInput.onkeyup = (e) => {
                     if (e.key === "Enter") validateLogin();
-                });
+                };
             }
         }
 
         document.addEventListener("DOMContentLoaded", () => {
+            const btnToggleMobile = document.getElementById("btnToggleMobileFilterBar");
+            const wrapperFilter = document.getElementById("mapFilterContentWrapper");
+            const iconFilter = document.getElementById("mobileFilterIcon");
+            if (btnToggleMobile && wrapperFilter) {
+                btnToggleMobile.addEventListener("click", () => {
+                    const isCollapsed = wrapperFilter.classList.toggle("collapsed-mobile");
+                    if (iconFilter) iconFilter.textContent = isCollapsed ? "▲" : "▼";
+                });
+            }
             checkAuthentication();
         });
     </script>

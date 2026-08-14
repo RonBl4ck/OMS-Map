@@ -1,4 +1,12 @@
 {
   "sheets_url": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRzHH9n7otRwazt1x3iWe9qDNVHeHBo0oMGM4i9LiO-Y3VM504bgNx7GihLR0Yb81DtqoiLt3QIRrmY/pub?output=csv",
-  "sheets_url_ejecutados": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRzHH9n7otRwazt1x3iWe9qDNVHeHBo0oMGM4i9LiO-Y3VM504bgNx7GihLR0Yb81DtqoiLt3QIRrmY/pub?output=csv&single=true&gid=1924427784"
+  "sheets_url_ejecutados": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRzHH9n7otRwazt1x3iWe9qDNVHeHBo0oMGM4i9LiO-Y3VM504bgNx7GihLR0Yb81DtqoiLt3QIRrmY/pub?output=csv&single=true&gid=1924427784",
+  "users": [
+    { "user": "COBRA", "password": "COBRA2026", "contractor": "COBRA", "role": "contractor" },
+    { "user": "DOMINION", "password": "DOMINION2026", "contractor": "DOMINION", "role": "contractor" },
+    { "user": "INMEL", "password": "INMEL2026", "contractor": "INMEL", "role": "contractor" },
+    { "user": "LARI", "password": "LARI2026", "contractor": "LARI", "role": "contractor" },
+    { "user": "PA", "password": "PA2026", "contractor": "PA", "role": "contractor" },
+    { "user": "PLUZ", "password": "PLUZ2026", "contractor": "*", "role": "admin" }
+  ]
 }
