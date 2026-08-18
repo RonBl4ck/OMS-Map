@@ -823,6 +823,7 @@
             <select id="searchTypeMap" style="padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; font-weight: 700; color: #1e293b; outline: none; background: #ffffff; cursor: pointer;">
                 <option value="ticket">Ticket / ODM</option>
                 <option value="sed">SED</option>
+                <option value="alimentador">Alimentador</option>
                 <option value="address">📍 Dirección / Ref.</option>
             </select>
             <input type="text" id="inputTicket" placeholder="Buscar por Ticket o ODM...">
@@ -953,6 +954,7 @@
                                     <th data-sort="intervalo" data-label="Intervalo" onclick="sortTdOmsTable('intervalo')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Intervalo">Intervalo <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
                                     <th data-sort="dia" data-label="Día" onclick="sortTdOmsTable('dia')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Día">Día <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
                                     <th data-sort="sed" data-label="SED" onclick="sortTdOmsTable('sed')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por SED">SED <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
+                                    <th data-sort="alimentador" data-label="Alimentador" onclick="sortTdOmsTable('alimentador')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Alimentador">Alimentador <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
                                     <th data-sort="afectacion" data-label="Afectación" onclick="sortTdOmsTable('afectacion')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; text-align: center;" title="Ordenar por Afectación">Afectación <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
                                     <th data-sort="llamadas" data-label="Llamadas" onclick="sortTdOmsTable('llamadas')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; text-align: center;" title="Ordenar por Llamadas">Llamadas <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
                                     <th data-sort="odm" data-label="ODM" onclick="sortTdOmsTable('odm')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por ODM">ODM <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
@@ -1235,6 +1237,7 @@
                 const intervalo = getProp(item, 'Intervalo', 'PERIODO', 'intervalo');
                 const dia = getProp(item, 'día', 'Día', 'dia');
                 const sed = getProp(item, 'SED', 'sed', 'sed 2', 'sed 3');
+                const alimentador = getProp(item, 'Alimentador', 'alimentador', 'ALIMENTADOR', 'ALIMENTADOR MT', 'alimentador mt');
                 const afectacion = getProp(item, 'Afectación', 'Afectacin', 'Afectacion', 'afectacion');
                 const llamadas = getProp(item, 'Llamadas', 'llamadas');
                 const latitudVal = isNaN(lat) ? getProp(item, 'Latitud', 'Latitude', 'Lat') : lat;
@@ -1251,7 +1254,7 @@
                 const record = {
                     lat, lon, ticket, odm, estado: est, empresa: emp, falla: fal,
                     cadena, suministro, suministro_count: suministroCount, fecha_inicio: fechaIni, hora_inicio: fechaIni,
-                    direccion, distrito, intervalo, dia, sed, sed_count: sedCount, sed_reincidente: sedReincidente, afectacion, llamadas,
+                    direccion, distrito, intervalo, dia, sed, alimentador, sed_count: sedCount, sed_reincidente: sedReincidente, afectacion, llamadas,
                     latitud: latitudVal, longitud: longitudVal, emoji: getEmoji(fal)
                 };
 
@@ -1298,6 +1301,7 @@
                         <b>Empresa:</b> ${escapeHtml(loc.empresa)}<br>
                         <b>Falla:</b> ${escapeHtml(loc.falla)}<br>
                         <b>SED Llave:</b> ${escapeHtml(loc.sed)} ${loc.sed_count > 0 ? `<span style="font-size:10px; font-weight:bold; color:${loc.sed_reincidente ? '#dc2626' : '#2b4791'}; background:${loc.sed_reincidente ? '#fee2e2' : '#dbeafe'}; padding:1px 6px; border-radius:4px;">(7D: ${loc.sed_count}${loc.sed_reincidente ? ' 🚨 REINCIDENTE >2' : ' fallas'})</span>` : ''}<br>
+                        <b>Alimentador:</b> ${escapeHtml(loc.alimentador || 'N/A')}<br>
                         <b>Suministro:</b> ${escapeHtml(loc.suministro)} ${loc.suministro_count > 0 ? `<span style="font-size:10px; font-weight:bold; color:#0d9488; background:#ccfbf1; padding:1px 6px; border-radius:4px;">(7D: ${loc.suministro_count} fallas)</span>` : ''}<br>
                         <b>Fecha Inicio:</b> ${escapeHtml(loc.fecha_inicio)}<br>
                         <b>Dirección:</b> ${escapeHtml(loc.direccion)}<br>
@@ -1457,6 +1461,8 @@
                     matchQuery = loc.ticket.toLowerCase().includes(query) || loc.odm.toLowerCase().includes(query);
                 } else if (query && searchType === "sed") {
                     matchQuery = String(loc.sed || '').toLowerCase().includes(query);
+                } else if (query && searchType === "alimentador") {
+                    matchQuery = String(loc.alimentador || '').toLowerCase().includes(query);
                 }
 
                 const matchEst = selEsts.includes(loc.estado);
@@ -1495,6 +1501,9 @@
                 } else if (mode === "sed") {
                     inputTicketEl.placeholder = "Buscar por SED (ej. 03033A)...";
                     if (resBox) resBox.style.display = "none";
+                } else if (mode === "alimentador") {
+                    inputTicketEl.placeholder = "Buscar por Alimentador (ej. MS-03)...";
+                    if (resBox) resBox.style.display = "none";
                 } else if (mode === "address") {
                     inputTicketEl.placeholder = "Ej. Av. Faucett 200, Callao...";
                 }
@@ -1528,7 +1537,7 @@
                 return;
             }
 
-            if (mode === "sed") {
+            if (mode === "sed" || mode === "alimentador") {
                 filterMapMarkers();
                 return;
             }
@@ -1766,6 +1775,7 @@
                     String(r.intervalo || '').toLowerCase().includes(query) ||
                     String(r.dia || '').toLowerCase().includes(query) ||
                     String(r.sed || '').toLowerCase().includes(query) ||
+                    String(r.alimentador || '').toLowerCase().includes(query) ||
                     String(r.afectacion || '').toLowerCase().includes(query) ||
                     String(r.llamadas || '').toLowerCase().includes(query) ||
                     String(r.odm || '').toLowerCase().includes(query) ||
@@ -1808,7 +1818,7 @@
             if (countEl) countEl.innerText = filtered.length;
 
             if (filtered.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="13" style="text-align: center; padding: 20px; color: #64748b;">No hay casos pendientes que coincidan con la búsqueda.</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="14" style="text-align: center; padding: 20px; color: #64748b;">No hay casos pendientes que coincidan con la búsqueda.</td></tr>`;
                 return;
             }
 
@@ -1835,6 +1845,7 @@
                         <td style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.intervalo)}</td>
                         <td style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.dia)}</td>
                         <td style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.sed)}</td>
+                        <td style="padding: 7px 10px; font-weight: 600; color: #475569; white-space: nowrap;">${escapeHtml(r.alimentador || 'N/A')}</td>
                         <td style="padding: 7px 10px; text-align: center; white-space: nowrap;">${escapeHtml(r.afectacion)}</td>
                         <td style="padding: 7px 10px; text-align: center; white-space: nowrap;">${escapeHtml(r.llamadas)}</td>
                         <td style="padding: 7px 10px; white-space: nowrap;">${odmCellHtml}</td>
