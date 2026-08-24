@@ -989,7 +989,7 @@
             </div>
             <div style="overflow-x: auto; max-height: 620px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
                 <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
-                    <thead><tr style="background: var(--pluz-dark); color: white; position: sticky; top: 0; z-index: 5;"><th style="padding: 9px 10px; white-space: nowrap;">Aviso</th><th style="padding: 9px 10px; white-space: nowrap;">Ticket</th><th style="padding: 9px 10px; white-space: nowrap;">Nombre</th><th style="padding: 9px 10px; white-space: nowrap;">Hora de registro</th><th style="padding: 9px 10px; white-space: nowrap;">Distrito</th><th style="padding: 9px 10px;">Dirección</th><th style="padding: 9px 10px; white-space: nowrap;">Estado del aviso</th></tr></thead>
+                    <thead><tr style="background: var(--pluz-dark); color: white; position: sticky; top: 0; z-index: 5;"><th data-call-sort="aviso" data-label="Aviso" onclick="sortLlamadasTable('aviso')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Aviso">Aviso <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="ticket" data-label="Ticket" onclick="sortLlamadasTable('ticket')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Ticket">Ticket <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="nombre" data-label="Nombre" onclick="sortLlamadasTable('nombre')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Nombre">Nombre <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="horaRegistro" data-label="Hora de registro" onclick="sortLlamadasTable('horaRegistro')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Hora de registro">Hora de registro <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="distrito" data-label="Distrito" onclick="sortLlamadasTable('distrito')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Distrito">Distrito <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="direccion" data-label="Dirección" onclick="sortLlamadasTable('direccion')" style="padding: 9px 10px; cursor: pointer; user-select: none;" title="Ordenar por Dirección">Dirección <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="estado" data-label="Estado del aviso" onclick="sortLlamadasTable('estado')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Estado del aviso">Estado del aviso <span style="opacity: .3; font-size: 9px;">↕</span></th></tr></thead>
                     <tbody id="llamadasTableBody"></tbody>
                 </table>
             </div>
@@ -2063,15 +2063,45 @@
 
         // Registro de llamadas (primera versión: visible solo al perfil PLUZ en la interfaz)
         function getLlamadaValue(row, ...fields) { return getProp(row, ...fields) || ''; }
+        let currentLlamadasSortCol = 'horaRegistro';
+        let currentLlamadasSortDir = 'desc';
         function parseLlamadaDate(value) {
             const match = String(value || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
             return match ? new Date(+match[3], +match[2] - 1, +match[1], +(match[4] || 0), +(match[5] || 0), +(match[6] || 0)).getTime() : 0;
+        }
+        function sortLlamadasTable(key) {
+            if (currentLlamadasSortCol === key) {
+                currentLlamadasSortDir = currentLlamadasSortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentLlamadasSortCol = key;
+                currentLlamadasSortDir = 'asc';
+            }
+            renderLlamadasTable();
+        }
+        function updateLlamadasSortHeaderIcons() {
+            document.querySelectorAll('th[data-call-sort]').forEach(header => {
+                const key = header.dataset.callSort;
+                const label = header.dataset.label;
+                const icon = key === currentLlamadasSortCol ? (currentLlamadasSortDir === 'asc' ? ' ▲' : ' ▼') : ' <span style="opacity: .3; font-size: 9px;">↕</span>';
+                header.innerHTML = `${label}${icon}`;
+            });
         }
         function renderLlamadasTable() {
             const body = document.getElementById('llamadasTableBody'), count = document.getElementById('tableLlamadasCount'), input = document.getElementById('inputFilterLlamadas');
             if (!body) return;
             const query = String(input ? input.value : '').trim().toLowerCase();
-            const rows = llamadasRecords.filter(row => !query || Object.values(row).some(value => String(value || '').toLowerCase().includes(query)));
+            let rows = llamadasRecords.filter(row => !query || Object.values(row).some(value => String(value || '').toLowerCase().includes(query)));
+            if (currentLlamadasSortCol) {
+                const multiplier = currentLlamadasSortDir === 'desc' ? -1 : 1;
+                rows = [...rows].sort((a, b) => {
+                    const valA = currentLlamadasSortCol === 'horaRegistro' ? parseLlamadaDate(a.horaRegistro) : a[currentLlamadasSortCol];
+                    const valB = currentLlamadasSortCol === 'horaRegistro' ? parseLlamadaDate(b.horaRegistro) : b[currentLlamadasSortCol];
+                    const numA = Number(valA), numB = Number(valB);
+                    if (String(valA).trim() !== '' && String(valB).trim() !== '' && Number.isFinite(numA) && Number.isFinite(numB)) return (numA - numB) * multiplier;
+                    return String(valA || '').localeCompare(String(valB || ''), 'es', { numeric: true, sensitivity: 'base' }) * multiplier;
+                });
+            }
+            updateLlamadasSortHeaderIcons();
             if (count) count.innerText = rows.length;
             if (!rows.length) { body.innerHTML = '<tr><td colspan="7" style="padding: 22px; text-align: center; color: #64748b;">No hay llamadas que coincidan con la búsqueda.</td></tr>'; return; }
             body.innerHTML = rows.map((row, index) => {
