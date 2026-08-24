@@ -789,6 +789,7 @@
             <div class="map-tabs-nav">
                 <button id="tabMapa" class="tab-btn active" type="button">📍 Mapa Interactivo</button>
                 <button id="tabTdOms" class="tab-btn" type="button">📊 Indicadores TD OMS</button>
+                <button id="tabLlamadas" class="tab-btn" type="button" style="display: none;">📞 Registro de llamadas</button>
             </div>
         </div>
         <div class="kpi-badges-row">
@@ -973,15 +974,41 @@
         </div>
     </div>
 
+    <!-- VISTA EXCLUSIVA PLUZ: REGISTRO DE LLAMADAS -->
+    <div id="llamadasModalOverlay" class="td-oms-full-view">
+        <div class="view-header-bar">
+            <div class="modal-header-title">📞 Registro de llamadas</div>
+            <button id="btnCloseLlamadas" class="btn-action-sm btn-search" style="background: var(--pluz-blue); display: inline-flex; align-items: center; gap: 6px;" title="Volver al Mapa (Esc)">📍 Volver al Mapa</button>
+        </div>
+        <div class="table-section-card" style="max-width: 1200px; margin: 0 auto; background: white; border-radius: 10px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px; flex-wrap: wrap; gap: 10px;">
+                <div>
+                    <h3 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--pluz-blue); text-transform: uppercase; letter-spacing: 0.5px;">Detalle (<span id="tableLlamadasCount">0</span>)</h3>
+                    <p id="llamadasStatus" style="margin: 5px 0 0; color: #64748b; font-size: 12px;"></p>
+                </div>
+                <input type="text" id="inputFilterLlamadas" placeholder="🔍 Buscar aviso, ticket, distrito..." style="padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; width: 260px; outline: none;">
+            </div>
+            <div style="overflow-x: auto; max-height: 620px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+                    <thead><tr style="background: var(--pluz-dark); color: white; position: sticky; top: 0; z-index: 5;"><th style="padding: 9px 10px; white-space: nowrap;">Aviso</th><th style="padding: 9px 10px; white-space: nowrap;">Ticket</th><th style="padding: 9px 10px; white-space: nowrap;">Hora de registro</th><th style="padding: 9px 10px; white-space: nowrap;">Distrito</th><th style="padding: 9px 10px;">Dirección</th><th style="padding: 9px 10px; white-space: nowrap;">Estado del aviso</th></tr></thead>
+                    <tbody id="llamadasTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
         let GOOGLE_SHEET_CSV_URL = "";
         let GOOGLE_SHEET_EJECUTADOS_URL = "";
+        let GOOGLE_SHEET_LLAMADAS_URL = "";
         let mapLocations = [];
         let tdOmsRecords = [];
         let rawData = [];
+        let llamadasRecords = [];
+        let llamadasLoaded = false;
 
         let leafletMap = null;
         let markersGroup = null;
@@ -2013,28 +2040,83 @@
             });
         }
 
+        // Registro de llamadas (primera versión: visible solo al perfil PLUZ en la interfaz)
+        function getLlamadaValue(row, ...fields) { return getProp(row, ...fields) || ''; }
+        function parseLlamadaDate(value) {
+            const match = String(value || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+            return match ? new Date(+match[3], +match[2] - 1, +match[1], +(match[4] || 0), +(match[5] || 0), +(match[6] || 0)).getTime() : 0;
+        }
+        function renderLlamadasTable() {
+            const body = document.getElementById('llamadasTableBody'), count = document.getElementById('tableLlamadasCount'), input = document.getElementById('inputFilterLlamadas');
+            if (!body) return;
+            const query = String(input ? input.value : '').trim().toLowerCase();
+            const rows = llamadasRecords.filter(row => !query || Object.values(row).some(value => String(value || '').toLowerCase().includes(query)));
+            if (count) count.innerText = rows.length;
+            if (!rows.length) { body.innerHTML = '<tr><td colspan="6" style="padding: 22px; text-align: center; color: #64748b;">No hay llamadas que coincidan con la búsqueda.</td></tr>'; return; }
+            body.innerHTML = rows.map((row, index) => {
+                const bg = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+                return `<tr style="background:${bg}; border-bottom: 1px solid #e2e8f0;"><td style="padding: 8px 10px; font-weight: 700; color: var(--pluz-blue); white-space: nowrap;">${escapeHtml(row.aviso || 'Sin dato')}</td><td style="padding: 8px 10px; white-space: nowrap;">${escapeHtml(row.ticket || 'Sin dato')}</td><td style="padding: 8px 10px; white-space: nowrap;">${escapeHtml(row.horaRegistro || 'Sin dato')}</td><td style="padding: 8px 10px; white-space: nowrap;">${escapeHtml(row.distrito || 'Sin dato')}</td><td style="padding: 8px 10px; min-width: 260px;">${escapeHtml(row.direccion || 'Sin dato')}</td><td style="padding: 8px 10px; white-space: nowrap;">${escapeHtml(row.estado || 'Sin dato')}</td></tr>`;
+            }).join('');
+        }
+        async function loadLlamadas() {
+            const status = document.getElementById('llamadasStatus');
+            if (llamadasLoaded) return;
+            if (!GOOGLE_SHEET_LLAMADAS_URL) { if (status) status.innerText = 'Pendiente de configurar la URL publicada de BASE_LLAMADAS.'; renderLlamadasTable(); return; }
+            if (status) status.innerText = 'Cargando registro de llamadas…';
+            try {
+                const separator = GOOGLE_SHEET_LLAMADAS_URL.includes('?') ? '&' : '?';
+                const response = await fetch(GOOGLE_SHEET_LLAMADAS_URL + separator + '_nocache=' + Date.now());
+                if (!response.ok) throw new Error('No se pudo leer la hoja de llamadas.');
+                const parsed = Papa.parse(await response.text(), { header: true, skipEmptyLines: true });
+                llamadasRecords = (parsed.data || []).map(row => ({ aviso: getLlamadaValue(row, 'Aviso', 'AVISO'), ticket: getLlamadaValue(row, 'Ticket', 'TICKET'), horaRegistro: getLlamadaValue(row, 'Hora de registro', 'HORA DE REGISTRO', 'Hora Registro'), distrito: getLlamadaValue(row, 'Distrito', 'DISTRITO'), direccion: getLlamadaValue(row, 'Dirección', 'Direccion', 'DIRECCIÓN', 'DIRECCION'), estado: getLlamadaValue(row, 'Estado del aviso', 'Estado Aviso', 'ESTADO DEL AVISO') })).sort((a, b) => parseLlamadaDate(b.horaRegistro) - parseLlamadaDate(a.horaRegistro));
+                llamadasLoaded = true;
+                if (status) status.innerText = `${llamadasRecords.length} registros cargados. Ordenados por hora de registro.`;
+            } catch (error) { if (status) status.innerText = 'No se pudo cargar BASE_LLAMADAS. Verifica su URL publicada y los encabezados.'; console.error('Error cargando llamadas:', error); }
+            renderLlamadasTable();
+        }
+
         // Tab view Navigation Controls
         const fullViewOverlay = document.getElementById("tdOmsModalOverlay");
+        const llamadasOverlay = document.getElementById('llamadasModalOverlay');
         const btnCloseModal = document.getElementById("btnCloseModal");
+        const btnCloseLlamadas = document.getElementById('btnCloseLlamadas');
         const tabTdOms = document.getElementById("tabTdOms");
+        const tabLlamadas = document.getElementById('tabLlamadas');
         const tabMapaEl = document.getElementById("tabMapa");
 
         function showMapView() {
             if (fullViewOverlay) fullViewOverlay.classList.remove("active-view");
+            if (llamadasOverlay) llamadasOverlay.classList.remove('active-view');
             if (tabMapaEl) tabMapaEl.classList.add("active");
             if (tabTdOms) tabTdOms.classList.remove("active");
+            if (tabLlamadas) tabLlamadas.classList.remove('active');
         }
 
         function showDashboardView() {
             if (fullViewOverlay) fullViewOverlay.classList.add("active-view");
+            if (llamadasOverlay) llamadasOverlay.classList.remove('active-view');
             if (tabTdOms) tabTdOms.classList.add("active");
             if (tabMapaEl) tabMapaEl.classList.remove("active");
+            if (tabLlamadas) tabLlamadas.classList.remove('active');
             refreshDashboard();
+        }
+        function showLlamadasView() {
+            if (sessionStorage.getItem('oms_user_role') !== 'admin') return;
+            if (fullViewOverlay) fullViewOverlay.classList.remove('active-view');
+            if (llamadasOverlay) llamadasOverlay.classList.add('active-view');
+            if (tabLlamadas) tabLlamadas.classList.add('active');
+            if (tabMapaEl) tabMapaEl.classList.remove('active');
+            if (tabTdOms) tabTdOms.classList.remove('active');
+            loadLlamadas();
         }
 
         if (tabTdOms) tabTdOms.addEventListener("click", showDashboardView);
+        if (tabLlamadas) tabLlamadas.addEventListener('click', showLlamadasView);
         if (tabMapaEl) tabMapaEl.addEventListener("click", showMapView);
         if (btnCloseModal) btnCloseModal.addEventListener("click", showMapView);
+        if (btnCloseLlamadas) btnCloseLlamadas.addEventListener('click', showMapView);
+        const llamadasFilterInput = document.getElementById('inputFilterLlamadas');
+        if (llamadasFilterInput) llamadasFilterInput.addEventListener('input', renderLlamadasTable);
 
         document.addEventListener("keydown", (e) => {
             if (e.key === "Escape") showMapView();
@@ -2052,6 +2134,9 @@
         function updateUserBadge() {
             const userId = sessionStorage.getItem("oms_user_id") || "Invitado";
             const contractor = sessionStorage.getItem("oms_assigned_contractor") || "*";
+            const isAdmin = sessionStorage.getItem('oms_user_role') === 'admin';
+            const tabLlamadas = document.getElementById('tabLlamadas');
+            if (tabLlamadas) tabLlamadas.style.display = isAdmin ? '' : 'none';
             const navUserName = document.getElementById("navUserName");
             if (navUserName) {
                 navUserName.innerText = contractor === "*" ? `👤 ${userId} (Admin)` : `👤 ${userId} (${contractor})`;
@@ -2074,6 +2159,7 @@
                     const cfg = await cfgResp.json();
                     if (cfg.sheets_url) GOOGLE_SHEET_CSV_URL = cfg.sheets_url;
                     if (cfg.sheets_url_ejecutados) GOOGLE_SHEET_EJECUTADOS_URL = cfg.sheets_url_ejecutados;
+                    if (cfg.sheets_url_llamadas) GOOGLE_SHEET_LLAMADAS_URL = cfg.sheets_url_llamadas;
                     if (Array.isArray(cfg.users) && cfg.users.length > 0) {
                         APP_USERS = cfg.users;
                     }
