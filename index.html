@@ -989,7 +989,7 @@
             </div>
             <div style="overflow-x: auto; max-height: 620px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
                 <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
-                    <thead><tr style="background: var(--pluz-dark); color: white; position: sticky; top: 0; z-index: 5;"><th style="padding: 9px 10px; white-space: nowrap;">Aviso</th><th style="padding: 9px 10px; white-space: nowrap;">Ticket</th><th style="padding: 9px 10px; white-space: nowrap;">Hora de registro</th><th style="padding: 9px 10px; white-space: nowrap;">Distrito</th><th style="padding: 9px 10px;">Dirección</th><th style="padding: 9px 10px; white-space: nowrap;">Estado del aviso</th></tr></thead>
+                    <thead><tr style="background: var(--pluz-dark); color: white; position: sticky; top: 0; z-index: 5;"><th style="padding: 9px 10px; white-space: nowrap;">Aviso</th><th style="padding: 9px 10px; white-space: nowrap;">Ticket</th><th style="padding: 9px 10px; white-space: nowrap;">Nombre</th><th style="padding: 9px 10px; white-space: nowrap;">Hora de registro</th><th style="padding: 9px 10px; white-space: nowrap;">Distrito</th><th style="padding: 9px 10px;">Dirección</th><th style="padding: 9px 10px; white-space: nowrap;">Estado del aviso</th></tr></thead>
                     <tbody id="llamadasTableBody"></tbody>
                 </table>
             </div>
@@ -1383,6 +1383,18 @@
             return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         }
 
+        function parsearCoordenadas(texto) {
+            // Acepta: "-12.0464, -77.0428" o "-12.0464 -77.0428".
+            const match = String(texto || '').trim().match(/^(-?\d+(?:\.\d+)?)\s*(?:,|;|\s+)\s*(-?\d+(?:\.\d+)?)$/);
+            if (!match) return null;
+            const lat = Number(match[1]);
+            const lon = Number(match[2]);
+            if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+                throw new Error('Las coordenadas no son válidas. Usa latitud y longitud dentro de sus rangos permitidos.');
+            }
+            return { lat, lon };
+        }
+
         async function buscarDireccionEnMapa() {
             const query = document.getElementById("inputTicket").value.trim();
             const resBox = document.getElementById("addressResultBox");
@@ -1395,21 +1407,31 @@
             }
 
             resBox.style.display = "block";
-            resBox.innerHTML = '🔎 Buscando dirección...';
+            resBox.innerHTML = '🔎 Buscando dirección o coordenadas...';
 
             try {
-                const consulta = encodeURIComponent(query + ', Lima, Perú');
-                const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=pe&q=${consulta}`;
-                const resp = await fetch(url, { headers: { 'Accept-Language': 'es' } });
-                if (!resp.ok) throw new Error('No se pudo consultar el servicio de mapas');
-                const resultados = await resp.json();
+                const coordenadas = parsearCoordenadas(query);
+                let lat;
+                let lon;
+                let locationLabel;
 
-                if (!resultados || resultados.length === 0) {
-                    throw new Error('No se encontró esa dirección. Intenta agregar el distrito y Lima.');
+                if (coordenadas) {
+                    lat = coordenadas.lat;
+                    lon = coordenadas.lon;
+                    locationLabel = `Coordenadas: ${lat}, ${lon}`;
+                } else {
+                    const consulta = encodeURIComponent(query + ', Lima, Perú');
+                    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=pe&q=${consulta}`;
+                    const resp = await fetch(url, { headers: { 'Accept-Language': 'es' } });
+                    if (!resp.ok) throw new Error('No se pudo consultar el servicio de mapas');
+                    const resultados = await resp.json();
+                    if (!resultados || resultados.length === 0) {
+                        throw new Error('No se encontró esa dirección. Intenta agregar el distrito y Lima.');
+                    }
+                    lat = Number(resultados[0].lat);
+                    lon = Number(resultados[0].lon);
+                    locationLabel = resultados[0].display_name;
                 }
-
-                const lat = Number(resultados[0].lat);
-                const lon = Number(resultados[0].lon);
 
                 if (addressSearchMarker) {
                     leafletMap.removeLayer(addressSearchMarker);
@@ -1422,8 +1444,8 @@
                     iconAnchor: [16, 32]
                 });
 
-                addressSearchMarker = L.marker([lat, lon], { icon: searchIcon, title: 'Dirección buscada' }).addTo(leafletMap);
-                addressSearchMarker.bindPopup(`<b>📍 Dirección buscada:</b><br>${escapeHtml(resultados[0].display_name)}`).openPopup();
+                addressSearchMarker = L.marker([lat, lon], { icon: searchIcon, title: 'Ubicación buscada' }).addTo(leafletMap);
+                addressSearchMarker.bindPopup(`<b>📍 Ubicación buscada:</b><br>${escapeHtml(locationLabel)}`).openPopup();
                 leafletMap.setView([lat, lon], 16);
 
                 const radio = 500;
@@ -1434,7 +1456,7 @@
 
                 if (cercanos.length > 0) {
                     resBox.innerHTML = `
-                        <div style="font-weight: 700; color: #38bdf8; margin-bottom: 4px;">📍 ${escapeHtml(resultados[0].display_name)}</div>
+                        <div style="font-weight: 700; color: #38bdf8; margin-bottom: 4px;">📍 ${escapeHtml(locationLabel)}</div>
                         <div style="color: #f43f5e; font-weight: 700; margin-bottom: 6px;">🚨 ${cercanos.length} incidencia(s) en radio de ${radio}m:</div>
                         <div style="max-height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; font-size: 10px;">
                             ${cercanos.slice(0, 6).map(x => `
@@ -1451,7 +1473,7 @@
                     `;
                 } else {
                     resBox.innerHTML = `
-                        <div style="font-weight: 700; color: #38bdf8; margin-bottom: 4px;">📍 ${escapeHtml(resultados[0].display_name)}</div>
+                        <div style="font-weight: 700; color: #38bdf8; margin-bottom: 4px;">📍 ${escapeHtml(locationLabel)}</div>
                         <div style="color: #4ade80; font-weight: 700; margin-bottom: 6px;">✅ No hay incidencias BT en un radio de ${radio}m.</div>
                         <div style="display: flex; gap: 8px; justify-content: center; align-items: center;">
                             <a href="https://www.google.com/maps/search/?api=1&query=${lat},${lon}" target="_blank" style="color: #4ade80; font-weight: 700; text-decoration: underline;">🗺️ Google Maps</a>
@@ -2051,10 +2073,10 @@
             const query = String(input ? input.value : '').trim().toLowerCase();
             const rows = llamadasRecords.filter(row => !query || Object.values(row).some(value => String(value || '').toLowerCase().includes(query)));
             if (count) count.innerText = rows.length;
-            if (!rows.length) { body.innerHTML = '<tr><td colspan="6" style="padding: 22px; text-align: center; color: #64748b;">No hay llamadas que coincidan con la búsqueda.</td></tr>'; return; }
+            if (!rows.length) { body.innerHTML = '<tr><td colspan="7" style="padding: 22px; text-align: center; color: #64748b;">No hay llamadas que coincidan con la búsqueda.</td></tr>'; return; }
             body.innerHTML = rows.map((row, index) => {
                 const bg = index % 2 === 0 ? '#ffffff' : '#f8fafc';
-                return `<tr style="background:${bg}; border-bottom: 1px solid #e2e8f0;"><td style="padding: 8px 10px; font-weight: 700; color: var(--pluz-blue); white-space: nowrap;">${escapeHtml(row.aviso || 'Sin dato')}</td><td style="padding: 8px 10px; white-space: nowrap;">${escapeHtml(row.ticket || 'Sin dato')}</td><td style="padding: 8px 10px; white-space: nowrap;">${escapeHtml(row.horaRegistro || 'Sin dato')}</td><td style="padding: 8px 10px; white-space: nowrap;">${escapeHtml(row.distrito || 'Sin dato')}</td><td style="padding: 8px 10px; min-width: 260px;">${escapeHtml(row.direccion || 'Sin dato')}</td><td style="padding: 8px 10px; white-space: nowrap;">${escapeHtml(row.estado || 'Sin dato')}</td></tr>`;
+                return `<tr style="background:${bg}; border-bottom: 1px solid #e2e8f0;"><td style="padding: 8px 10px; font-weight: 700; color: var(--pluz-blue); white-space: nowrap;">${escapeHtml(row.aviso || 'Sin dato')}</td><td style="padding: 8px 10px; white-space: nowrap;">${escapeHtml(row.ticket || 'Sin dato')}</td><td style="padding: 8px 10px; min-width: 200px;">${escapeHtml(row.nombre || 'Sin dato')}</td><td style="padding: 8px 10px; white-space: nowrap;">${escapeHtml(row.horaRegistro || 'Sin dato')}</td><td style="padding: 8px 10px; white-space: nowrap;">${escapeHtml(row.distrito || 'Sin dato')}</td><td style="padding: 8px 10px; min-width: 260px;">${escapeHtml(row.direccion || 'Sin dato')}</td><td style="padding: 8px 10px; white-space: nowrap;">${escapeHtml(row.estado || 'Sin dato')}</td></tr>`;
             }).join('');
         }
         async function loadLlamadas() {
@@ -2067,7 +2089,7 @@
                 const response = await fetch(GOOGLE_SHEET_LLAMADAS_URL + separator + '_nocache=' + Date.now());
                 if (!response.ok) throw new Error('No se pudo leer la hoja de llamadas.');
                 const parsed = Papa.parse(await response.text(), { header: true, skipEmptyLines: true });
-                llamadasRecords = (parsed.data || []).map(row => ({ aviso: getLlamadaValue(row, 'Aviso', 'AVISO'), ticket: getLlamadaValue(row, 'Ticket', 'TICKET'), horaRegistro: getLlamadaValue(row, 'Hora de registro', 'HORA DE REGISTRO', 'Hora Registro'), distrito: getLlamadaValue(row, 'Distrito', 'DISTRITO'), direccion: getLlamadaValue(row, 'Dirección', 'Direccion', 'DIRECCIÓN', 'DIRECCION'), estado: getLlamadaValue(row, 'Estado del aviso', 'Estado Aviso', 'ESTADO DEL AVISO') })).sort((a, b) => parseLlamadaDate(b.horaRegistro) - parseLlamadaDate(a.horaRegistro));
+                llamadasRecords = (parsed.data || []).map(row => ({ aviso: getLlamadaValue(row, 'Aviso', 'AVISO'), ticket: getLlamadaValue(row, 'Ticket', 'TICKET'), nombre: getLlamadaValue(row, 'Nombre', 'NOMBRE'), horaRegistro: getLlamadaValue(row, 'Hora de registro', 'HORA DE REGISTRO', 'Hora Registro'), distrito: getLlamadaValue(row, 'Distrito', 'DISTRITO'), direccion: getLlamadaValue(row, 'Dirección', 'Direccion', 'DIRECCIÓN', 'DIRECCION'), estado: getLlamadaValue(row, 'Estado del aviso', 'Estado Aviso', 'ESTADO DEL AVISO') })).sort((a, b) => parseLlamadaDate(b.horaRegistro) - parseLlamadaDate(a.horaRegistro));
                 llamadasLoaded = true;
                 if (status) status.innerText = `${llamadasRecords.length} registros cargados. Ordenados por hora de registro.`;
             } catch (error) { if (status) status.innerText = 'No se pudo cargar BASE_LLAMADAS. Verifica su URL publicada y los encabezados.'; console.error('Error cargando llamadas:', error); }
