@@ -690,6 +690,8 @@
         }
         .tech-control { padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 6px; background: white; color: #1e293b; min-width: 0; }
         .tech-table th, .tech-table td { padding: 9px 10px; white-space: nowrap; border-bottom: 1px solid #e2e8f0; text-align: left; }
+        .tech-table th[data-tech-sort] { cursor: pointer; user-select: none; }
+        .tech-table th[data-tech-sort]:hover { background: rgba(255,255,255,.12); }
         .tech-alert { color: #b91c1c; background: #fee2e2; border-radius: 999px; padding: 3px 8px; font-weight: 800; }
         .tech-ok { color: #047857; background: #d1fae5; border-radius: 999px; padding: 3px 8px; font-weight: 700; }
         @media (max-width: 700px) {
@@ -998,7 +1000,7 @@
                 <select id="techState" class="tech-control" title="Estado"><option value="">Todos los estados</option></select>
                 <button id="btnResetTechFilters" class="btn-action-sm btn-reset" type="button">Limpiar filtros</button>
             </div>
-            <div style="overflow:auto;max-height:620px;border:1px solid #e2e8f0;border-radius:8px"><table class="tech-table" style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:var(--pluz-dark);color:#fff;position:sticky;top:0"><th>Fecha</th><th>Técnico</th><th>Skill</th><th>Empresa</th><th>Zona / SET</th><th>Estado</th><th>Primer trabajo</th><th>Último trabajo</th><th>Trabajos</th><th>Tiempo desde último</th><th>Alerta</th></tr></thead><tbody id="tecnicosTableBody"></tbody></table></div>
+            <div style="overflow:auto;max-height:620px;border:1px solid #e2e8f0;border-radius:8px"><table class="tech-table" style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:var(--pluz-dark);color:#fff;position:sticky;top:0"><th data-tech-sort="dia" data-label="Fecha" onclick="sortTecnicosTable('dia')" title="Ordenar por Fecha">Fecha <span>↕</span></th><th data-tech-sort="tecnico" data-label="Técnico" onclick="sortTecnicosTable('tecnico')" title="Ordenar por Técnico">Técnico <span>↕</span></th><th data-tech-sort="skill" data-label="Skill" onclick="sortTecnicosTable('skill')" title="Ordenar por Skill">Skill <span>↕</span></th><th data-tech-sort="empresa" data-label="Empresa" onclick="sortTecnicosTable('empresa')" title="Ordenar por Empresa">Empresa <span>↕</span></th><th data-tech-sort="zona" data-label="Zona / SET" onclick="sortTecnicosTable('zona')" title="Ordenar por Zona / SET">Zona / SET <span>↕</span></th><th data-tech-sort="estado" data-label="Estado" onclick="sortTecnicosTable('estado')" title="Ordenar por Estado">Estado <span>↕</span></th><th data-tech-sort="primer" data-label="Primer trabajo" onclick="sortTecnicosTable('primer')" title="Ordenar por Primer trabajo">Primer trabajo <span>↕</span></th><th data-tech-sort="ultimo" data-label="Último trabajo" onclick="sortTecnicosTable('ultimo')" title="Ordenar por Último trabajo">Último trabajo <span>↕</span></th><th data-tech-sort="trabajos" data-label="Trabajos" onclick="sortTecnicosTable('trabajos')" title="Ordenar por Trabajos">Trabajos <span>↕</span></th><th data-tech-sort="tiempo" data-label="Tiempo desde último" onclick="sortTecnicosTable('tiempo')" title="Ordenar por Tiempo desde último">Tiempo desde último <span>↕</span></th><th data-tech-sort="alerta" data-label="Alerta" onclick="sortTecnicosTable('alerta')" title="Ordenar por Alerta">Alerta <span>↕</span></th></tr></thead><tbody id="tecnicosTableBody"></tbody></table></div>
         </div>
     </div>
 
@@ -2223,34 +2225,76 @@
             const reference = selected === todayKey ? today : new Date(`${selected}T18:00:00`);
             return Math.max(0, (reference.getTime() - last.getTime()) / 1000);
         };
-        function fillTechSelect(id, values, placeholder) {
-            const select = document.getElementById(id); if (!select) return;
-            const previous = select.value;
-            select.innerHTML = `<option value="">${placeholder}</option>` + [...new Set(values.filter(Boolean))].sort((a,b) => String(a).localeCompare(String(b),'es',{numeric:true})).map(value => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join('');
-            if ([...select.options].some(option => option.value === previous)) select.value = previous;
+        const TECH_FILTER_FIELDS = {'día':'techDate', Empresa:'techCompany', 'Tecnico visible':'techName', Skill:'techSkill', 'Zona / SET':'techZone', 'Estado de orden':'techState'};
+        const TECH_FILTER_LABELS = {techDate:'Fecha', techCompany:'Todas las empresas', techName:'Todos los técnicos', techSkill:'Todos los skills', techZone:'Todas las zonas / SET', techState:'Todos los estados'};
+        let currentTechSortCol = 'dia';
+        let currentTechSortDir = 'desc';
+        function techAllowedRecords() {
+            const contractor = sessionStorage.getItem('oms_assigned_contractor') || '*';
+            return tecnicosRecords.filter(row => contractor === '*' || techKey(row.Empresa) === techKey(contractor));
+        }
+        function techFilterValues() {
+            return Object.fromEntries(Object.values(TECH_FILTER_FIELDS).map(id => [id, document.getElementById(id)?.value || '']));
+        }
+        function techMatchesFilters(row, values, excludedId = '') {
+            return Object.entries(TECH_FILTER_FIELDS).every(([field, id]) => {
+                const selected = values[id];
+                return id === excludedId || !selected || String(row[field] || '') === selected;
+            });
+        }
+        function setTechSelectOptions(id, values, selected) {
+            const select = document.getElementById(id); if (!select) return false;
+            const unique = [...new Set(values.filter(Boolean).map(String))].sort((a,b) => id === 'techDate' ? b.localeCompare(a) : a.localeCompare(b, 'es', {numeric:true}));
+            const isDate = id === 'techDate';
+            const options = (isDate ? '' : `<option value="">${TECH_FILTER_LABELS[id]}</option>`) + unique.map(value => `<option value="${escapeHtml(value)}">${isDate ? 'Fecha: ' : ''}${escapeHtml(value)}</option>`).join('');
+            select.innerHTML = options || `<option value="">${isDate ? 'Sin fechas disponibles' : TECH_FILTER_LABELS[id]}</option>`;
+            let next = unique.includes(selected) ? selected : '';
+            if (isDate && !next && unique.length) next = unique.includes(techTodayKey()) ? techTodayKey() : unique[0];
+            select.value = next;
+            return next !== selected;
+        }
+        function refreshTechFilterOptions() {
+            // Dos pasadas limpian cualquier selección incompatible y actualizan todos los desplegables entre sí.
+            for (let pass = 0; pass < 2; pass++) {
+                const values = techFilterValues();
+                Object.entries(TECH_FILTER_FIELDS).forEach(([field, id]) => {
+                    const candidates = techAllowedRecords().filter(row => techMatchesFilters(row, values, id));
+                    setTechSelectOptions(id, candidates.map(row => row[field]), values[id]);
+                });
+            }
         }
         function initializeTechFilters() {
-            const contractor = sessionStorage.getItem('oms_assigned_contractor') || '*';
-            const allowed = tecnicosRecords.filter(row => contractor === '*' || techKey(row.Empresa) === techKey(contractor));
-            const dates = [...new Set(allowed.map(row => row['día']).filter(Boolean))].sort().reverse();
-            const dateSelect = document.getElementById('techDate');
-            dateSelect.innerHTML = dates.map(value => `<option value="${escapeHtml(value)}">Fecha: ${escapeHtml(value)}</option>`).join('');
-            if (dates.length) dateSelect.value = dates.includes(techTodayKey()) ? techTodayKey() : dates[0];
-            fillTechSelect('techCompany', allowed.map(row => row.Empresa), 'Todas las empresas');
-            fillTechSelect('techName', allowed.map(row => row['Tecnico visible']), 'Todos los técnicos');
-            fillTechSelect('techSkill', allowed.map(row => row.Skill), 'Todos los skills');
-            fillTechSelect('techZone', allowed.map(row => row['Zona / SET']), 'Todas las zonas / SET');
-            fillTechSelect('techState', allowed.map(row => row['Estado de orden']), 'Todos los estados');
+            Object.values(TECH_FILTER_FIELDS).forEach(id => { const select = document.getElementById(id); if (select) select.value = ''; });
+            refreshTechFilterOptions();
+        }
+        function techSortValue(row, key) {
+            const values = {dia: row['día'], tecnico: row['Tecnico visible'], skill: row.Skill, empresa: row.Empresa, zona: row['Zona / SET'], estado: row['Estado de orden'], primer: techDateValue(row['Primer trabajo'])?.getTime() || 0, ultimo: techDateValue(row['Último trabajo'])?.getTime() || 0, trabajos: Number(row['Cantidad de trabajos']) || 0, tiempo: techSecondsSinceLast(row), alerta: techSecondsSinceLast(row) > 4 * 3600 ? 1 : 0};
+            return values[key] ?? '';
+        }
+        function updateTechSortHeaderIcons() {
+            document.querySelectorAll('[data-tech-sort]').forEach(header => {
+                const key = header.dataset.techSort, label = header.dataset.label;
+                header.innerHTML = `${escapeHtml(label)} <span style="opacity:${key === currentTechSortCol ? '1' : '.35'}">${key === currentTechSortCol ? (currentTechSortDir === 'asc' ? '▲' : '▼') : '↕'}</span>`;
+            });
+        }
+        function sortTecnicosTable(key) {
+            if (currentTechSortCol === key) currentTechSortDir = currentTechSortDir === 'asc' ? 'desc' : 'asc';
+            else { currentTechSortCol = key; currentTechSortDir = 'asc'; }
+            renderTecnicos();
         }
         function renderTecnicos() {
             const body = document.getElementById('tecnicosTableBody');
             const query = String(document.getElementById('inputFilterTecnicos')?.value || '').trim().toLowerCase();
-            const contractor = sessionStorage.getItem('oms_assigned_contractor') || '*';
-            const filters = { 'día':'techDate', Empresa:'techCompany', 'Tecnico visible':'techName', Skill:'techSkill', 'Zona / SET':'techZone', 'Estado de orden':'techState' };
-            const records = tecnicosRecords.filter(row => {
-                if (contractor !== '*' && techKey(row.Empresa) !== techKey(contractor)) return false;
+            const filters = techFilterValues();
+            const records = techAllowedRecords().filter(row => {
                 if (query && !Object.values(row).join(' ').toLowerCase().includes(query)) return false;
-                return Object.entries(filters).every(([field,id]) => !document.getElementById(id)?.value || String(row[field] || '') === document.getElementById(id).value);
+                return techMatchesFilters(row, filters);
+            });
+            records.sort((a, b) => {
+                const valueA = techSortValue(a, currentTechSortCol), valueB = techSortValue(b, currentTechSortCol);
+                const numberA = Number(valueA), numberB = Number(valueB);
+                const result = Number.isFinite(numberA) && Number.isFinite(numberB) && String(valueA).trim() !== '' && String(valueB).trim() !== '' ? numberA - numberB : String(valueA).localeCompare(String(valueB), 'es', {numeric:true, sensitivity:'base'});
+                return result * (currentTechSortDir === 'asc' ? 1 : -1);
             });
             const durations = records.map(techSecondsSinceLast);
             const alerts = durations.filter(seconds => seconds > 4 * 3600).length;
@@ -2258,6 +2302,7 @@
             document.getElementById('techKpiJobs').innerText = records.reduce((sum,row) => sum + (Number(row['Cantidad de trabajos']) || 0), 0);
             document.getElementById('techKpiAlerts').innerText = alerts;
             document.getElementById('techKpiAverage').innerText = durations.length ? techDurationLabel(durations.reduce((a,b)=>a+b,0)/durations.length) : '--';
+            updateTechSortHeaderIcons();
             body.innerHTML = records.length ? records.map(row => {
                 const seconds = techSecondsSinceLast(row); const alert = seconds > 4 * 3600;
                 const first = techDateValue(row['Primer trabajo']); const last = techDateValue(row['Último trabajo']);
@@ -2358,7 +2403,7 @@
         if (tabTecnicos) tabTecnicos.addEventListener('click', showTecnicosView);
         document.getElementById('btnCloseTecnicos')?.addEventListener('click', showMapView);
         document.getElementById('inputFilterTecnicos')?.addEventListener('input', renderTecnicos);
-        ['techDate','techCompany','techName','techSkill','techZone','techState'].forEach(id => document.getElementById(id)?.addEventListener('change', renderTecnicos));
+        ['techDate','techCompany','techName','techSkill','techZone','techState'].forEach(id => document.getElementById(id)?.addEventListener('change', () => { refreshTechFilterOptions(); renderTecnicos(); }));
         document.getElementById('btnResetTechFilters')?.addEventListener('click', () => {
             document.getElementById('inputFilterTecnicos').value = '';
             ['techCompany','techName','techSkill','techZone','techState'].forEach(id => { document.getElementById(id).value = ''; });
