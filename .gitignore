@@ -3,5 +3,13 @@
 node_modules/
 *.log
 
-# Datos de prueba local
+# Datos generados localmente; Google Sheets es la fuente publicada.
 data.json
+data_ejecutados.json
+data_tecnicos.json
+
+# Configuración local o secretos que no deben versionarse.
+.env
+.env.*
+!.env.example
+config.local.json

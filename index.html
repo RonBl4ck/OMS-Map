@@ -688,6 +688,15 @@
                 grid-template-columns: 1fr;
             }
         }
+        .tech-control { padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 6px; background: white; color: #1e293b; min-width: 0; }
+        .tech-table th, .tech-table td { padding: 9px 10px; white-space: nowrap; border-bottom: 1px solid #e2e8f0; text-align: left; }
+        .tech-alert { color: #b91c1c; background: #fee2e2; border-radius: 999px; padding: 3px 8px; font-weight: 800; }
+        .tech-ok { color: #047857; background: #d1fae5; border-radius: 999px; padding: 3px 8px; font-weight: 700; }
+        @media (max-width: 700px) {
+            #tecnicosModalOverlay .kpi-cards-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            #tecnicosModalOverlay .table-section-card { border-radius: 0 !important; padding: 10px !important; }
+            .map-tabs-nav button.tab-btn { padding-left: 6px; padding-right: 6px; font-size: 10px; }
+        }
     </style>
 </head>
 <body>
@@ -788,6 +797,7 @@
         <div class="navbar-center">
             <div class="map-tabs-nav">
                 <button id="tabTdOms" class="tab-btn" type="button">📊 Indicadores</button>
+                <button id="tabTecnicos" class="tab-btn" type="button">👷 Seguimiento técnico</button>
                 <button id="tabLlamadas" class="tab-btn" type="button" style="display: none;">📞 Llamadas</button>
             </div>
         </div>
@@ -974,6 +984,25 @@
     </div>
 
     <!-- VISTA EXCLUSIVA PLUZ: REGISTRO DE LLAMADAS -->
+    <div id="tecnicosModalOverlay" class="td-oms-full-view">
+        <div class="view-header-bar"><div class="modal-header-title">👷 Seguimiento de cierres por técnico</div><button id="btnCloseTecnicos" class="btn-action-sm btn-search" style="background: var(--pluz-blue);">📍 Volver al Mapa</button></div>
+        <div class="kpi-cards-grid"><div class="exec-kpi-card"><div class="kpi-lbl">Técnicos con actividad</div><div class="kpi-num" id="techKpiActive">0</div></div><div class="exec-kpi-card"><div class="kpi-lbl">Trabajos cerrados</div><div class="kpi-num" id="techKpiJobs">0</div></div><div class="exec-kpi-card"><div class="kpi-lbl">Prom. desde último trabajo</div><div class="kpi-num" id="techKpiAverage">--</div></div><div class="exec-kpi-card kpi-pending"><div class="kpi-lbl">Sin cierre &gt;4h</div><div class="kpi-num" id="techKpiAlerts">0</div></div></div>
+        <div class="table-section-card" style="max-width:1200px;margin:0 auto;background:#fff;border-radius:10px;padding:18px">
+            <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><div><h3 style="margin:0;color:var(--pluz-blue)">Cierres diarios</h3><p id="techStatus" style="margin:5px 0;color:#64748b"></p></div><input id="inputFilterTecnicos" placeholder="🔍 Técnico, skill, empresa..." class="tech-control"></div>
+            <div id="techFilters" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;margin:12px 0">
+                <select id="techDate" class="tech-control" title="Fecha"></select>
+                <select id="techCompany" class="tech-control" title="Empresa"><option value="">Todas las empresas</option></select>
+                <select id="techName" class="tech-control" title="Técnico"><option value="">Todos los técnicos</option></select>
+                <select id="techSkill" class="tech-control" title="Skill"><option value="">Todos los skills</option></select>
+                <select id="techZone" class="tech-control" title="Zona / SET"><option value="">Todas las zonas / SET</option></select>
+                <select id="techState" class="tech-control" title="Estado"><option value="">Todos los estados</option></select>
+                <button id="btnResetTechFilters" class="btn-action-sm btn-reset" type="button">Limpiar filtros</button>
+            </div>
+            <div style="overflow:auto;max-height:620px;border:1px solid #e2e8f0;border-radius:8px"><table class="tech-table" style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:var(--pluz-dark);color:#fff;position:sticky;top:0"><th>Fecha</th><th>Técnico</th><th>Skill</th><th>Empresa</th><th>Zona / SET</th><th>Estado</th><th>Primer trabajo</th><th>Último trabajo</th><th>Trabajos</th><th>Tiempo desde último</th><th>Alerta</th></tr></thead><tbody id="tecnicosTableBody"></tbody></table></div>
+        </div>
+    </div>
+
+    <!-- VISTA EXCLUSIVA PLUZ: REGISTRO DE LLAMADAS -->
     <div id="llamadasModalOverlay" class="td-oms-full-view">
         <div class="view-header-bar">
             <div class="modal-header-title">📞 Registro de llamadas</div>
@@ -985,11 +1014,11 @@
                     <h3 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--pluz-blue); text-transform: uppercase; letter-spacing: 0.5px;">Detalle (<span id="tableLlamadasCount">0</span>)</h3>
                     <p id="llamadasStatus" style="margin: 5px 0 0; color: #64748b; font-size: 12px;"></p>
                 </div>
-                <input type="text" id="inputFilterLlamadas" placeholder="🔍 Buscar aviso, ticket, distrito..." style="padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; width: 260px; outline: none;">
+                <input type="text" id="inputFilterLlamadas" placeholder="🔍 Buscar aviso, ticket, suministro, distrito..." style="padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; width: 260px; outline: none;">
             </div>
             <div style="overflow-x: auto; max-height: 620px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
                 <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
-                    <thead><tr style="background: var(--pluz-dark); color: white; position: sticky; top: 0; z-index: 5;"><th data-call-sort="aviso" data-label="Aviso" onclick="sortLlamadasTable('aviso')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Aviso">Aviso <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="ticket" data-label="Ticket" onclick="sortLlamadasTable('ticket')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Ticket">Ticket <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="odm" data-label="ODM" onclick="sortLlamadasTable('odm')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por ODM">ODM <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="nombre" data-label="Nombre" onclick="sortLlamadasTable('nombre')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Nombre">Nombre <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="horaRegistro" data-label="Hora de registro" onclick="sortLlamadasTable('horaRegistro')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Hora de registro">Hora de registro <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="distrito" data-label="Distrito" onclick="sortLlamadasTable('distrito')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Distrito">Distrito <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="direccion" data-label="Dirección" onclick="sortLlamadasTable('direccion')" style="padding: 9px 10px; cursor: pointer; user-select: none;" title="Ordenar por Dirección">Dirección <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="estado" data-label="Estado del aviso" onclick="sortLlamadasTable('estado')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Estado del aviso">Estado del aviso <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="nota" data-label="Nota específica" onclick="sortLlamadasTable('nota')" style="padding: 9px 10px; cursor: pointer; user-select: none;" title="Ordenar por Nota específica">Nota específica <span style="opacity: .3; font-size: 9px;">↕</span></th></tr></thead>
+                    <thead><tr style="background: var(--pluz-dark); color: white; position: sticky; top: 0; z-index: 5;"><th data-call-sort="aviso" data-label="Aviso" onclick="sortLlamadasTable('aviso')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Aviso">Aviso <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="ticket" data-label="Ticket" onclick="sortLlamadasTable('ticket')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Ticket">Ticket <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="suministro" data-label="Suministro" onclick="sortLlamadasTable('suministro')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Suministro">Suministro <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="odm" data-label="ODM" onclick="sortLlamadasTable('odm')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por ODM">ODM <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="nombre" data-label="Nombre" onclick="sortLlamadasTable('nombre')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Nombre">Nombre <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="horaRegistro" data-label="Hora de registro" onclick="sortLlamadasTable('horaRegistro')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Hora de registro">Hora de registro <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="distrito" data-label="Distrito" onclick="sortLlamadasTable('distrito')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Distrito">Distrito <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="direccion" data-label="Dirección" onclick="sortLlamadasTable('direccion')" style="padding: 9px 10px; cursor: pointer; user-select: none;" title="Ordenar por Dirección">Dirección <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="estado" data-label="Estado del aviso" onclick="sortLlamadasTable('estado')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Estado del aviso">Estado del aviso <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="nota" data-label="Nota específica" onclick="sortLlamadasTable('nota')" style="padding: 9px 10px; cursor: pointer; user-select: none;" title="Ordenar por Nota específica">Nota específica <span style="opacity: .3; font-size: 9px;">↕</span></th></tr></thead>
                     <tbody id="llamadasTableBody"></tbody>
                 </table>
             </div>
@@ -1003,11 +1032,15 @@
         let GOOGLE_SHEET_CSV_URL = "";
         let GOOGLE_SHEET_EJECUTADOS_URL = "";
         let GOOGLE_SHEET_LLAMADAS_URL = "";
+        let GOOGLE_SHEET_TECNICOS_URL = "";
         let mapLocations = [];
         let tdOmsRecords = [];
         let rawData = [];
         let llamadasRecords = [];
         let llamadasLoaded = false;
+        let tecnicosRecords = [];
+        let tecnicosLoaded = false;
+        let techRefreshTimer = null;
 
         let leafletMap = null;
         let markersGroup = null;
@@ -2119,10 +2152,10 @@
             }
             updateLlamadasSortHeaderIcons();
             if (count) count.innerText = rows.length;
-            if (!rows.length) { body.innerHTML = '<tr><td colspan="9" style="padding: 22px; text-align: center; color: #64748b;">No hay llamadas que coincidan con la búsqueda.</td></tr>'; return; }
+            if (!rows.length) { body.innerHTML = '<tr><td colspan="10" style="padding: 22px; text-align: center; color: #64748b;">No hay llamadas que coincidan con la búsqueda.</td></tr>'; return; }
             body.innerHTML = rows.map((row, index) => {
                 const bg = index % 2 === 0 ? '#ffffff' : '#f8fafc';
-                return `<tr style="background:${bg}; border-bottom: 1px solid #e2e8f0;"><td style="padding: 8px 10px; font-weight: 700; color: var(--pluz-blue); white-space: nowrap;">${escapeHtml(row.aviso || 'Sin dato')}</td><td style="padding: 8px 10px; white-space: nowrap;">${escapeHtml(row.ticket || 'Sin dato')}</td><td style="padding: 8px 10px; font-weight: 600; color: #334155; white-space: nowrap;">${escapeHtml(row.odm || '')}</td><td style="padding: 8px 10px; min-width: 180px;">${escapeHtml(row.nombre || 'Sin dato')}</td><td style="padding: 8px 10px; white-space: nowrap;">${escapeHtml(row.horaRegistro || 'Sin dato')}</td><td style="padding: 8px 10px; white-space: nowrap;">${escapeHtml(row.distrito || 'Sin dato')}</td><td style="padding: 8px 10px; min-width: 220px;">${escapeHtml(row.direccion || 'Sin dato')}</td><td style="padding: 8px 10px; white-space: nowrap;">${escapeHtml(row.estado || 'Sin dato')}</td><td style="padding: 8px 10px; min-width: 240px; color: #334155; font-size: 11px; line-height: 1.35;">${escapeHtml(row.nota || '')}</td></tr>`;
+                return `<tr style="background:${bg}; border-bottom: 1px solid #e2e8f0;"><td style="padding: 8px 10px; font-weight: 700; color: var(--pluz-blue); white-space: nowrap;">${escapeHtml(row.aviso || 'Sin dato')}</td><td style="padding: 8px 10px; white-space: nowrap;">${escapeHtml(row.ticket || 'Sin dato')}</td><td style="padding: 8px 10px; font-weight: 600; color: #0f766e; white-space: nowrap;">${escapeHtml(row.suministro || 'Sin dato')}</td><td style="padding: 8px 10px; font-weight: 600; color: #334155; white-space: nowrap;">${escapeHtml(row.odm || '')}</td><td style="padding: 8px 10px; min-width: 180px;">${escapeHtml(row.nombre || 'Sin dato')}</td><td style="padding: 8px 10px; white-space: nowrap;">${escapeHtml(row.horaRegistro || 'Sin dato')}</td><td style="padding: 8px 10px; white-space: nowrap;">${escapeHtml(row.distrito || 'Sin dato')}</td><td style="padding: 8px 10px; min-width: 220px;">${escapeHtml(row.direccion || 'Sin dato')}</td><td style="padding: 8px 10px; white-space: nowrap;">${escapeHtml(row.estado || 'Sin dato')}</td><td style="padding: 8px 10px; min-width: 240px; color: #334155; font-size: 11px; line-height: 1.35;">${escapeHtml(row.nota || '')}</td></tr>`;
             }).join('');
         }
         const STATUS_AVISO_MAP_JS = {
@@ -2162,6 +2195,7 @@
                 llamadasRecords = (parsed.data || []).map(row => ({
                     aviso: getLlamadaValue(row, 'Aviso', 'AVISO'),
                     ticket: getLlamadaValue(row, 'Ticket', 'TICKET'),
+                    suministro: getLlamadaValue(row, 'Suministro', 'SUMINISTRO', 'Cuenta', 'CUENTA'),
                     odm: getLlamadaValue(row, 'ODM', 'Odm', 'Orden', 'ORDEN'),
                     nombre: getLlamadaValue(row, 'Nombre', 'NOMBRE'),
                     horaRegistro: getLlamadaValue(row, 'Hora de registro', 'HORA DE REGISTRO', 'Hora Registro'),
@@ -2176,21 +2210,119 @@
             renderLlamadasTable();
         }
 
+        const techKey = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+        const techTodayKey = () => { const value = new Date(); return `${value.getFullYear()}-${String(value.getMonth()+1).padStart(2,'0')}-${String(value.getDate()).padStart(2,'0')}`; };
+        const techDateValue = value => { const date = new Date(String(value || '').replace(' ', 'T')); return Number.isNaN(date.getTime()) ? null : date; };
+        const techDurationLabel = seconds => { const safe = Math.max(0, Math.floor(seconds || 0)); return `${Math.floor(safe / 3600)}h ${String(Math.floor((safe % 3600) / 60)).padStart(2, '0')}m`; };
+        const techSecondsSinceLast = row => {
+            const last = techDateValue(row['Último trabajo']);
+            if (!last) return 0;
+            const selected = String(row['día'] || '');
+            const today = new Date();
+            const todayKey = techTodayKey();
+            const reference = selected === todayKey ? today : new Date(`${selected}T18:00:00`);
+            return Math.max(0, (reference.getTime() - last.getTime()) / 1000);
+        };
+        function fillTechSelect(id, values, placeholder) {
+            const select = document.getElementById(id); if (!select) return;
+            const previous = select.value;
+            select.innerHTML = `<option value="">${placeholder}</option>` + [...new Set(values.filter(Boolean))].sort((a,b) => String(a).localeCompare(String(b),'es',{numeric:true})).map(value => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join('');
+            if ([...select.options].some(option => option.value === previous)) select.value = previous;
+        }
+        function initializeTechFilters() {
+            const contractor = sessionStorage.getItem('oms_assigned_contractor') || '*';
+            const allowed = tecnicosRecords.filter(row => contractor === '*' || techKey(row.Empresa) === techKey(contractor));
+            const dates = [...new Set(allowed.map(row => row['día']).filter(Boolean))].sort().reverse();
+            const dateSelect = document.getElementById('techDate');
+            dateSelect.innerHTML = dates.map(value => `<option value="${escapeHtml(value)}">Fecha: ${escapeHtml(value)}</option>`).join('');
+            if (dates.length) dateSelect.value = dates.includes(techTodayKey()) ? techTodayKey() : dates[0];
+            fillTechSelect('techCompany', allowed.map(row => row.Empresa), 'Todas las empresas');
+            fillTechSelect('techName', allowed.map(row => row['Tecnico visible']), 'Todos los técnicos');
+            fillTechSelect('techSkill', allowed.map(row => row.Skill), 'Todos los skills');
+            fillTechSelect('techZone', allowed.map(row => row['Zona / SET']), 'Todas las zonas / SET');
+            fillTechSelect('techState', allowed.map(row => row['Estado de orden']), 'Todos los estados');
+        }
+        function renderTecnicos() {
+            const body = document.getElementById('tecnicosTableBody');
+            const query = String(document.getElementById('inputFilterTecnicos')?.value || '').trim().toLowerCase();
+            const contractor = sessionStorage.getItem('oms_assigned_contractor') || '*';
+            const filters = { 'día':'techDate', Empresa:'techCompany', 'Tecnico visible':'techName', Skill:'techSkill', 'Zona / SET':'techZone', 'Estado de orden':'techState' };
+            const records = tecnicosRecords.filter(row => {
+                if (contractor !== '*' && techKey(row.Empresa) !== techKey(contractor)) return false;
+                if (query && !Object.values(row).join(' ').toLowerCase().includes(query)) return false;
+                return Object.entries(filters).every(([field,id]) => !document.getElementById(id)?.value || String(row[field] || '') === document.getElementById(id).value);
+            });
+            const durations = records.map(techSecondsSinceLast);
+            const alerts = durations.filter(seconds => seconds > 4 * 3600).length;
+            document.getElementById('techKpiActive').innerText = new Set(records.map(row => row['Tecnico visible'])).size;
+            document.getElementById('techKpiJobs').innerText = records.reduce((sum,row) => sum + (Number(row['Cantidad de trabajos']) || 0), 0);
+            document.getElementById('techKpiAlerts').innerText = alerts;
+            document.getElementById('techKpiAverage').innerText = durations.length ? techDurationLabel(durations.reduce((a,b)=>a+b,0)/durations.length) : '--';
+            body.innerHTML = records.length ? records.map(row => {
+                const seconds = techSecondsSinceLast(row); const alert = seconds > 4 * 3600;
+                const first = techDateValue(row['Primer trabajo']); const last = techDateValue(row['Último trabajo']);
+                const hour = value => value ? value.toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'}) : '--';
+                return `<tr><td>${escapeHtml(row['día'])}</td><td><strong>${escapeHtml(row['Tecnico visible'])}</strong></td><td>${escapeHtml(row.Skill)}</td><td>${escapeHtml(row.Empresa)}</td><td>${escapeHtml(row['Zona / SET'])}</td><td>${escapeHtml(row['Estado de orden'])}</td><td>${hour(first)}</td><td>${hour(last)}</td><td style="text-align:center">${escapeHtml(row['Cantidad de trabajos'])}</td><td>${techDurationLabel(seconds)}</td><td><span class="${alert?'tech-alert':'tech-ok'}">${alert?'Más de 4h':'Al día'}</span></td></tr>`;
+            }).join('') : '<tr><td colspan="11" style="padding:18px;text-align:center">No hay registros para el filtro actual.</td></tr>';
+        }
+
+        async function loadTecnicos() {
+            const status = document.getElementById('techStatus');
+            if (tecnicosLoaded) return renderTecnicos();
+            try {
+                status.innerText = 'Cargando seguimiento técnico…';
+                if (GOOGLE_SHEET_TECNICOS_URL) {
+                    const separator = GOOGLE_SHEET_TECNICOS_URL.includes('?') ? '&' : '?';
+                    const response = await fetch(GOOGLE_SHEET_TECNICOS_URL + separator + '_nocache=' + Date.now());
+                    if (!response.ok) throw new Error('No se pudo leer la hoja publicada.');
+                    tecnicosRecords = Papa.parse(await response.text(), {header:true, skipEmptyLines:true}).data || [];
+                } else {
+                    const response = await fetch('data_tecnicos.json?_nocache=' + Date.now());
+                    if (!response.ok) throw new Error('No existe URL publicada ni respaldo local.');
+                    tecnicosRecords = await response.json();
+                }
+                tecnicosLoaded = true;
+                initializeTechFilters();
+                const updated = tecnicosRecords[0]?.FECHA_ACTUALIZACION_SISTEMA || '--';
+                status.innerText = `${tecnicosRecords.length} registros · Actualizado: ${updated}`;
+                renderTecnicos();
+                if (!techRefreshTimer) techRefreshTimer = setInterval(renderTecnicos, 60000);
+            } catch (error) {
+                try {
+                    const fallback = await fetch('data_tecnicos.json?_nocache=' + Date.now());
+                    if (!fallback.ok) throw error;
+                    tecnicosRecords = await fallback.json();
+                    tecnicosLoaded = true;
+                    initializeTechFilters();
+                    status.innerText = `${tecnicosRecords.length} registros · Respaldo local`;
+                    renderTecnicos();
+                    if (!techRefreshTimer) techRefreshTimer = setInterval(renderTecnicos, 60000);
+                } catch (fallbackError) {
+                    status.innerText = 'No se pudo cargar SEGUIMIENTO_TECNICOS ni su respaldo local.';
+                    console.error(fallbackError);
+                }
+            }
+        }
+
         // Tab view Navigation Controls
         const fullViewOverlay = document.getElementById("tdOmsModalOverlay");
         const llamadasOverlay = document.getElementById('llamadasModalOverlay');
         const btnCloseModal = document.getElementById("btnCloseModal");
         const btnCloseLlamadas = document.getElementById('btnCloseLlamadas');
         const tabTdOms = document.getElementById("tabTdOms");
+        const tabTecnicos = document.getElementById('tabTecnicos');
+        const tecnicosOverlay = document.getElementById('tecnicosModalOverlay');
         const tabLlamadas = document.getElementById('tabLlamadas');
         const tabMapaEl = document.getElementById("tabMapa");
 
         function showMapView() {
             if (fullViewOverlay) fullViewOverlay.classList.remove("active-view");
             if (llamadasOverlay) llamadasOverlay.classList.remove('active-view');
+            if (tecnicosOverlay) tecnicosOverlay.classList.remove('active-view');
             if (tabMapaEl) tabMapaEl.classList.add("active");
             if (tabTdOms) tabTdOms.classList.remove("active");
             if (tabLlamadas) tabLlamadas.classList.remove('active');
+            if (tabTecnicos) tabTecnicos.classList.remove('active');
         }
 
         function showDashboardView() {
@@ -2210,9 +2342,29 @@
             if (tabTdOms) tabTdOms.classList.remove('active');
             loadLlamadas();
         }
+        function showTecnicosView() {
+            if (fullViewOverlay) fullViewOverlay.classList.remove('active-view');
+            if (llamadasOverlay) llamadasOverlay.classList.remove('active-view');
+            if (tecnicosOverlay) tecnicosOverlay.classList.add('active-view');
+            if (tabTecnicos) tabTecnicos.classList.add('active');
+            if (tabMapaEl) tabMapaEl.classList.remove('active');
+            if (tabTdOms) tabTdOms.classList.remove('active');
+            if (tabLlamadas) tabLlamadas.classList.remove('active');
+            loadTecnicos();
+        }
 
         if (tabTdOms) tabTdOms.addEventListener("click", showDashboardView);
         if (tabLlamadas) tabLlamadas.addEventListener('click', showLlamadasView);
+        if (tabTecnicos) tabTecnicos.addEventListener('click', showTecnicosView);
+        document.getElementById('btnCloseTecnicos')?.addEventListener('click', showMapView);
+        document.getElementById('inputFilterTecnicos')?.addEventListener('input', renderTecnicos);
+        ['techDate','techCompany','techName','techSkill','techZone','techState'].forEach(id => document.getElementById(id)?.addEventListener('change', renderTecnicos));
+        document.getElementById('btnResetTechFilters')?.addEventListener('click', () => {
+            document.getElementById('inputFilterTecnicos').value = '';
+            ['techCompany','techName','techSkill','techZone','techState'].forEach(id => { document.getElementById(id).value = ''; });
+            initializeTechFilters();
+            renderTecnicos();
+        });
         if (tabMapaEl) tabMapaEl.addEventListener("click", showMapView);
         if (btnCloseModal) btnCloseModal.addEventListener("click", showMapView);
         if (btnCloseLlamadas) btnCloseLlamadas.addEventListener('click', showMapView);
@@ -2261,6 +2413,7 @@
                     if (cfg.sheets_url) GOOGLE_SHEET_CSV_URL = cfg.sheets_url;
                     if (cfg.sheets_url_ejecutados) GOOGLE_SHEET_EJECUTADOS_URL = cfg.sheets_url_ejecutados;
                     if (cfg.sheets_url_llamadas) GOOGLE_SHEET_LLAMADAS_URL = cfg.sheets_url_llamadas;
+                    if (cfg.sheets_url_tecnicos) GOOGLE_SHEET_TECNICOS_URL = cfg.sheets_url_tecnicos;
                     if (Array.isArray(cfg.users) && cfg.users.length > 0) {
                         APP_USERS = cfg.users;
                     }
