@@ -694,9 +694,17 @@
         .tech-table th[data-tech-sort]:hover { background: rgba(255,255,255,.12); }
         .tech-alert { color: #b91c1c; background: #fee2e2; border-radius: 999px; padding: 3px 8px; font-weight: 800; }
         .tech-ok { color: #047857; background: #d1fae5; border-radius: 999px; padding: 3px 8px; font-weight: 700; }
+        .tech-charts-grid { display:grid; grid-template-columns:minmax(0, 1.45fr) minmax(300px, .85fr); gap:16px; margin:4px 0 18px; }
+        .tech-chart-card { border:1px solid #e2e8f0; border-radius:10px; padding:14px; background:#fff; min-width:0; }
+        .tech-chart-title { margin:0; color:var(--pluz-blue); font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.35px; }
+        .tech-chart-subtitle { margin:5px 0 10px; color:#64748b; font-size:11px; }
+        .tech-chart-scroll { max-height:520px; overflow:auto; padding-right:3px; }
+        .tech-average-legend { display:inline-flex; align-items:center; gap:5px; margin-left:10px; color:#64748b; font-size:10px; font-weight:600; }
+        .tech-average-legend i { display:inline-block; width:18px; border-top:2px dashed #f4b428; }
         @media (max-width: 700px) {
             #tecnicosModalOverlay .kpi-cards-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             #tecnicosModalOverlay .table-section-card { border-radius: 0 !important; padding: 10px !important; }
+            .tech-charts-grid { grid-template-columns:1fr; }
             .map-tabs-nav button.tab-btn { padding-left: 6px; padding-right: 6px; font-size: 10px; }
         }
     </style>
@@ -1000,6 +1008,7 @@
                 <select id="techState" class="tech-control" title="Estado"><option value="">Todos los estados</option></select>
                 <button id="btnResetTechFilters" class="btn-action-sm btn-reset" type="button">Limpiar filtros</button>
             </div>
+            <div id="techCharts" class="tech-charts-grid" aria-live="polite"></div>
             <div style="overflow:auto;max-height:620px;border:1px solid #e2e8f0;border-radius:8px"><table class="tech-table" style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:var(--pluz-dark);color:#fff;position:sticky;top:0"><th data-tech-sort="dia" data-label="Fecha" onclick="sortTecnicosTable('dia')" title="Ordenar por Fecha">Fecha <span>↕</span></th><th data-tech-sort="tecnico" data-label="Técnico" onclick="sortTecnicosTable('tecnico')" title="Ordenar por Técnico">Técnico <span>↕</span></th><th data-tech-sort="skill" data-label="Skill" onclick="sortTecnicosTable('skill')" title="Ordenar por Skill">Skill <span>↕</span></th><th data-tech-sort="empresa" data-label="Empresa" onclick="sortTecnicosTable('empresa')" title="Ordenar por Empresa">Empresa <span>↕</span></th><th data-tech-sort="zona" data-label="Zona / SET" onclick="sortTecnicosTable('zona')" title="Ordenar por Zona / SET">Zona / SET <span>↕</span></th><th data-tech-sort="estado" data-label="Estado" onclick="sortTecnicosTable('estado')" title="Ordenar por Estado">Estado <span>↕</span></th><th data-tech-sort="primer" data-label="Primer trabajo" onclick="sortTecnicosTable('primer')" title="Ordenar por Primer trabajo">Primer trabajo <span>↕</span></th><th data-tech-sort="ultimo" data-label="Último trabajo" onclick="sortTecnicosTable('ultimo')" title="Ordenar por Último trabajo">Último trabajo <span>↕</span></th><th data-tech-sort="trabajos" data-label="Trabajos" onclick="sortTecnicosTable('trabajos')" title="Ordenar por Trabajos">Trabajos <span>↕</span></th><th data-tech-sort="tiempo" data-label="Tiempo desde último" onclick="sortTecnicosTable('tiempo')" title="Ordenar por Tiempo desde último">Tiempo desde último <span>↕</span></th><th data-tech-sort="alerta" data-label="Alerta" onclick="sortTecnicosTable('alerta')" title="Ordenar por Alerta">Alerta <span>↕</span></th></tr></thead><tbody id="tecnicosTableBody"></tbody></table></div>
         </div>
     </div>
@@ -2282,14 +2291,69 @@
             else { currentTechSortCol = key; currentTechSortDir = 'asc'; }
             renderTecnicos();
         }
-        function renderTecnicos() {
-            const body = document.getElementById('tecnicosTableBody');
+        function getVisibleTechRecords() {
             const query = String(document.getElementById('inputFilterTecnicos')?.value || '').trim().toLowerCase();
             const filters = techFilterValues();
-            const records = techAllowedRecords().filter(row => {
+            return techAllowedRecords().filter(row => {
                 if (query && !Object.values(row).join(' ').toLowerCase().includes(query)) return false;
                 return techMatchesFilters(row, filters);
             });
+        }
+        function techChartScope() {
+            const filters = techFilterValues();
+            if (filters.techCompany && filters.techSkill) return { field:'Tecnico visible', label:'técnico', title:'Cierres por técnico', subtitle:`${filters.techCompany} · ${filters.techSkill}` };
+            if (filters.techCompany) return { field:'Skill', label:'skill', title:'Cierres por skill', subtitle:filters.techCompany };
+            return { field:'Empresa', label:'empresa', title:'Cierres por empresa', subtitle:filters.techSkill ? `Skill: ${filters.techSkill}` : 'Vista general' };
+        }
+        function renderTechCharts(records) {
+            const target = document.getElementById('techCharts');
+            if (!target) return;
+            const scope = techChartScope();
+            if (!records.length) {
+                target.innerHTML = `<section class="tech-chart-card" style="grid-column:1 / -1"><h3 class="tech-chart-title">${escapeHtml(scope.title)}</h3><p class="tech-chart-subtitle">No hay registros para los filtros seleccionados.</p></section>`;
+                return;
+            }
+            const grouped = new Map();
+            records.forEach(row => {
+                const label = String(row[scope.field] || `Sin ${scope.label}`);
+                grouped.set(label, (grouped.get(label) || 0) + (Number(row['Cantidad de trabajos']) || 0));
+            });
+            const rows = [...grouped.entries()].map(([label, value]) => ({label, value})).sort((a,b) => b.value - a.value || a.label.localeCompare(b.label, 'es'));
+            const average = rows.reduce((sum, row) => sum + row.value, 0) / rows.length;
+            const maxValue = Math.max(1, ...rows.map(row => row.value), average);
+            const width = 680, left = 172, right = 40, top = 25, rowHeight = 25, height = Math.max(210, top + rows.length * rowHeight + 24), plotWidth = width - left - right;
+            const avgX = left + (average / maxValue) * plotWidth;
+            const bars = rows.map((row, index) => {
+                const y = top + index * rowHeight + 4, barWidth = Math.max(1, (row.value / maxValue) * plotWidth);
+                const label = row.label.length > 25 ? `${row.label.slice(0, 24)}…` : row.label;
+                const color = row.value < average ? '#f59e0b' : '#65a557';
+                return `<text x="${left - 9}" y="${y + 12}" text-anchor="end" font-size="11" font-weight="600" fill="#334155">${escapeHtml(label)}</text><rect x="${left}" y="${y}" width="${barWidth}" height="15" rx="4" fill="${color}"><title>${escapeHtml(row.label)}: ${row.value} cierres</title></rect><text x="${Math.min(width - right + 3, left + barWidth + 6)}" y="${y + 12}" font-size="10" font-weight="700" fill="#334155">${row.value}</text>`;
+            }).join('');
+            const stateJobs = needle => records.filter(row => String(row['Estado de orden'] || '').toLowerCase().includes(needle)).reduce((sum,row) => sum + (Number(row['Cantidad de trabajos']) || 0), 0);
+            const totalJobs = records.reduce((sum,row) => sum + (Number(row['Cantidad de trabajos']) || 0), 0);
+            const closed = stateJobs('cerrado'), restored = stateJobs('restaurado'), other = Math.max(0, totalJobs - closed - restored);
+            const outcomes = [{label:'Cerrados', value:closed, color:'#65a557'}, {label:'Restaurados', value:restored, color:'#375ab2'}, ...(other ? [{label:'Otros estados', value:other, color:'#94a3b8'}] : [])];
+            const outcomeHtml = outcomes.map(item => {
+                const pct = totalJobs ? (item.value / totalJobs * 100).toFixed(1) : '0.0';
+                return `<div style="border-left:4px solid ${item.color};background:#f8fafc;border-radius:7px;padding:10px 11px"><div style="font-size:11px;font-weight:800;color:#475569">${item.label}</div><div style="font-size:23px;font-weight:800;color:#0f172a;margin-top:2px">${item.value}</div><div style="font-size:11px;color:#64748b">${pct}% de trabajos</div></div>`;
+            }).join('');
+            target.innerHTML = `
+                <section class="tech-chart-card">
+                    <h3 class="tech-chart-title">${escapeHtml(scope.title)} <span class="tech-average-legend"><i></i>Promedio: ${average.toFixed(1)}</span></h3>
+                    <p class="tech-chart-subtitle">${escapeHtml(scope.subtitle)} · ${rows.length} ${scope.label}${rows.length === 1 ? '' : 's'} · barras ámbar bajo el promedio</p>
+                    <div class="tech-chart-scroll"><svg viewBox="0 0 ${width} ${height}" style="display:block;width:100%;min-width:560px;height:${height}px" role="img" aria-label="${escapeHtml(scope.title)}"><line x1="${avgX}" y1="${top - 8}" x2="${avgX}" y2="${height - 14}" stroke="#f4b428" stroke-width="2" stroke-dasharray="5 4"/>${bars}</svg></div>
+                </section>
+                <section class="tech-chart-card">
+                    <h3 class="tech-chart-title">Embudo operativo</h3>
+                    <p class="tech-chart-subtitle">${escapeHtml(scope.subtitle)} · distribución de los trabajos por resultado de cierre</p>
+                    <div style="background:var(--pluz-blue);color:#fff;border-radius:8px;padding:14px 15px;margin:12px 0 10px"><div style="font-size:11px;font-weight:700;opacity:.88;text-transform:uppercase">Trabajos registrados</div><div style="font-size:31px;font-weight:800;line-height:1.1">${totalJobs}</div></div>
+                    <div style="height:14px;width:0;border-left:12px solid transparent;border-right:12px solid transparent;border-top:14px solid var(--pluz-blue);margin:-10px auto 10px"></div>
+                    <div style="display:grid;gap:8px">${outcomeHtml}</div>
+                </section>`;
+        }
+        function renderTecnicos() {
+            const body = document.getElementById('tecnicosTableBody');
+            const records = getVisibleTechRecords();
             records.sort((a, b) => {
                 const valueA = techSortValue(a, currentTechSortCol), valueB = techSortValue(b, currentTechSortCol);
                 const numberA = Number(valueA), numberB = Number(valueB);
@@ -2302,6 +2366,7 @@
             document.getElementById('techKpiJobs').innerText = records.reduce((sum,row) => sum + (Number(row['Cantidad de trabajos']) || 0), 0);
             document.getElementById('techKpiAlerts').innerText = alerts;
             document.getElementById('techKpiAverage').innerText = durations.length ? techDurationLabel(durations.reduce((a,b)=>a+b,0)/durations.length) : '--';
+            renderTechCharts(records);
             updateTechSortHeaderIcons();
             body.innerHTML = records.length ? records.map(row => {
                 const seconds = techSecondsSinceLast(row); const alert = seconds > 4 * 3600;
