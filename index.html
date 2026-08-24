@@ -989,7 +989,7 @@
             </div>
             <div style="overflow-x: auto; max-height: 620px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
                 <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
-                    <thead><tr style="background: var(--pluz-dark); color: white; position: sticky; top: 0; z-index: 5;"><th data-call-sort="aviso" data-label="Aviso" onclick="sortLlamadasTable('aviso')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Aviso">Aviso <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="ticket" data-label="Ticket" onclick="sortLlamadasTable('ticket')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Ticket">Ticket <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="nombre" data-label="Nombre" onclick="sortLlamadasTable('nombre')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Nombre">Nombre <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="horaRegistro" data-label="Hora de registro" onclick="sortLlamadasTable('horaRegistro')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Hora de registro">Hora de registro <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="distrito" data-label="Distrito" onclick="sortLlamadasTable('distrito')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Distrito">Distrito <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="direccion" data-label="Dirección" onclick="sortLlamadasTable('direccion')" style="padding: 9px 10px; cursor: pointer; user-select: none;" title="Ordenar por Dirección">Dirección <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="estado" data-label="Estado del aviso" onclick="sortLlamadasTable('estado')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Estado del aviso">Estado del aviso <span style="opacity: .3; font-size: 9px;">↕</span></th></tr></thead>
+                    <thead><tr style="background: var(--pluz-dark); color: white; position: sticky; top: 0; z-index: 5;"><th data-call-sort="aviso" data-label="Aviso" onclick="sortLlamadasTable('aviso')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Aviso">Aviso <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="ticket" data-label="Ticket" onclick="sortLlamadasTable('ticket')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Ticket">Ticket <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="odm" data-label="ODM" onclick="sortLlamadasTable('odm')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por ODM">ODM <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="nombre" data-label="Nombre" onclick="sortLlamadasTable('nombre')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Nombre">Nombre <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="horaRegistro" data-label="Hora de registro" onclick="sortLlamadasTable('horaRegistro')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Hora de registro">Hora de registro <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="distrito" data-label="Distrito" onclick="sortLlamadasTable('distrito')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Distrito">Distrito <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="direccion" data-label="Dirección" onclick="sortLlamadasTable('direccion')" style="padding: 9px 10px; cursor: pointer; user-select: none;" title="Ordenar por Dirección">Dirección <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="estado" data-label="Estado del aviso" onclick="sortLlamadasTable('estado')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Estado del aviso">Estado del aviso <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="nota" data-label="Nota específica" onclick="sortLlamadasTable('nota')" style="padding: 9px 10px; cursor: pointer; user-select: none;" title="Ordenar por Nota específica">Nota específica <span style="opacity: .3; font-size: 9px;">↕</span></th></tr></thead>
                     <tbody id="llamadasTableBody"></tbody>
                 </table>
             </div>
@@ -1962,14 +1962,27 @@
                 alert("⚠️ No hay datos registrados para descargar para tu empresa asignada.");
                 return;
             }
+
+            // Sanitización proactiva: no exportar columnas de celular/teléfono (datos personales)
+            const SENSITIVE_KEYS = ['cel', 'cel 2', 'celular', 'telefono', 'teléfono', 'tel. llamante', 'teléfono de cliente'];
+            const exportDataset = dataset.map(item => {
+                const clean = { ...item };
+                Object.keys(clean).forEach(k => {
+                    if (SENSITIVE_KEYS.includes(k.trim().toLowerCase())) {
+                        delete clean[k];
+                    }
+                });
+                return clean;
+            });
+
             try {
                 if (typeof XLSX !== 'undefined') {
-                    const worksheet = XLSX.utils.json_to_sheet(dataset);
-                    const keys = Object.keys(dataset[0] || {});
+                    const worksheet = XLSX.utils.json_to_sheet(exportDataset);
+                    const keys = Object.keys(exportDataset[0] || {});
                     worksheet['!cols'] = keys.map(key => {
                         const maxLen = Math.max(
                             key.length,
-                            ...dataset.slice(0, 100).map(row => String(row[key] || '').length)
+                            ...exportDataset.slice(0, 100).map(row => String(row[key] || '').length)
                         );
                         return { wch: Math.min(Math.max(maxLen + 2, 10), 50) };
                     });
@@ -1978,7 +1991,7 @@
                     const now = new Date().toISOString().slice(0, 10);
                     XLSX.writeFile(workbook, `${prefix}_oms_${now}.xlsx`);
                 } else {
-                    const csvStr = Papa.unparse(dataset);
+                    const csvStr = Papa.unparse(exportDataset);
                     const blob = new Blob(["\ufeff" + csvStr], { type: 'text/csv;charset=utf-8;' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
@@ -2062,7 +2075,10 @@
         }
 
         // Registro de llamadas (primera versión: visible solo al perfil PLUZ en la interfaz)
-        function getLlamadaValue(row, ...fields) { return getProp(row, ...fields) || ''; }
+        function getLlamadaValue(row, ...fields) {
+            const val = getProp(row, ...fields);
+            return (val === 'N/A' || !val) ? '' : val;
+        }
         let currentLlamadasSortCol = 'horaRegistro';
         let currentLlamadasSortDir = 'desc';
         function parseLlamadaDate(value) {
@@ -2103,12 +2119,36 @@
             }
             updateLlamadasSortHeaderIcons();
             if (count) count.innerText = rows.length;
-            if (!rows.length) { body.innerHTML = '<tr><td colspan="7" style="padding: 22px; text-align: center; color: #64748b;">No hay llamadas que coincidan con la búsqueda.</td></tr>'; return; }
+            if (!rows.length) { body.innerHTML = '<tr><td colspan="9" style="padding: 22px; text-align: center; color: #64748b;">No hay llamadas que coincidan con la búsqueda.</td></tr>'; return; }
             body.innerHTML = rows.map((row, index) => {
                 const bg = index % 2 === 0 ? '#ffffff' : '#f8fafc';
-                return `<tr style="background:${bg}; border-bottom: 1px solid #e2e8f0;"><td style="padding: 8px 10px; font-weight: 700; color: var(--pluz-blue); white-space: nowrap;">${escapeHtml(row.aviso || 'Sin dato')}</td><td style="padding: 8px 10px; white-space: nowrap;">${escapeHtml(row.ticket || 'Sin dato')}</td><td style="padding: 8px 10px; min-width: 200px;">${escapeHtml(row.nombre || 'Sin dato')}</td><td style="padding: 8px 10px; white-space: nowrap;">${escapeHtml(row.horaRegistro || 'Sin dato')}</td><td style="padding: 8px 10px; white-space: nowrap;">${escapeHtml(row.distrito || 'Sin dato')}</td><td style="padding: 8px 10px; min-width: 260px;">${escapeHtml(row.direccion || 'Sin dato')}</td><td style="padding: 8px 10px; white-space: nowrap;">${escapeHtml(row.estado || 'Sin dato')}</td></tr>`;
+                return `<tr style="background:${bg}; border-bottom: 1px solid #e2e8f0;"><td style="padding: 8px 10px; font-weight: 700; color: var(--pluz-blue); white-space: nowrap;">${escapeHtml(row.aviso || 'Sin dato')}</td><td style="padding: 8px 10px; white-space: nowrap;">${escapeHtml(row.ticket || 'Sin dato')}</td><td style="padding: 8px 10px; font-weight: 600; color: #334155; white-space: nowrap;">${escapeHtml(row.odm || '')}</td><td style="padding: 8px 10px; min-width: 180px;">${escapeHtml(row.nombre || 'Sin dato')}</td><td style="padding: 8px 10px; white-space: nowrap;">${escapeHtml(row.horaRegistro || 'Sin dato')}</td><td style="padding: 8px 10px; white-space: nowrap;">${escapeHtml(row.distrito || 'Sin dato')}</td><td style="padding: 8px 10px; min-width: 220px;">${escapeHtml(row.direccion || 'Sin dato')}</td><td style="padding: 8px 10px; white-space: nowrap;">${escapeHtml(row.estado || 'Sin dato')}</td><td style="padding: 8px 10px; min-width: 240px; color: #334155; font-size: 11px; line-height: 1.35;">${escapeHtml(row.nota || '')}</td></tr>`;
             }).join('');
         }
+        const STATUS_AVISO_MAP_JS = {
+            '100': 'Creado',
+            '110': 'Cerrado',
+            '115': 'Cierre Forzoso',
+            '120': 'Anulado',
+            '125': 'Restaurado',
+            '130': 'Escalado Activo',
+            '135': 'Escalado Activo',
+            '140': 'Escalado Activo',
+            '145': 'Escalado Asignado',
+            '150': 'Escalado en Desplazamiento',
+            '160': 'Escalado en Ejecución',
+            '165': 'Asignado',
+            '170': 'En Desplazamiento',
+            '175': 'En Ejecución',
+            '200': 'Verificado CC',
+            '205': 'Verificado UO',
+            '210': 'Verificado CDS'
+        };
+        function formatEstadoAviso(val) {
+            const clean = String(val || '').replace(/\.0$/, '').trim();
+            return STATUS_AVISO_MAP_JS[clean] || (val ? String(val).trim() : 'Sin dato');
+        }
+
         async function loadLlamadas() {
             const status = document.getElementById('llamadasStatus');
             if (llamadasLoaded) return;
@@ -2119,7 +2159,17 @@
                 const response = await fetch(GOOGLE_SHEET_LLAMADAS_URL + separator + '_nocache=' + Date.now());
                 if (!response.ok) throw new Error('No se pudo leer la hoja de llamadas.');
                 const parsed = Papa.parse(await response.text(), { header: true, skipEmptyLines: true });
-                llamadasRecords = (parsed.data || []).map(row => ({ aviso: getLlamadaValue(row, 'Aviso', 'AVISO'), ticket: getLlamadaValue(row, 'Ticket', 'TICKET'), nombre: getLlamadaValue(row, 'Nombre', 'NOMBRE'), horaRegistro: getLlamadaValue(row, 'Hora de registro', 'HORA DE REGISTRO', 'Hora Registro'), distrito: getLlamadaValue(row, 'Distrito', 'DISTRITO'), direccion: getLlamadaValue(row, 'Dirección', 'Direccion', 'DIRECCIÓN', 'DIRECCION'), estado: getLlamadaValue(row, 'Estado del aviso', 'Estado Aviso', 'ESTADO DEL AVISO') })).sort((a, b) => parseLlamadaDate(b.horaRegistro) - parseLlamadaDate(a.horaRegistro));
+                llamadasRecords = (parsed.data || []).map(row => ({
+                    aviso: getLlamadaValue(row, 'Aviso', 'AVISO'),
+                    ticket: getLlamadaValue(row, 'Ticket', 'TICKET'),
+                    odm: getLlamadaValue(row, 'ODM', 'Odm', 'Orden', 'ORDEN'),
+                    nombre: getLlamadaValue(row, 'Nombre', 'NOMBRE'),
+                    horaRegistro: getLlamadaValue(row, 'Hora de registro', 'HORA DE REGISTRO', 'Hora Registro'),
+                    distrito: getLlamadaValue(row, 'Distrito', 'DISTRITO'),
+                    direccion: getLlamadaValue(row, 'Dirección', 'Direccion', 'DIRECCIÓN', 'DIRECCION'),
+                    estado: formatEstadoAviso(getLlamadaValue(row, 'Estado del aviso', 'Estado Aviso', 'ESTADO DEL AVISO', 'Estado')),
+                    nota: getLlamadaValue(row, 'Nota específica', 'Nota especifica', 'NOTA ESPECIFICA', 'Nota Específica', 'Nota', 'NOTA')
+                })).sort((a, b) => parseLlamadaDate(b.horaRegistro) - parseLlamadaDate(a.horaRegistro));
                 llamadasLoaded = true;
                 if (status) status.innerText = `${llamadasRecords.length} registros cargados. Ordenados por hora de registro.`;
             } catch (error) { if (status) status.innerText = 'No se pudo cargar BASE_LLAMADAS. Verifica su URL publicada y los encabezados.'; console.error('Error cargando llamadas:', error); }
