@@ -2460,7 +2460,22 @@
 
         const techKey = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
         const techTodayKey = () => { const value = new Date(); return `${value.getFullYear()}-${String(value.getMonth()+1).padStart(2,'0')}-${String(value.getDate()).padStart(2,'0')}`; };
-        const techDateValue = value => { const date = new Date(String(value || '').replace(' ', 'T')); return Number.isNaN(date.getTime()) ? null : date; };
+        const techDateValue = value => {
+            if (!value) return null;
+            if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+            const str = String(value).trim();
+            if (!str) return null;
+            const matchIso = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+            if (matchIso) {
+                return new Date(+matchIso[1], +matchIso[2] - 1, +matchIso[3], +(matchIso[4] || 0), +(matchIso[5] || 0), +(matchIso[6] || 0));
+            }
+            const matchLat = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[T\s](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+            if (matchLat) {
+                return new Date(+matchLat[3], +matchLat[2] - 1, +matchLat[1], +(matchLat[4] || 0), +(matchLat[5] || 0), +(matchLat[6] || 0));
+            }
+            const fallback = new Date(str);
+            return Number.isNaN(fallback.getTime()) ? null : fallback;
+        };
         const techDurationLabel = seconds => { const safe = Math.max(0, Math.floor(seconds || 0)); return `${Math.floor(safe / 3600)}h ${String(Math.floor((safe % 3600) / 60)).padStart(2, '0')}m`; };
         const techSecondsSinceLast = row => {
             const last = techDateValue(row['Último trabajo']);
@@ -2693,8 +2708,8 @@
             }
 
             const sorted = [...tickets].sort((a, b) => {
-                const dateA = new Date(String(a.fin || a.inicio || '').replace(' ', 'T'));
-                const dateB = new Date(String(b.fin || b.inicio || '').replace(' ', 'T'));
+                const dateA = techDateValue(a.fin || a.inicio)?.getTime() || 0;
+                const dateB = techDateValue(b.fin || b.inicio)?.getTime() || 0;
                 return dateA - dateB;
             });
 
@@ -2702,11 +2717,11 @@
             let prevDate = null;
 
             sorted.forEach((item, idx) => {
-                const itemDate = new Date(String(item.fin || item.inicio || '').replace(' ', 'T'));
-                const timeStr = !isNaN(itemDate.getTime()) ? itemDate.toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : (item.fin || item.inicio || '--');
+                const itemDate = techDateValue(item.fin || item.inicio);
+                const timeStr = itemDate ? itemDate.toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : (item.fin || item.inicio || '--');
 
                 // Intervalo con el trabajo anterior
-                if (prevDate && !isNaN(prevDate.getTime()) && !isNaN(itemDate.getTime())) {
+                if (prevDate && itemDate) {
                     const gapSecs = (itemDate.getTime() - prevDate.getTime()) / 1000;
                     if (gapSecs > 0) {
                         const isAlert = gapSecs > 4 * 3600;
