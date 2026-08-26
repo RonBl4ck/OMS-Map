@@ -1461,7 +1461,8 @@
                 preferCanvas: true
             }).setView([-12.046374, -77.042793], 11);
 
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            const cartoApiKey = 'cb1_27lw_1_d612fa2bb664e7fb0d1f742c';
+            L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?api_key=${cartoApiKey}`, {
                 attribution: '&copy; OpenStreetMap &copy; CARTO',
                 subdomains: 'abcd',
                 maxZoom: 19
