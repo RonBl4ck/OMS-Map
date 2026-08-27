@@ -1,20 +1,16 @@
-// api/login.js
-// Endpoint Serverless compatible con Vercel y Node.js
+﻿// api/get-users-admin.js
+// Endpoint Serverless para obtener usuarios y contraseñas (requiere PIN maestro)
 
 module.exports = async (req, res) => {
-    // Cabeceras CORS
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
     res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
 
     if (req.method === 'OPTIONS') {
-        if (typeof res.status === 'function') {
-            return res.status(200).end();
-        } else {
-            res.writeHead(200);
-            return res.end();
-        }
+        if (typeof res.status === 'function') return res.status(200).end();
+        res.writeHead(200);
+        return res.end();
     }
 
     if (req.method !== 'POST') {
@@ -29,19 +25,21 @@ module.exports = async (req, res) => {
         if (typeof body === 'string') {
             try { body = JSON.parse(body); } catch(e) {}
         }
-        const { user, password } = body || {};
+        const { pin } = body || {};
+        const inputPin = String(pin || '').trim();
 
-        if (!user || !password) {
-            const payload = JSON.stringify({ success: false, message: 'Falta usuario o contraseña' });
-            if (typeof res.status === 'function') return res.status(400).send(payload);
-            res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        const masterPin = process.env.CONFIG_MASTER_PASSWORD || process.env.PLUZ_CONFIG_PIN || "PLUZ_2026_PLUZ";
+
+        if (!inputPin || inputPin !== masterPin) {
+            const payload = JSON.stringify({ success: false, message: 'No autorizado. Clave incorrecta.' });
+            if (typeof res.status === 'function') return res.status(401).send(payload);
+            res.writeHead(401, { 'Content-Type': 'application/json; charset=utf-8' });
             return res.end(payload);
         }
 
         const usersSheetUrl = process.env.SHEETS_URL_USERS || process.env.SHEETS_URL_ACCESOS;
         let users = [];
 
-        // 1. Si existe la URL de la hoja de Google Sheets para usuarios, la consultamos en servidor
         if (usersSheetUrl) {
             try {
                 const fetchUrl = usersSheetUrl + (usersSheetUrl.includes('?') ? '&' : '?') + '_t=' + Date.now();
@@ -55,7 +53,6 @@ module.exports = async (req, res) => {
             }
         }
 
-        // 2. Fallback con variables de entorno o archivo local si la hoja no está configurada aún
         if (!users || users.length === 0) {
             const fs = require('fs');
             const path = require('path');
@@ -70,50 +67,17 @@ module.exports = async (req, res) => {
             } catch(e) {}
         }
 
-        // No se almacenan credenciales de respaldo en el repositorio.
-        if (!users || users.length === 0) {
-            const payload = JSON.stringify({
-                success: false,
-                message: 'No hay accesos configurados. Configura SHEETS_URL_USERS en Vercel.'
-            });
-            if (typeof res.status === 'function') return res.status(503).send(payload);
-            res.writeHead(503, { 'Content-Type': 'application/json; charset=utf-8' });
-            return res.end(payload);
-        }
+        const payload = JSON.stringify({
+            success: true,
+            users: users,
+            sheetUrl: usersSheetUrl ? usersSheetUrl.replace(/pub\?.*$/, '') : ""
+        });
 
-        const cleanUser = String(user).trim().toUpperCase();
-        const cleanPass = String(password).trim();
-
-        const match = users.find(u => 
-            String(u.user || '').trim().toUpperCase() === cleanUser &&
-            String(u.password || '').trim() === cleanPass &&
-            (u.estado ? String(u.estado).trim().toLowerCase() !== 'inactivo' : true)
-        );
-
-        if (match) {
-            const cartoKey = process.env.CARTO_API_KEY || "cb1_27lw_1_d612fa2bb664e7fb0d1f742c";
-            const resObj = {
-                success: true,
-                user: match.user,
-                contractor: match.contractor || (match.user.toUpperCase() === 'PLUZ' ? '*' : match.user),
-                role: match.role || (match.user.toUpperCase() === 'PLUZ' ? 'admin' : 'contractor'),
-                cartoApiKey: cartoKey
-            };
-            const payload = JSON.stringify(resObj);
-            if (typeof res.status === 'function') return res.status(200).send(payload);
-            res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-            return res.end(payload);
-        } else {
-            const payload = JSON.stringify({
-                success: false,
-                message: 'Usuario o contraseña incorrectos'
-            });
-            if (typeof res.status === 'function') return res.status(401).send(payload);
-            res.writeHead(401, { 'Content-Type': 'application/json; charset=utf-8' });
-            return res.end(payload);
-        }
+        if (typeof res.status === 'function') return res.status(200).send(payload);
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(payload);
     } catch (error) {
-        console.error("Error en login:", error);
+        console.error("Error en get-users-admin:", error);
         const payload = JSON.stringify({ success: false, message: 'Error interno del servidor' });
         if (typeof res.status === 'function') return res.status(500).send(payload);
         res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });

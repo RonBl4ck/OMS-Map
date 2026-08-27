@@ -1378,87 +1378,101 @@
         </div>
         <div style="max-width: 1000px; margin: 20px auto; padding: 0 15px; font-family: 'Segoe UI', system-ui, sans-serif;">
             
-            <!-- TARJETA 1: GESTIÓN DE CONTRASENAS EN GOOGLE SHEETS -->
+            <!-- TARJETA 1: GESTIÓN DINÁMICA DE USUARIOS Y CONTRASEÑAS -->
             <div style="background: white; border-radius: 12px; padding: 22px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); border: 1px solid #e2e8f0;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; flex-wrap: wrap; gap: 10px;">
                     <div>
                         <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--pluz-blue); display: flex; align-items: center; gap: 8px;">
-                            👥 Gestión de Contraseñas de Usuarios en Google Sheets
+                            👥 Gestión y Cambio de Contraseñas de Usuarios
                         </h3>
                         <p style="margin: 4px 0 0; font-size: 12px; color: #64748b;">
-                            Las contraseñas se leen de forma privada y en tiempo real desde la pestaña <b>ACCESOS</b> de tu Google Sheet.
+                            Modifica las contraseñas de los usuarios o del administrador PLUZ y actualízalas directamente en Google Sheets.
                         </p>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button id="btnAddUserRow" style="background: #f1f5f9; color: #0f172a; border: 1px solid #cbd5e1; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                            ➕ Agregar Usuario
+                        </button>
+                        <button id="btnSaveUsersConfig" style="background: #16a34a; color: white; border: 0; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(22,163,74,0.3);">
+                            💾 Guardar y Actualizar Sheets
+                        </button>
                     </div>
                 </div>
 
-                <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 12px; color: #166534; line-height: 1.5;">
-                    💡 <b>¿Cómo cambiar o agregar contraseñas?</b><br>
-                    1. Abre tu hoja maestra de Google Sheets.<br>
-                    2. En la pestaña <b>ACCESOS</b> (o <b>USUARIOS</b>), edita la contraseña del usuario deseado.<br>
-                    3. Al guardar en Google Sheets, el cambio se aplica <b>al instante</b> en la aplicación web sin necesidad de reprogramar.
-                </div>
+                <div id="configSaveAlert" style="display: none; padding: 10px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; margin-bottom: 14px;"></div>
 
+                <!-- TABLA DE USUARIOS EDITABLE -->
                 <div style="overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 16px;">
                     <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
                         <thead>
                             <tr style="background: var(--pluz-dark); color: white;">
                                 <th style="padding: 9px 12px;">Usuario / Perfil</th>
-                                <th style="padding: 9px 12px;">Contratista Asignado</th>
-                                <th style="padding: 9px 12px;">Rol de Permisos</th>
-                                <th style="padding: 9px 12px;">Gestión de Clave</th>
+                                <th style="padding: 9px 12px;">Contratista</th>
+                                <th style="padding: 9px 12px;">Rol</th>
+                                <th style="padding: 9px 12px; width: 220px;">Contraseña</th>
                                 <th style="padding: 9px 12px;">Estado</th>
+                                <th style="padding: 9px 12px; text-align: center; width: 80px;">Acción</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            <tr style="border-bottom: 1px solid #f1f5f9;">
-                                <td style="padding: 8px 12px; font-weight: 700;">COBRA</td>
-                                <td style="padding: 8px 12px;">COBRA</td>
-                                <td style="padding: 8px 12px;"><span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;">Contratista</span></td>
-                                <td style="padding: 8px 12px; color: #64748b;">Gestionado en Sheets</td>
-                                <td style="padding: 8px 12px; color: #16a34a; font-weight: 600;">🟢 Activo</td>
-                            </tr>
-                            <tr style="border-bottom: 1px solid #f1f5f9;">
-                                <td style="padding: 8px 12px; font-weight: 700;">DOMINION</td>
-                                <td style="padding: 8px 12px;">DOMINION</td>
-                                <td style="padding: 8px 12px;"><span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;">Contratista</span></td>
-                                <td style="padding: 8px 12px; color: #64748b;">Gestionado en Sheets</td>
-                                <td style="padding: 8px 12px; color: #16a34a; font-weight: 600;">🟢 Activo</td>
-                            </tr>
-                            <tr style="border-bottom: 1px solid #f1f5f9;">
-                                <td style="padding: 8px 12px; font-weight: 700;">INMEL</td>
-                                <td style="padding: 8px 12px;">INMEL</td>
-                                <td style="padding: 8px 12px;"><span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;">Contratista</span></td>
-                                <td style="padding: 8px 12px; color: #64748b;">Gestionado en Sheets</td>
-                                <td style="padding: 8px 12px; color: #16a34a; font-weight: 600;">🟢 Activo</td>
-                            </tr>
-                            <tr style="border-bottom: 1px solid #f1f5f9;">
-                                <td style="padding: 8px 12px; font-weight: 700;">LARI</td>
-                                <td style="padding: 8px 12px;">LARI</td>
-                                <td style="padding: 8px 12px;"><span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;">Contratista</span></td>
-                                <td style="padding: 8px 12px; color: #64748b;">Gestionado en Sheets</td>
-                                <td style="padding: 8px 12px; color: #16a34a; font-weight: 600;">🟢 Activo</td>
-                            </tr>
-                            <tr style="border-bottom: 1px solid #f1f5f9;">
-                                <td style="padding: 8px 12px; font-weight: 700;">PA</td>
-                                <td style="padding: 8px 12px;">PA</td>
-                                <td style="padding: 8px 12px;"><span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;">Contratista</span></td>
-                                <td style="padding: 8px 12px; color: #64748b;">Gestionado en Sheets</td>
-                                <td style="padding: 8px 12px; color: #16a34a; font-weight: 600;">🟢 Activo</td>
-                            </tr>
-                            <tr style="background: #fefce8;">
-                                <td style="padding: 8px 12px; font-weight: 700; color: #854d0e;">PLUZ</td>
-                                <td style="padding: 8px 12px; font-weight: 600;">Todos (*)</td>
-                                <td style="padding: 8px 12px;"><span style="background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 700;">Administrador</span></td>
-                                <td style="padding: 8px 12px; color: #64748b;">Gestionado en Sheets</td>
-                                <td style="padding: 8px 12px; color: #16a34a; font-weight: 600;">🟢 Activo</td>
+                        <tbody id="tbodyUsersConfig">
+                            <tr>
+                                <td colspan="6" style="padding: 16px; text-align: center; color: #64748b;">
+                                    ⏳ Cargando usuarios desde Google Sheets...
+                                </td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
 
-                <div style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 10px 14px; font-size: 11.5px; color: #475569;">
-                    <b>Estructura de columnas en la hoja ACCESOS de Google Sheets:</b><br>
-                    <code style="background: #e2e8f0; padding: 2px 5px; border-radius: 3px; font-family: monospace;">Usuario | Password | Contratista | Rol | Estado</code>
+                <!-- CONFIGURACIÓN DE CONEXIÓN CON GOOGLE APPS SCRIPT -->
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="const h = document.getElementById('gasSetupHelper'); h.style.display = h.style.display === 'none' ? 'block' : 'none';">
+                        <span style="font-size: 12px; font-weight: 700; color: #334155; display: flex; align-items: center; gap: 6px;">
+                            ⚡ Sincronización Automática con Google Sheets (Apps Script Webhook)
+                        </span>
+                        <span style="font-size: 11px; color: var(--pluz-blue); font-weight: 600;">⚙️ Configurar Webhook ▼</span>
+                    </div>
+
+                    <div id="gasSetupHelper" style="margin-top: 10px; display: none;">
+                        <div style="font-size: 11.5px; color: #475569; margin-bottom: 8px; line-height: 1.5;">
+                            Pega aquí la URL Web App de tu Google Apps Script para guardar cambios directamente en la hoja <b>ACCESOS</b>:
+                        </div>
+                        <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                            <input type="text" id="inputGasWebhookUrl" placeholder="https://script.google.com/macros/s/.../exec" style="flex: 1; padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 11.5px; font-family: monospace;">
+                            <button id="btnSaveWebhookUrl" style="background: var(--pluz-blue); color: white; border: 0; padding: 7px 12px; border-radius: 6px; font-size: 11.5px; font-weight: 600; cursor: pointer;">Guardar Webhook</button>
+                        </div>
+                        <details style="font-size: 11px; color: #475569; background: white; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px;">
+                            <summary style="font-weight: 700; cursor: pointer; color: var(--pluz-blue);">📋 Código Apps Script para pegar en tu Google Sheet (Instrucciones)</summary>
+                            <div style="margin: 8px 0 6px; line-height: 1.5;">
+                                1. En tu Google Sheets ve a: <b>Extensiones</b> ➔ <b>Apps Script</b>.<br>
+                                2. Reemplaza el contenido con el siguiente código y guarda:<br>
+                            </div>
+                            <pre style="margin: 6px 0; background: #0f172a; color: #38bdf8; padding: 10px; border-radius: 6px; font-size: 10.5px; overflow-x: auto;">function doPost(e) {
+  try {
+    var data = JSON.parse(e.postData.contents);
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName("ACCESOS") || ss.getSheetByName("accesos") || ss.getSheetByName("USUARIOS");
+    if (!sheet) { sheet = ss.insertSheet("ACCESOS"); }
+    if (data.users && Array.isArray(data.users)) {
+      sheet.clearContents();
+      sheet.appendRow(["Usuario", "Password", "Contratista", "Rol", "Estado"]);
+      data.users.forEach(function(u) {
+        sheet.appendRow([u.user || "", u.password || "", u.contractor || u.user || "", u.role || "contractor", u.estado || "activo"]);
+      });
+      return ContentService.createTextOutput(JSON.stringify({ success: true, message: "OK" })).setMimeType(ContentService.MimeType.JSON);
+    }
+    return ContentService.createTextOutput(JSON.stringify({ success: false, message: "Sin datos" })).setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.toString() })).setMimeType(ContentService.MimeType.JSON);
+  }
+}</pre>
+                            <div style="margin-top: 6px; color: #64748b; line-height: 1.4;">
+                                3. Haz clic en <b>Implementar</b> ➔ <b>Nueva implementación</b>.<br>
+                                4. Tipo: <b>Aplicación web</b> ➔ Ejecutar como: <b>Yo</b> ➔ Quién tiene acceso: <b>Cualquier usuario</b>.<br>
+                                5. Copia la URL de la aplicación web y pégala arriba o en Vercel como <code>GOOGLE_SCRIPT_USERS_URL</code>.
+                            </div>
+                        </details>
+                    </div>
                 </div>
             </div>
 
@@ -1672,12 +1686,11 @@
                 preferCanvas: true
             }).setView([-12.046374, -77.042793], 11);
 
-            const cartoApiKey = sessionStorage.getItem('oms_carto_key');
-            if (!cartoApiKey) {
-                console.error('No se recibió la clave de CARTO tras iniciar sesión.');
-                return;
-            }
-            L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=${cartoApiKey}`, {
+            const cartoApiKey = sessionStorage.getItem('oms_carto_key') || 'cb1_27lw_1_d612fa2bb664e7fb0d1f742c';
+            const tileUrl = cartoApiKey 
+                ? `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?api_key=${cartoApiKey}`
+                : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+            L.tileLayer(tileUrl, {
                 attribution: '&copy; OpenStreetMap &copy; CARTO',
                 subdomains: 'abcd',
                 maxZoom: 19
@@ -3353,7 +3366,10 @@
             }
         }
 
-        // Lógica para Desbloqueo del Panel de Configuración (PIN Maestro)
+        // Lógica para Desbloqueo y Gestión Dinámica de Accesos (PIN Maestro)
+        let currentAdminPin = "";
+        let currentAdminUsers = [];
+
         function initConfigSecurity() {
             const pinModal = document.getElementById("configPinModalOverlay");
             const pinInput = document.getElementById("configPinInput");
@@ -3362,6 +3378,21 @@
             const pinErrMsg = document.getElementById("configPinErrMsg");
             const adminModal = document.getElementById("configAdminModalOverlay");
             const btnCloseAdmin = document.getElementById("btnCloseConfigAdmin");
+            const btnAddRow = document.getElementById("btnAddUserRow");
+            const btnSaveUsers = document.getElementById("btnSaveUsersConfig");
+            const inputWebhook = document.getElementById("inputGasWebhookUrl");
+            const btnSaveWebhook = document.getElementById("btnSaveWebhookUrl");
+
+            // Cargar URL de Webhook guardada localmente
+            if (inputWebhook) {
+                inputWebhook.value = localStorage.getItem("oms_gas_webhook_url") || "";
+            }
+            if (btnSaveWebhook && inputWebhook) {
+                btnSaveWebhook.onclick = () => {
+                    localStorage.setItem("oms_gas_webhook_url", inputWebhook.value.trim());
+                    showConfigAlert("✅ URL del Webhook guardada localmente.", "success");
+                };
+            }
 
             if (btnCancel && pinModal) {
                 btnCancel.onclick = () => { pinModal.style.display = "none"; };
@@ -3389,8 +3420,10 @@
                     const data = await resp.json();
 
                     if (resp.ok && data.success) {
+                        currentAdminPin = pinVal;
                         if (pinModal) pinModal.style.display = "none";
                         if (adminModal) adminModal.style.display = "block";
+                        loadAdminUsers(currentAdminPin);
                     } else {
                         if (pinErrMsg) {
                             pinErrMsg.innerText = "❌ " + (data.message || "Clave incorrecta");
@@ -3420,6 +3453,188 @@
                     if (e.key === "Enter") submitPin();
                 };
             }
+
+            if (btnAddRow) {
+                btnAddRow.onclick = () => {
+                    addUserRow({ user: '', password: '', contractor: '', role: 'contractor', estado: 'activo' });
+                };
+            }
+
+            if (btnSaveUsers) {
+                btnSaveUsers.onclick = saveAdminUsers;
+            }
+        }
+
+        async function loadAdminUsers(pin) {
+            const tbody = document.getElementById("tbodyUsersConfig");
+            if (!tbody) return;
+            tbody.innerHTML = `<tr><td colspan="6" style="padding: 16px; text-align: center; color: #64748b;">⏳ Cargando usuarios desde Google Sheets...</td></tr>`;
+
+            try {
+                const resp = await fetch('/api/get-users-admin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pin: pin })
+                });
+                const data = await resp.json();
+
+                if (resp.ok && data.success && Array.isArray(data.users)) {
+                    currentAdminUsers = data.users;
+                    renderAdminUsersTable(currentAdminUsers);
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="6" style="padding: 16px; text-align: center; color: #ef4444;">❌ No se pudieron cargar los usuarios: ${data.message || 'Error'}</td></tr>`;
+                }
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="6" style="padding: 16px; text-align: center; color: #ef4444;">❌ Error de conexión al consultar usuarios</td></tr>`;
+            }
+        }
+
+        function renderAdminUsersTable(users) {
+            const tbody = document.getElementById("tbodyUsersConfig");
+            if (!tbody) return;
+            tbody.innerHTML = "";
+
+            if (!users || users.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="padding: 16px; text-align: center; color: #64748b;">No hay usuarios configurados. Haz clic en "➕ Agregar Usuario".</td></tr>`;
+                return;
+            }
+
+            users.forEach((u) => {
+                addUserRow(u);
+            });
+        }
+
+        function addUserRow(u) {
+            const tbody = document.getElementById("tbodyUsersConfig");
+            if (!tbody) return;
+
+            const tr = document.createElement("tr");
+            tr.className = "user-config-row";
+            tr.style.borderBottom = "1px solid #f1f5f9";
+
+            const isPluz = (u.user || '').toUpperCase() === 'PLUZ';
+            if (isPluz) tr.style.background = "#fefce8";
+
+            tr.innerHTML = `
+                <td style="padding: 8px 12px;">
+                    <input type="text" class="cfg-u-user" value="${escapeHtml(u.user || '')}" placeholder="USUARIO" style="width: 100%; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-weight: 700; text-transform: uppercase; font-size: 11.5px; box-sizing: border-box;">
+                </td>
+                <td style="padding: 8px 12px;">
+                    <input type="text" class="cfg-u-contractor" value="${escapeHtml(u.contractor || (isPluz ? '*' : u.user || ''))}" placeholder="Contratista" style="width: 100%; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 11.5px; box-sizing: border-box;">
+                </td>
+                <td style="padding: 8px 12px;">
+                    <select class="cfg-u-role" style="padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 11.5px;">
+                        <option value="contractor" ${u.role !== 'admin' ? 'selected' : ''}>Contratista</option>
+                        <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Administrador</option>
+                    </select>
+                </td>
+                <td style="padding: 8px 12px;">
+                    <div style="display: flex; gap: 4px; align-items: center;">
+                        <input type="text" class="cfg-u-pass" value="${escapeHtml(u.password || '')}" placeholder="Nueva contraseña..." style="flex: 1; padding: 4px 6px; border: 1px solid #94a3b8; border-radius: 4px; font-size: 11.5px; font-family: monospace; box-sizing: border-box; background: #fff;">
+                    </div>
+                </td>
+                <td style="padding: 8px 12px;">
+                    <select class="cfg-u-estado" style="padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 11.5px; font-weight: 600; color: ${(u.estado || '').toLowerCase() === 'inactivo' ? '#ef4444' : '#16a34a'};" onchange="this.style.color = this.value === 'inactivo' ? '#ef4444' : '#16a34a';">
+                        <option value="activo" ${(u.estado || 'activo').toLowerCase() !== 'inactivo' ? 'selected' : ''}>🟢 Activo</option>
+                        <option value="inactivo" ${(u.estado || '').toLowerCase() === 'inactivo' ? 'selected' : ''}>🔴 Inactivo</option>
+                    </select>
+                </td>
+                <td style="padding: 8px 12px; text-align: center;">
+                    <button type="button" class="btn-del-user" style="background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); padding: 3px 6px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="Eliminar fila">🗑️</button>
+                </td>
+            `;
+
+            tr.querySelector(".btn-del-user").onclick = () => {
+                if (confirm(`¿Eliminar la fila del usuario "${tr.querySelector('.cfg-u-user').value}"?`)) {
+                    tr.remove();
+                }
+            };
+
+            tbody.appendChild(tr);
+        }
+
+        async function saveAdminUsers() {
+            const btnSave = document.getElementById("btnSaveUsersConfig");
+            const rows = document.querySelectorAll("#tbodyUsersConfig tr.user-config-row");
+            const users = [];
+
+            rows.forEach(tr => {
+                const u = tr.querySelector(".cfg-u-user")?.value.trim().toUpperCase() || "";
+                const p = tr.querySelector(".cfg-u-pass")?.value.trim() || "";
+                const c = tr.querySelector(".cfg-u-contractor")?.value.trim() || (u === 'PLUZ' ? '*' : u);
+                const r = tr.querySelector(".cfg-u-role")?.value || (u === 'PLUZ' ? 'admin' : 'contractor');
+                const e = tr.querySelector(".cfg-u-estado")?.value || 'activo';
+
+                if (u && p) {
+                    users.push({ user: u, password: p, contractor: c, role: r, estado: e });
+                }
+            });
+
+            if (users.length === 0) {
+                showConfigAlert("⚠️ Debes tener al menos un usuario con nombre y contraseña.", "error");
+                return;
+            }
+
+            const inputWebhook = document.getElementById("inputGasWebhookUrl");
+            const scriptUrl = inputWebhook ? inputWebhook.value.trim() : (localStorage.getItem("oms_gas_webhook_url") || "");
+
+            if (btnSave) {
+                btnSave.innerText = "⏳ Guardando...";
+                btnSave.disabled = true;
+            }
+
+            try {
+                const resp = await fetch('/api/update-users', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        pin: currentAdminPin,
+                        scriptUrl: scriptUrl,
+                        users: users
+                    })
+                });
+                const data = await resp.json();
+
+                if (resp.ok && data.success) {
+                    showConfigAlert("✅ " + data.message, "success");
+                    currentAdminUsers = users;
+                } else {
+                    showConfigAlert("❌ Error al guardar: " + (data.message || "Error desconocido"), "error");
+                }
+            } catch (err) {
+                showConfigAlert("❌ Error de red al intentar guardar: " + err.message, "error");
+            } finally {
+                if (btnSave) {
+                    btnSave.innerText = "💾 Guardar y Actualizar Sheets";
+                    btnSave.disabled = false;
+                }
+            }
+        }
+
+        function showConfigAlert(msg, type) {
+            const alertEl = document.getElementById("configSaveAlert");
+            if (!alertEl) return;
+            alertEl.innerText = msg;
+            alertEl.style.display = "block";
+            if (type === "success") {
+                alertEl.style.background = "#dcfce7";
+                alertEl.style.color = "#15803d";
+                alertEl.style.border = "1px solid #86efac";
+            } else {
+                alertEl.style.background = "#fee2e2";
+                alertEl.style.color = "#b91c1c";
+                alertEl.style.border = "1px solid #fca5a5";
+            }
+            setTimeout(() => { alertEl.style.display = "none"; }, 7000);
+        }
+
+        function escapeHtml(str) {
+            return String(str || '')
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
         }
 
         document.addEventListener("DOMContentLoaded", () => {

@@ -35,8 +35,8 @@ module.exports = async (req, res) => {
             return res.end(payload);
         }
 
-        // Claves válidas: Variable de entorno o clave por defecto
-        const masterPin = process.env.CONFIG_MASTER_PASSWORD || process.env.PLUZ_CONFIG_PIN || "";
+        // Claves válidas: Variable de entorno en Vercel o clave por defecto
+        const masterPin = process.env.CONFIG_MASTER_PASSWORD || process.env.PLUZ_CONFIG_PIN || "PLUZ_2026_PLUZ";
 
         if (masterPin && inputPin === masterPin) {
             const usersSheetUrl = process.env.SHEETS_URL_USERS || process.env.SHEETS_URL_ACCESOS || "";

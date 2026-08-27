@@ -40,7 +40,8 @@ En el panel de tu proyecto en [vercel.com](https://vercel.com) (pestaña **Setti
 | Variable | Valor / Descripción |
 | :--- | :--- |
 | `SHEETS_URL_USERS` | Enlace CSV publicado de la pestaña **ACCESOS**. |
-| `CONFIG_MASTER_PASSWORD` | Contraseña / PIN para desbloquear el menú `⚙️ Config` (defínela solo en Vercel). |
+| `CONFIG_MASTER_PASSWORD` | Contraseña / PIN para desbloquear el menú `⚙️ Config` (por defecto `PLUZ_2026_PLUZ`). |
+| `GOOGLE_SCRIPT_USERS_URL` | *(Opcional)* URL de Google Apps Script Webhook para sincronizar cambios desde la web a Sheets. |
 | `CARTO_API_KEY` | Clave API de Carto Basemaps (`cb1_27lw_1_...`). |
 | `SHEETS_URL_BASE` | URL CSV de la base de pendientes. |
 | `SHEETS_URL_EJECUTADOS` | URL CSV de la base de ejecutados. |
