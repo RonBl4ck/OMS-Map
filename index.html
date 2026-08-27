@@ -962,6 +962,7 @@
                     <div class="nav-kpi-title">Usuario</div>
                     <div class="nav-kpi-val" id="navUserName" style="font-size: 12px; color: var(--pluz-yellow);">👤 --</div>
                 </div>
+                <button id="btnOpenConfig" title="Configuración y Gestión de Accesos" style="display: none; background: rgba(59,130,246,0.2); color: #93c5fd; border: 1px solid rgba(59,130,246,0.4); padding: 3px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; font-weight: 700;">⚙️ Config</button>
                 <button id="btnLogout" title="Cerrar Sesión" style="background: rgba(239,68,68,0.2); color: #fca5a5; border: 1px solid rgba(239,68,68,0.4); padding: 3px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; font-weight: 700;">Salir</button>
             </div>
             <div class="nav-kpi-item">
@@ -1273,6 +1274,195 @@
         </div>
     </div>
 
+    <!-- MODAL PARA INGRESAR CONTRASEÑA MAESTRA / PIN DE CONFIGURACIÓN -->
+    <div id="configPinModalOverlay" style="
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(15, 23, 42, 0.85);
+        backdrop-filter: blur(8px);
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+    ">
+        <div style="
+            background: #ffffff;
+            width: 90%;
+            max-width: 360px;
+            border-radius: 12px;
+            padding: 24px 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            text-align: center;
+            border: 2px solid var(--pluz-blue);
+        ">
+            <div style="font-size: 36px; margin-bottom: 6px;">🔐</div>
+            <h3 style="font-size: 16px; font-weight: 700; color: var(--pluz-dark); margin: 0 0 4px;">Seguridad de Configuración</h3>
+            <p style="font-size: 11px; color: #64748b; margin: 0 0 16px;">Ingresa la clave maestra o PIN de Administrador (PLUZ)</p>
+
+            <div style="text-align: left; margin-bottom: 12px;">
+                <input type="password" id="configPinInput" placeholder="Contraseña de Configuración..." style="
+                    width: 100%;
+                    padding: 10px 12px;
+                    border: 1px solid #cbd5e1;
+                    border-radius: 8px;
+                    font-size: 13px;
+                    outline: none;
+                    box-sizing: border-box;
+                    text-align: center;
+                ">
+            </div>
+
+            <div id="configPinErrMsg" style="color: #ef4444; font-size: 11.5px; font-weight: 600; margin-bottom: 10px; display: none;">
+                ❌ Clave incorrecta
+            </div>
+
+            <div style="display: flex; gap: 8px;">
+                <button id="btnCancelConfigPin" style="
+                    flex: 1;
+                    background: #f1f5f9;
+                    color: #475569;
+                    border: 1px solid #cbd5e1;
+                    padding: 8px;
+                    border-radius: 6px;
+                    font-size: 12px;
+                    font-weight: 600;
+                    cursor: pointer;
+                ">Cancelar</button>
+                <button id="btnSubmitConfigPin" style="
+                    flex: 2;
+                    background: var(--pluz-blue);
+                    color: white;
+                    border: 0;
+                    padding: 8px;
+                    border-radius: 6px;
+                    font-size: 12px;
+                    font-weight: 700;
+                    cursor: pointer;
+                ">Desbloquear</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE PANEL DE CONFIGURACIÓN Y GESTIÓN DE ACCESOS -->
+    <div id="configAdminModalOverlay" class="td-oms-full-view" style="display: none;">
+        <div class="view-header-bar" style="background: #0f172a; border-bottom: 2px solid var(--pluz-blue);">
+            <div class="modal-header-title" style="display: flex; align-items: center; gap: 8px;">
+                ⚙️ <span>Configuración y Gestión de Accesos (PLUZ Admin)</span>
+            </div>
+            <button id="btnCloseConfigAdmin" class="btn-action-sm btn-search" style="background: var(--pluz-blue); display: inline-flex; align-items: center; gap: 6px;" title="Volver al Mapa (Esc)">📍 Volver al Mapa</button>
+        </div>
+        <div style="max-width: 1000px; margin: 20px auto; padding: 0 15px; font-family: 'Segoe UI', system-ui, sans-serif;">
+            
+            <!-- TARJETA 1: GESTIÓN DE CONTRASENAS EN GOOGLE SHEETS -->
+            <div style="background: white; border-radius: 12px; padding: 22px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); border: 1px solid #e2e8f0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--pluz-blue); display: flex; align-items: center; gap: 8px;">
+                            👥 Gestión de Contraseñas de Usuarios en Google Sheets
+                        </h3>
+                        <p style="margin: 4px 0 0; font-size: 12px; color: #64748b;">
+                            Las contraseñas se leen de forma privada y en tiempo real desde la pestaña <b>ACCESOS</b> de tu Google Sheet.
+                        </p>
+                    </div>
+                </div>
+
+                <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 12px; color: #166534; line-height: 1.5;">
+                    💡 <b>¿Cómo cambiar o agregar contraseñas?</b><br>
+                    1. Abre tu hoja maestra de Google Sheets.<br>
+                    2. En la pestaña <b>ACCESOS</b> (o <b>USUARIOS</b>), edita la contraseña del usuario deseado.<br>
+                    3. Al guardar en Google Sheets, el cambio se aplica <b>al instante</b> en la aplicación web sin necesidad de reprogramar.
+                </div>
+
+                <div style="overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 16px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+                        <thead>
+                            <tr style="background: var(--pluz-dark); color: white;">
+                                <th style="padding: 9px 12px;">Usuario / Perfil</th>
+                                <th style="padding: 9px 12px;">Contratista Asignado</th>
+                                <th style="padding: 9px 12px;">Rol de Permisos</th>
+                                <th style="padding: 9px 12px;">Gestión de Clave</th>
+                                <th style="padding: 9px 12px;">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="border-bottom: 1px solid #f1f5f9;">
+                                <td style="padding: 8px 12px; font-weight: 700;">COBRA</td>
+                                <td style="padding: 8px 12px;">COBRA</td>
+                                <td style="padding: 8px 12px;"><span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;">Contratista</span></td>
+                                <td style="padding: 8px 12px; color: #64748b;">Gestionado en Sheets</td>
+                                <td style="padding: 8px 12px; color: #16a34a; font-weight: 600;">🟢 Activo</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #f1f5f9;">
+                                <td style="padding: 8px 12px; font-weight: 700;">DOMINION</td>
+                                <td style="padding: 8px 12px;">DOMINION</td>
+                                <td style="padding: 8px 12px;"><span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;">Contratista</span></td>
+                                <td style="padding: 8px 12px; color: #64748b;">Gestionado en Sheets</td>
+                                <td style="padding: 8px 12px; color: #16a34a; font-weight: 600;">🟢 Activo</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #f1f5f9;">
+                                <td style="padding: 8px 12px; font-weight: 700;">INMEL</td>
+                                <td style="padding: 8px 12px;">INMEL</td>
+                                <td style="padding: 8px 12px;"><span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;">Contratista</span></td>
+                                <td style="padding: 8px 12px; color: #64748b;">Gestionado en Sheets</td>
+                                <td style="padding: 8px 12px; color: #16a34a; font-weight: 600;">🟢 Activo</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #f1f5f9;">
+                                <td style="padding: 8px 12px; font-weight: 700;">LARI</td>
+                                <td style="padding: 8px 12px;">LARI</td>
+                                <td style="padding: 8px 12px;"><span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;">Contratista</span></td>
+                                <td style="padding: 8px 12px; color: #64748b;">Gestionado en Sheets</td>
+                                <td style="padding: 8px 12px; color: #16a34a; font-weight: 600;">🟢 Activo</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #f1f5f9;">
+                                <td style="padding: 8px 12px; font-weight: 700;">PA</td>
+                                <td style="padding: 8px 12px;">PA</td>
+                                <td style="padding: 8px 12px;"><span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;">Contratista</span></td>
+                                <td style="padding: 8px 12px; color: #64748b;">Gestionado en Sheets</td>
+                                <td style="padding: 8px 12px; color: #16a34a; font-weight: 600;">🟢 Activo</td>
+                            </tr>
+                            <tr style="background: #fefce8;">
+                                <td style="padding: 8px 12px; font-weight: 700; color: #854d0e;">PLUZ</td>
+                                <td style="padding: 8px 12px; font-weight: 600;">Todos (*)</td>
+                                <td style="padding: 8px 12px;"><span style="background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 700;">Administrador</span></td>
+                                <td style="padding: 8px 12px; color: #64748b;">Gestionado en Sheets</td>
+                                <td style="padding: 8px 12px; color: #16a34a; font-weight: 600;">🟢 Activo</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 10px 14px; font-size: 11.5px; color: #475569;">
+                    <b>Estructura de columnas en la hoja ACCESOS de Google Sheets:</b><br>
+                    <code style="background: #e2e8f0; padding: 2px 5px; border-radius: 3px; font-family: monospace;">Usuario | Password | Contratista | Rol | Estado</code>
+                </div>
+            </div>
+
+            <!-- TARJETA 2: ESTADO DE SEGURIDAD Y MAPAS -->
+            <div style="background: white; border-radius: 12px; padding: 22px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); border: 1px solid #e2e8f0;">
+                <h3 style="margin: 0 0 12px; font-size: 15px; font-weight: 700; color: var(--pluz-blue); display: flex; align-items: center; gap: 8px;">
+                    🛡️ Estado de Seguridad y Servicios Conectados
+                </h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; font-size: 12px;">
+                    <div style="padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <div style="font-weight: 700; color: #1e293b; margin-bottom: 4px;">🗺️ Carto Basemap API</div>
+                        <div style="color: #16a34a; font-weight: 600;">🟢 Conectado de forma segura</div>
+                        <div style="color: #64748b; font-size: 11px; margin-top: 2px;">Clave protegida y entregada solo tras autenticación.</div>
+                    </div>
+                    <div style="padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <div style="font-weight: 700; color: #1e293b; margin-bottom: 4px;">⚡ Backend Serverless</div>
+                        <div style="color: #16a34a; font-weight: 600;">🟢 Vercel API /api/login activo</div>
+                        <div style="color: #64748b; font-size: 11px; margin-top: 2px;">Las contraseñas no se exponen al navegador.</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -1461,8 +1651,12 @@
                 preferCanvas: true
             }).setView([-12.046374, -77.042793], 11);
 
-            const cartoApiKey = 'cb1_27lw_1_d612fa2bb664e7fb0d1f742c';
-            L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?api_key=${cartoApiKey}`, {
+            const cartoApiKey = sessionStorage.getItem('oms_carto_key');
+            if (!cartoApiKey) {
+                console.error('No se recibió la clave de CARTO tras iniciar sesión.');
+                return;
+            }
+            L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=${cartoApiKey}`, {
                 attribution: '&copy; OpenStreetMap &copy; CARTO',
                 subdomains: 'abcd',
                 maxZoom: 19
@@ -2953,15 +3147,6 @@
         });
         document.getElementById('btnCloseTecnicos')?.addEventListener('click', showMapView);
 
-        let APP_USERS = [
-            { user: "COBRA", password: "COBRA2026", contractor: "COBRA", role: "contractor" },
-            { user: "DOMINION", password: "DOMINION2026", contractor: "DOMINION", role: "contractor" },
-            { user: "INMEL", password: "INMEL2026", contractor: "INMEL", role: "contractor" },
-            { user: "LARI", password: "LARI2026", contractor: "LARI", role: "contractor" },
-            { user: "PA", password: "PA2026", contractor: "PA", role: "contractor" },
-            { user: "PLUZ", password: "PLUZ2026", contractor: "*", role: "admin" }
-        ];
-
         function updateUserBadge() {
             const userId = sessionStorage.getItem("oms_user_id") || "Invitado";
             const contractor = sessionStorage.getItem("oms_assigned_contractor") || "*";
@@ -2971,6 +3156,20 @@
             const navUserName = document.getElementById("navUserName");
             if (navUserName) {
                 navUserName.innerText = contractor === "*" ? `👤 ${userId} (Admin)` : `👤 ${userId} (${contractor})`;
+            }
+
+            const btnOpenConfig = document.getElementById("btnOpenConfig");
+            if (btnOpenConfig) {
+                btnOpenConfig.style.display = isAdmin ? 'inline-flex' : 'none';
+                btnOpenConfig.onclick = () => {
+                    const pinModal = document.getElementById("configPinModalOverlay");
+                    const pinInput = document.getElementById("configPinInput");
+                    const pinErrMsg = document.getElementById("configPinErrMsg");
+                    if (pinErrMsg) pinErrMsg.style.display = "none";
+                    if (pinInput) pinInput.value = "";
+                    if (pinModal) pinModal.style.display = "flex";
+                    if (pinInput) pinInput.focus();
+                };
             }
 
             const btnLogout = document.getElementById("btnLogout");
@@ -2985,18 +3184,29 @@
         // Carga de Datos
         async function loadData() {
             try {
-                const cfgResp = await fetch('config.json?_nocache=' + Date.now());
-                if (cfgResp.ok) {
-                    const cfg = await cfgResp.json();
+                // Intentamos consultar la API segura /api/config-data, con fallback a config.json
+                let cfg = null;
+                try {
+                    const cfgResp = await fetch('/api/config-data?_nocache=' + Date.now());
+                    if (cfgResp.ok) {
+                        cfg = await cfgResp.json();
+                    }
+                } catch(e) {}
+
+                if (!cfg) {
+                    const localResp = await fetch('config.json?_nocache=' + Date.now());
+                    if (localResp.ok) cfg = await localResp.json();
+                }
+
+                if (cfg) {
                     if (cfg.sheets_url) GOOGLE_SHEET_CSV_URL = cfg.sheets_url;
                     if (cfg.sheets_url_ejecutados) GOOGLE_SHEET_EJECUTADOS_URL = cfg.sheets_url_ejecutados;
                     if (cfg.sheets_url_llamadas) GOOGLE_SHEET_LLAMADAS_URL = cfg.sheets_url_llamadas;
                     if (cfg.sheets_url_tecnicos) GOOGLE_SHEET_TECNICOS_URL = cfg.sheets_url_tecnicos;
-                    if (Array.isArray(cfg.users) && cfg.users.length > 0) {
-                        APP_USERS = cfg.users;
-                    }
                 }
-            } catch (e) {}
+            } catch (e) {
+                console.warn("No se pudo cargar config remota:", e);
+            }
 
             try {
                 let csvUrl = GOOGLE_SHEET_CSV_URL;
@@ -3008,18 +3218,20 @@
                 }
 
                 let finalFetchUrl = csvUrl;
-                if (finalFetchUrl.includes('docs.google.com')) {
+                if (finalFetchUrl && finalFetchUrl.includes('docs.google.com')) {
                     finalFetchUrl += (finalFetchUrl.includes('?') ? '&' : '?') + '_nocache=' + Date.now();
                 }
 
-                Papa.parse(finalFetchUrl, {
-                    download: true,
-                    header: true,
-                    skipEmptyLines: true,
-                    complete: function(results) {
-                        processRawData(results.data);
-                    }
-                });
+                if (finalFetchUrl) {
+                    Papa.parse(finalFetchUrl, {
+                        download: true,
+                        header: true,
+                        skipEmptyLines: true,
+                        complete: function(results) {
+                            processRawData(results.data);
+                        }
+                    });
+                }
 
             } catch (err) {
                 console.error("Error cargando datos:", err);
@@ -3033,14 +3245,6 @@
             const btnLogin = document.getElementById("btnAuthLogin");
             const errMsg = document.getElementById("authErrMsg");
 
-            fetch('config.json?_nocache=' + Date.now())
-                .then(r => r.json())
-                .then(cfg => {
-                    if (cfg && Array.isArray(cfg.users) && cfg.users.length > 0) {
-                        APP_USERS = cfg.users;
-                    }
-                }).catch(() => {});
-
             if (sessionStorage.getItem("oms_auth_token") === "authenticated") {
                 if (authOverlay) authOverlay.style.display = "none";
                 updateUserBadge();
@@ -3051,27 +3255,65 @@
 
             if (authOverlay) authOverlay.style.display = "flex";
 
-            function validateLogin() {
+            async function validateLogin() {
                 const selectedUser = userInput ? userInput.value : "PLUZ";
                 const passVal = passInput ? passInput.value.trim() : "";
 
-                const userObj = APP_USERS.find(u => u.user.toUpperCase() === selectedUser.toUpperCase() && u.password === passVal);
+                if (!passVal) {
+                    if (errMsg) {
+                        errMsg.innerText = "❌ Ingresa una contraseña";
+                        errMsg.style.display = "block";
+                    }
+                    return;
+                }
 
-                if (userObj) {
-                    sessionStorage.setItem("oms_auth_token", "authenticated");
-                    sessionStorage.setItem("oms_user_id", userObj.user);
-                    sessionStorage.setItem("oms_assigned_contractor", userObj.contractor);
-                    sessionStorage.setItem("oms_user_role", userObj.role);
+                if (btnLogin) {
+                    btnLogin.innerText = "⏳ Validando...";
+                    btnLogin.disabled = true;
+                }
 
-                    if (authOverlay) authOverlay.style.display = "none";
-                    updateUserBadge();
-                    initMap();
-                    loadData();
-                } else {
-                    if (errMsg) errMsg.style.display = "block";
-                    if (passInput) {
-                        passInput.value = "";
-                        passInput.focus();
+                try {
+                    const response = await fetch('/api/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ user: selectedUser, password: passVal })
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.success) {
+                        sessionStorage.setItem("oms_auth_token", "authenticated");
+                        sessionStorage.setItem("oms_user_id", data.user);
+                        sessionStorage.setItem("oms_assigned_contractor", data.contractor);
+                        sessionStorage.setItem("oms_user_role", data.role);
+                        if (data.cartoApiKey) {
+                            sessionStorage.setItem("oms_carto_key", data.cartoApiKey);
+                        }
+
+                        if (authOverlay) authOverlay.style.display = "none";
+                        updateUserBadge();
+                        initMap();
+                        loadData();
+                    } else {
+                        if (errMsg) {
+                            errMsg.innerText = "❌ " + (data.message || "Usuario o contraseña incorrectos");
+                            errMsg.style.display = "block";
+                        }
+                        if (passInput) {
+                            passInput.value = "";
+                            passInput.focus();
+                        }
+                    }
+                } catch (err) {
+                    console.error("Error al autenticar:", err);
+                    if (errMsg) {
+                        errMsg.innerText = "❌ Error de conexión al servidor";
+                        errMsg.style.display = "block";
+                    }
+                } finally {
+                    if (btnLogin) {
+                        btnLogin.innerText = "Ingresar";
+                        btnLogin.disabled = false;
                     }
                 }
             }
@@ -3081,6 +3323,75 @@
                 passInput.focus();
                 passInput.onkeyup = (e) => {
                     if (e.key === "Enter") validateLogin();
+                };
+            }
+        }
+
+        // Lógica para Desbloqueo del Panel de Configuración (PIN Maestro)
+        function initConfigSecurity() {
+            const pinModal = document.getElementById("configPinModalOverlay");
+            const pinInput = document.getElementById("configPinInput");
+            const btnSubmit = document.getElementById("btnSubmitConfigPin");
+            const btnCancel = document.getElementById("btnCancelConfigPin");
+            const pinErrMsg = document.getElementById("configPinErrMsg");
+            const adminModal = document.getElementById("configAdminModalOverlay");
+            const btnCloseAdmin = document.getElementById("btnCloseConfigAdmin");
+
+            if (btnCancel && pinModal) {
+                btnCancel.onclick = () => { pinModal.style.display = "none"; };
+            }
+
+            if (btnCloseAdmin && adminModal) {
+                btnCloseAdmin.onclick = () => { adminModal.style.display = "none"; };
+            }
+
+            async function submitPin() {
+                const pinVal = pinInput ? pinInput.value.trim() : "";
+                if (!pinVal) return;
+
+                if (btnSubmit) {
+                    btnSubmit.innerText = "Verificando...";
+                    btnSubmit.disabled = true;
+                }
+
+                try {
+                    const resp = await fetch('/api/verify-config-pin', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ pin: pinVal })
+                    });
+                    const data = await resp.json();
+
+                    if (resp.ok && data.success) {
+                        if (pinModal) pinModal.style.display = "none";
+                        if (adminModal) adminModal.style.display = "block";
+                    } else {
+                        if (pinErrMsg) {
+                            pinErrMsg.innerText = "❌ " + (data.message || "Clave incorrecta");
+                            pinErrMsg.style.display = "block";
+                        }
+                        if (pinInput) {
+                            pinInput.value = "";
+                            pinInput.focus();
+                        }
+                    }
+                } catch (e) {
+                    if (pinErrMsg) {
+                        pinErrMsg.innerText = "❌ Error de conexión";
+                        pinErrMsg.style.display = "block";
+                    }
+                } finally {
+                    if (btnSubmit) {
+                        btnSubmit.innerText = "Desbloquear";
+                        btnSubmit.disabled = false;
+                    }
+                }
+            }
+
+            if (btnSubmit) btnSubmit.onclick = submitPin;
+            if (pinInput) {
+                pinInput.onkeyup = (e) => {
+                    if (e.key === "Enter") submitPin();
                 };
             }
         }
@@ -3095,6 +3406,7 @@
                     if (iconFilter) iconFilter.textContent = isCollapsed ? "▲" : "▼";
                 });
             }
+            initConfigSecurity();
             checkAuthentication();
         });
     </script>

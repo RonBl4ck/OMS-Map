@@ -13,3 +13,6 @@ data_tecnicos.json
 .env.*
 !.env.example
 config.local.json
+
+.vercel
+.env*
