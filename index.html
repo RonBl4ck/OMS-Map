@@ -50,12 +50,27 @@
             z-index: 1;
         }
 
-        /* BARRA SUPERIOR (TOP NAVBAR ESTILO PLUZ) */
-        .top-navbar {
+        /* CONTENEDOR FLEX SUPERIOR (BARRA + FILTROS AUTOMÁTICO) */
+        .map-top-controls {
             position: absolute;
             top: 10px;
             left: 50px;
             right: 15px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+            pointer-events: none;
+        }
+        .map-top-controls > * {
+            pointer-events: auto;
+        }
+
+        /* BARRA SUPERIOR (TOP NAVBAR ESTILO PLUZ) */
+        .top-navbar {
+            position: relative;
+            width: 100%;
             z-index: 1000;
             background: var(--dark-panel);
             backdrop-filter: blur(12px);
@@ -66,7 +81,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 15px;
+            gap: 12px;
             color: #ffffff;
             border: 1px solid rgba(255, 255, 255, 0.12);
         }
@@ -146,9 +161,7 @@
 
         /* BUSCADOR Y FILTROS DESPLEGABLES EN EL MAPA */
         .search-container-map {
-            position: absolute;
-            top: 65px;
-            left: 50px;
+            position: relative;
             z-index: 999;
             background: white;
             padding: 8px 12px;
@@ -167,7 +180,7 @@
             border: 1px solid #cbd5e1;
             border-radius: 6px;
             font-size: 12px;
-            width: 170px;
+            width: 150px;
             outline: none;
         }
         .search-container-map input:focus {
@@ -485,11 +498,15 @@
         }
 
         @media (max-width: 768px) {
-            /* 1. Ajustes en la Barra Superior */
-            .top-navbar {
+            .map-top-controls {
                 left: 10px;
                 right: 10px;
                 top: 8px;
+                bottom: 0;
+            }
+
+            /* 1. Ajustes en la Barra Superior */
+            .top-navbar {
                 padding: 8px 10px;
                 flex-direction: column;
                 align-items: stretch;
@@ -540,8 +557,9 @@
                 white-space: nowrap;
             }
 
-            /* 2. Ajustes en el Buscador y Filtros del Mapa */
+            /* 2. Ajustes en el Buscador y Filtros del Mapa (Fijo abajo en Móvil) */
             .search-container-map {
+                position: fixed;
                 left: 10px;
                 right: 10px;
                 top: auto;
@@ -944,72 +962,75 @@
 
     <div id="map"></div>
 
-    <!-- BARRA SUPERIOR CON LOGO PLUZ -->
-    <div class="top-navbar">
-        <div class="brand-title">
-            ⚡ <span>OMS Map</span>
-        </div>
-        <div class="navbar-center">
-            <div class="map-tabs-nav">
-                <button id="tabTdOms" class="tab-btn" type="button">📊 Indicadores</button>
-                <button id="tabTecnicos" class="tab-btn" type="button">👷 Seguimiento técnico</button>
-                <button id="tabLlamadas" class="tab-btn" type="button" style="display: none;">📞 Llamadas</button>
+    <!-- CONTENEDOR SUPERIOR (BARRA + FILTROS AUTOMÁTICOS) -->
+    <div class="map-top-controls">
+        <!-- BARRA SUPERIOR CON LOGO PLUZ -->
+        <div class="top-navbar">
+            <div class="brand-title">
+                ⚡ <span>OMS Map</span>
             </div>
-        </div>
-        <div class="kpi-badges-row">
-            <div class="nav-kpi-item" id="navUserBadge" style="border-left-color: var(--pluz-yellow); display: flex; align-items: center; gap: 8px;">
-                <div>
-                    <div class="nav-kpi-title">Usuario</div>
-                    <div class="nav-kpi-val" id="navUserName" style="font-size: 12px; color: var(--pluz-yellow);">👤 --</div>
+            <div class="navbar-center">
+                <div class="map-tabs-nav">
+                    <button id="tabTdOms" class="tab-btn" type="button" title="Tablero de Indicadores y Métricas">📊 KPIs</button>
+                    <button id="tabTecnicos" class="tab-btn" type="button" title="Seguimiento de cierres por técnico">👷 Seguimiento</button>
+                    <button id="tabLlamadas" class="tab-btn" type="button" style="display: none;">📞 Llamadas</button>
                 </div>
-                <button id="btnOpenConfig" title="Configuración y Gestión de Accesos" style="display: none; background: rgba(59,130,246,0.2); color: #93c5fd; border: 1px solid rgba(59,130,246,0.4); padding: 3px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; font-weight: 700;">⚙️ Config</button>
-                <button id="btnLogout" title="Cerrar Sesión" style="background: rgba(239,68,68,0.2); color: #fca5a5; border: 1px solid rgba(239,68,68,0.4); padding: 3px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; font-weight: 700;">Salir</button>
             </div>
-            <div class="nav-kpi-item">
-                <div class="nav-kpi-title">Pendientes BT</div>
-                <div class="nav-kpi-val" id="topNavCount">🚨 0 Incidencias</div>
-            </div>
-            <div class="nav-kpi-item" style="border-left-color: var(--pluz-green);">
-                <div class="nav-kpi-title">Última Subida</div>
-                <div class="nav-kpi-val" id="topNavTime" style="color: var(--pluz-green); font-family: monospace;">🕒 --:--:--</div>
-            </div>
-            <div class="nav-kpi-item" style="border-left-color: var(--pluz-blue); display: flex; gap: 6px;">
-                <button class="btn-nav-primary" id="btn-download-base">📥 Base Pendientes</button>
-                <button class="btn-nav-primary" id="btn-download-ejecutados" style="background: var(--pluz-green);">📥 Base Ejecutados</button>
+            <div class="kpi-badges-row">
+                <div class="nav-kpi-item" id="navUserBadge" style="border-left-color: var(--pluz-yellow); display: flex; align-items: center; gap: 8px;">
+                    <div>
+                        <div class="nav-kpi-title">Usuario</div>
+                        <div class="nav-kpi-val" id="navUserName" style="font-size: 12px; color: var(--pluz-yellow);">👤 --</div>
+                    </div>
+                    <button id="btnOpenConfig" title="Configuración y Gestión de Accesos" style="display: none; background: rgba(59,130,246,0.2); color: #93c5fd; border: 1px solid rgba(59,130,246,0.4); padding: 3px 6px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 700; line-height: 1;">⚙️</button>
+                    <button id="btnLogout" title="Cerrar Sesión" style="background: rgba(239,68,68,0.2); color: #fca5a5; border: 1px solid rgba(239,68,68,0.4); padding: 3px 6px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 700; line-height: 1;">🚪</button>
+                </div>
+                <div class="nav-kpi-item" title="Incidencias pendientes de Baja Tensión">
+                    <div class="nav-kpi-title">Pend. BT</div>
+                    <div class="nav-kpi-val" id="topNavCount">🚨 0</div>
+                </div>
+                <div class="nav-kpi-item" style="border-left-color: var(--pluz-green);" title="Hora de última actualización de datos">
+                    <div class="nav-kpi-title">Subida</div>
+                    <div class="nav-kpi-val" id="topNavTime" style="color: var(--pluz-green); font-family: monospace;">🕒 --:--</div>
+                </div>
+                <div class="nav-kpi-item" style="border-left-color: var(--pluz-blue); display: flex; gap: 6px;">
+                    <button class="btn-nav-primary" id="btn-download-base" title="Descargar Base Pendientes (CSV)">📥 Pend.</button>
+                    <button class="btn-nav-primary" id="btn-download-ejecutados" style="background: var(--pluz-green);" title="Descargar Base Ejecutados (CSV)">📥 Ejec.</button>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- Buscador y Filtros Multi-Checkbox en el Mapa -->
-    <div class="search-container-map" id="mapSearchToolbar">
-        <button id="btnToggleMobileFilterBar" class="mobile-filter-toggle-btn" type="button">
-            <span>🔍 Filtros y Búsqueda</span> <span id="mobileFilterIcon">▼</span>
-        </button>
-        <div id="mapFilterContentWrapper" class="map-filter-content-wrapper" style="display: flex; gap: 8px; flex-wrap: wrap; width: 100%;">
-            <select id="searchTypeMap" style="padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; font-weight: 700; color: #1e293b; outline: none; background: #ffffff; cursor: pointer;">
-                <option value="ticket">Ticket / ODM</option>
-                <option value="sed">SED</option>
-                <option value="alimentador">Alimentador</option>
-                <option value="address">📍 Dirección / Ref.</option>
-            </select>
-            <input type="text" id="inputTicket" placeholder="Buscar por Ticket o ODM...">
-            <div id="mapMultiEstado"></div>
-            <div id="mapMultiEmpresa"></div>
-            <div id="mapMultiFalla"></div>
-            <label class="checkbox-filter-label" style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; color: #be123c; user-select: none;">
-                <input type="checkbox" id="chk7LlamadasMap" style="cursor: pointer; accent-color: #e11d48; width: 14px; height: 14px;">
-                <span>📞 ≥ 7 Llamadas</span>
-            </label>
-            <label class="checkbox-filter-label" style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; color: #dc2626; user-select: none;" title="Filtrar por SEDs con más de 2 fallas en los últimos 7 días">
-                <input type="checkbox" id="chkReincSedMap" style="cursor: pointer; accent-color: #dc2626; width: 14px; height: 14px;">
-                <span>🚨 SED >2 Fallas (7D)</span>
-            </label>
-            <label class="checkbox-filter-label" style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; background: #ccfbf1; border: 1px solid #99f6e4; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; color: #0d9488; user-select: none;" title="Filtrar por Suministros con 2 o más fallas en los últimos 7 días">
-                <input type="checkbox" id="chkReincSuminMap" style="cursor: pointer; accent-color: #0d9488; width: 14px; height: 14px;">
-                <span>👤 Sum. ≥2 Fallas (7D)</span>
-            </label>
-            <button class="btn-action-sm btn-search" id="btnBuscar">Buscar</button>
-            <button class="btn-action-sm btn-reset" id="btnLimpiar">Limpiar</button>
+        <!-- Buscador y Filtros Multi-Checkbox en el Mapa -->
+        <div class="search-container-map" id="mapSearchToolbar">
+            <button id="btnToggleMobileFilterBar" class="mobile-filter-toggle-btn" type="button">
+                <span>🔍 Filtros y Búsqueda</span> <span id="mobileFilterIcon">▼</span>
+            </button>
+            <div id="mapFilterContentWrapper" class="map-filter-content-wrapper" style="display: flex; gap: 8px; flex-wrap: wrap; width: 100%;">
+                <select id="searchTypeMap" style="padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; font-weight: 700; color: #1e293b; outline: none; background: #ffffff; cursor: pointer;">
+                    <option value="ticket">Ticket / ODM</option>
+                    <option value="sed">SED</option>
+                    <option value="alimentador">Alimentador</option>
+                    <option value="address">📍 Dirección / Ref.</option>
+                </select>
+                <input type="text" id="inputTicket" placeholder="Buscar por Ticket o ODM...">
+                <div id="mapMultiEstado"></div>
+                <div id="mapMultiEmpresa"></div>
+                <div id="mapMultiFalla"></div>
+                <label class="checkbox-filter-label" style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; color: #be123c; user-select: none;">
+                    <input type="checkbox" id="chk7LlamadasMap" style="cursor: pointer; accent-color: #e11d48; width: 14px; height: 14px;">
+                    <span>📞 ≥ 7 Llamadas</span>
+                </label>
+                <label class="checkbox-filter-label" style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; color: #dc2626; user-select: none;" title="Filtrar por SEDs con más de 2 fallas en los últimos 7 días">
+                    <input type="checkbox" id="chkReincSedMap" style="cursor: pointer; accent-color: #dc2626; width: 14px; height: 14px;">
+                    <span>🚨 SED >2 Fallas (7D)</span>
+                </label>
+                <label class="checkbox-filter-label" style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; background: #ccfbf1; border: 1px solid #99f6e4; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; color: #0d9488; user-select: none;" title="Filtrar por Suministros con 2 o más fallas en los últimos 7 días">
+                    <input type="checkbox" id="chkReincSuminMap" style="cursor: pointer; accent-color: #0d9488; width: 14px; height: 14px;">
+                    <span>👤 Sum. ≥2 Fallas (7D)</span>
+                </label>
+                <button class="btn-action-sm btn-search" id="btnBuscar">Buscar</button>
+                <button class="btn-action-sm btn-reset" id="btnLimpiar">Limpiar</button>
+            </div>
         </div>
     </div>
 
@@ -1684,13 +1705,18 @@
             mapLocations = [];
             tdOmsRecords = [];
 
-            // Detectar Fecha y Hora de la última subida
+            // Detectar Fecha y Hora de la última subida (sin segundos)
             let lastUploadTime = "";
             if (data && data.length > 0) {
                 lastUploadTime = data[0].FECHA_ACTUALIZACION_SISTEMA || data[0].fecha_actualizacion || "";
             }
             if (!lastUploadTime) {
-                lastUploadTime = new Date().toLocaleTimeString();
+                lastUploadTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } else if (typeof lastUploadTime === 'string') {
+                const match = lastUploadTime.match(/(\d{1,2}:\d{2})(?::\d{2})?/);
+                if (match) {
+                    lastUploadTime = match[1];
+                }
             }
             const timeEl = document.getElementById("topNavTime");
             if (timeEl) timeEl.innerText = `🕒 ${lastUploadTime}`;
@@ -2009,7 +2035,7 @@
             if (bounds.length > 0) {
                 leafletMap.fitBounds(L.latLngBounds(bounds).pad(0.1));
             }
-            document.getElementById("topNavCount").innerText = `🚨 ${count} Incidencias`;
+            document.getElementById("topNavCount").innerText = `🚨 ${count}`;
         }
 
         const searchTypeMapEl = document.getElementById("searchTypeMap");
