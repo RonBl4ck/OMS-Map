@@ -1,4 +1,4 @@
-﻿// api/update-users.js
+// api/update-users.js
 // Endpoint Serverless para actualizar usuarios y contraseñas en Google Sheets (Apps Script Webhook)
 
 module.exports = async (req, res) => {
@@ -44,7 +44,7 @@ module.exports = async (req, res) => {
             return res.end(payload);
         }
 
-        const webhookUrl = scriptUrl || process.env.GOOGLE_SCRIPT_USERS_URL || process.env.GOOGLE_SCRIPT_URL;
+        const webhookUrl = process.env.GOOGLE_SCRIPT_USERS_URL || scriptUrl || "https://script.google.com/macros/s/AKfycbyUkkCUBRkPU6q0mM36l43LPWc5vUiKVlB2uz0d8p942T37B7YEz75w2YIl8K_O9X__/exec";
 
         let syncSuccess = false;
         let syncMsg = '';
