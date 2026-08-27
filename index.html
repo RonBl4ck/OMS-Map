@@ -1420,76 +1420,6 @@
                         </tbody>
                     </table>
                 </div>
-
-                <!-- CONFIGURACIÓN DE CONEXIÓN CON GOOGLE APPS SCRIPT -->
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="const h = document.getElementById('gasSetupHelper'); h.style.display = h.style.display === 'none' ? 'block' : 'none';">
-                        <span style="font-size: 12px; font-weight: 700; color: #334155; display: flex; align-items: center; gap: 6px;">
-                            ⚡ Sincronización Automática con Google Sheets (Webhook Conectado)
-                        </span>
-                        <span style="font-size: 11px; color: var(--pluz-blue); font-weight: 600;">⚙️ Ver Webhook ▼</span>
-                    </div>
-
-                    <div id="gasSetupHelper" style="margin-top: 10px; display: none;">
-                        <div style="font-size: 11.5px; color: #475569; margin-bottom: 8px; line-height: 1.5;">
-                            URL del Web App de Google Apps Script vinculada para guardar cambios en la pestaña <b>ACCESOS</b>:
-                        </div>
-                        <div style="display: flex; gap: 8px; margin-bottom: 10px;">
-                            <input type="text" id="inputGasWebhookUrl" value="https://script.google.com/macros/s/AKfycbyUkkCUBRkPU6q0mM36l43LPWc5vUiKVlB2uz0d8p942T37B7YEz75w2YIl8K_O9X__/exec" placeholder="https://script.google.com/macros/s/.../exec" style="flex: 1; padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 11.5px; font-family: monospace;">
-                            <button id="btnSaveWebhookUrl" style="background: var(--pluz-blue); color: white; border: 0; padding: 7px 12px; border-radius: 6px; font-size: 11.5px; font-weight: 600; cursor: pointer;">Guardar Webhook</button>
-                        </div>
-                        <details style="font-size: 11px; color: #475569; background: white; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px;">
-                            <summary style="font-weight: 700; cursor: pointer; color: var(--pluz-blue);">📋 Código Apps Script para pegar en tu Google Sheet (Instrucciones)</summary>
-                            <div style="margin: 8px 0 6px; line-height: 1.5;">
-                                1. En tu Google Sheets ve a: <b>Extensiones</b> ➔ <b>Apps Script</b>.<br>
-                                2. Reemplaza el contenido con el siguiente código y guarda:<br>
-                            </div>
-                            <pre style="margin: 6px 0; background: #0f172a; color: #38bdf8; padding: 10px; border-radius: 6px; font-size: 10.5px; overflow-x: auto;">function doPost(e) {
-  try {
-    var data = JSON.parse(e.postData.contents);
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var sheet = ss.getSheetByName("ACCESOS") || ss.getSheetByName("accesos") || ss.getSheetByName("USUARIOS");
-    if (!sheet) { sheet = ss.insertSheet("ACCESOS"); }
-    if (data.users && Array.isArray(data.users)) {
-      sheet.clearContents();
-      sheet.appendRow(["Usuario", "Password", "Contratista", "Rol", "Estado"]);
-      data.users.forEach(function(u) {
-        sheet.appendRow([u.user || "", u.password || "", u.contractor || u.user || "", u.role || "contractor", u.estado || "activo"]);
-      });
-      return ContentService.createTextOutput(JSON.stringify({ success: true, message: "OK" })).setMimeType(ContentService.MimeType.JSON);
-    }
-    return ContentService.createTextOutput(JSON.stringify({ success: false, message: "Sin datos" })).setMimeType(ContentService.MimeType.JSON);
-  } catch(err) {
-    return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.toString() })).setMimeType(ContentService.MimeType.JSON);
-  }
-}</pre>
-                            <div style="margin-top: 6px; color: #64748b; line-height: 1.4;">
-                                3. Haz clic en <b>Implementar</b> ➔ <b>Nueva implementación</b>.<br>
-                                4. Tipo: <b>Aplicación web</b> ➔ Ejecutar como: <b>Yo</b> ➔ Quién tiene acceso: <b>Cualquier usuario</b>.<br>
-                                5. Copia la URL de la aplicación web y pégala arriba o en Vercel como <code>GOOGLE_SCRIPT_USERS_URL</code>.
-                            </div>
-                        </details>
-                    </div>
-                </div>
-            </div>
-
-            <!-- TARJETA 2: ESTADO DE SEGURIDAD Y MAPAS -->
-            <div style="background: white; border-radius: 12px; padding: 22px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); border: 1px solid #e2e8f0;">
-                <h3 style="margin: 0 0 12px; font-size: 15px; font-weight: 700; color: var(--pluz-blue); display: flex; align-items: center; gap: 8px;">
-                    🛡️ Estado de Seguridad y Servicios Conectados
-                </h3>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; font-size: 12px;">
-                    <div style="padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
-                        <div style="font-weight: 700; color: #1e293b; margin-bottom: 4px;">🗺️ Carto Basemap API</div>
-                        <div style="color: #16a34a; font-weight: 600;">🟢 Conectado de forma segura</div>
-                        <div style="color: #64748b; font-size: 11px; margin-top: 2px;">Clave protegida y entregada solo tras autenticación.</div>
-                    </div>
-                    <div style="padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
-                        <div style="font-weight: 700; color: #1e293b; margin-bottom: 4px;">⚡ Backend Serverless</div>
-                        <div style="color: #16a34a; font-weight: 600;">🟢 Vercel API /api/login activo</div>
-                        <div style="color: #64748b; font-size: 11px; margin-top: 2px;">Las contraseñas no se exponen al navegador.</div>
-                    </div>
-                </div>
             </div>
 
         </div>
@@ -3376,19 +3306,6 @@
             const adminModal = document.getElementById("configAdminModalOverlay");
             const btnCloseAdmin = document.getElementById("btnCloseConfigAdmin");
             const btnSaveUsers = document.getElementById("btnSaveUsersConfig");
-            const inputWebhook = document.getElementById("inputGasWebhookUrl");
-            const btnSaveWebhook = document.getElementById("btnSaveWebhookUrl");
-
-            // Cargar URL de Webhook guardada localmente
-            if (inputWebhook) {
-                inputWebhook.value = localStorage.getItem("oms_gas_webhook_url") || "";
-            }
-            if (btnSaveWebhook && inputWebhook) {
-                btnSaveWebhook.onclick = () => {
-                    localStorage.setItem("oms_gas_webhook_url", inputWebhook.value.trim());
-                    showConfigAlert("✅ URL del Webhook guardada localmente.", "success");
-                };
-            }
 
             if (btnCancel && pinModal) {
                 btnCancel.onclick = () => { pinModal.style.display = "none"; };
@@ -3560,9 +3477,6 @@
                 return;
             }
 
-            const inputWebhook = document.getElementById("inputGasWebhookUrl");
-            const scriptUrl = inputWebhook ? inputWebhook.value.trim() : (localStorage.getItem("oms_gas_webhook_url") || "");
-
             if (btnSave) {
                 btnSave.innerText = "⏳ Guardando...";
                 btnSave.disabled = true;
@@ -3574,7 +3488,6 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         pin: currentAdminPin,
-                        scriptUrl: scriptUrl,
                         users: users
                     })
                 });
