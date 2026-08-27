@@ -876,7 +876,7 @@
 
     <!-- MODAL DE AUTENTICACIÓN / CANDADO PLUZ -->
     <div id="authModalOverlay" style="
-        display: none;
+        display: flex;
         position: fixed;
         top: 0;
         left: 0;
@@ -1516,7 +1516,7 @@
         let markersGroup = null;
         const markerMap = new Map();
 
-        const escapeHtml = (val) => String(val || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+        const escapeHtml = (val) => String(val || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 
         function getProp(obj, ...keys) {
             if (!obj) return 'N/A';
@@ -3611,15 +3611,6 @@
                 alertEl.style.border = "1px solid #fca5a5";
             }
             setTimeout(() => { alertEl.style.display = "none"; }, 7000);
-        }
-
-        function escapeHtml(str) {
-            return String(str || '')
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
         }
 
         document.addEventListener("DOMContentLoaded", () => {
