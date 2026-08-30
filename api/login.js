@@ -55,16 +55,22 @@ module.exports = async (req, res) => {
             }
         }
 
+        // Obtener Carto Key de entorno o config local
+        let resolvedCartoKey = process.env.CARTO_API_KEY || "";
+
         // 2. Fallback con variables de entorno o archivo local si la hoja no está configurada aún
-        if (!users || users.length === 0) {
+        if (!users || users.length === 0 || !resolvedCartoKey) {
             const fs = require('fs');
             const path = require('path');
             try {
                 const configPath = path.join(process.cwd(), 'config.json');
                 if (fs.existsSync(configPath)) {
                     const cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-                    if (Array.isArray(cfg.users) && cfg.users.length > 0) {
+                    if ((!users || users.length === 0) && Array.isArray(cfg.users) && cfg.users.length > 0) {
                         users = cfg.users;
+                    }
+                    if (!resolvedCartoKey && cfg.carto_api_key) {
+                        resolvedCartoKey = cfg.carto_api_key;
                     }
                 }
             } catch(e) {}
@@ -80,7 +86,7 @@ module.exports = async (req, res) => {
                     user: cleanUser,
                     contractor: cleanUser === 'PLUZ' ? '*' : cleanUser,
                     role: cleanUser === 'PLUZ' ? 'admin' : 'contractor',
-                    cartoApiKey: "cb1_27lw_1_d612fa2bb664e7fb0d1f742c"
+                    cartoApiKey: resolvedCartoKey
                 };
                 const payload = JSON.stringify(resObj);
                 if (typeof res.status === 'function') return res.status(200).send(payload);
@@ -107,13 +113,12 @@ module.exports = async (req, res) => {
         );
 
         if (match) {
-            const cartoKey = process.env.CARTO_API_KEY || "cb1_27lw_1_d612fa2bb664e7fb0d1f742c";
             const resObj = {
                 success: true,
                 user: match.user,
                 contractor: match.contractor || (match.user.toUpperCase() === 'PLUZ' ? '*' : match.user),
                 role: match.role || (match.user.toUpperCase() === 'PLUZ' ? 'admin' : 'contractor'),
-                cartoApiKey: cartoKey
+                cartoApiKey: resolvedCartoKey
             };
             const payload = JSON.stringify(resObj);
             if (typeof res.status === 'function') return res.status(200).send(payload);

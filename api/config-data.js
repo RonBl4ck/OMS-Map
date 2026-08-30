@@ -19,8 +19,10 @@ module.exports = async (req, res) => {
         let sheetsUrlLlamadas = process.env.SHEETS_URL_LLAMADAS || "";
         let sheetsUrlTecnicos = process.env.SHEETS_URL_TECNICOS || "";
 
+        let cartoApiKey = process.env.CARTO_API_KEY || "";
+
         // Fallback local a config.json si no están en process.env
-        if (!sheetsUrl || !sheetsUrlEjecutados) {
+        if (!sheetsUrl || !sheetsUrlEjecutados || !cartoApiKey) {
             const fs = require('fs');
             const path = require('path');
             try {
@@ -31,6 +33,7 @@ module.exports = async (req, res) => {
                     if (!sheetsUrlEjecutados && cfg.sheets_url_ejecutados) sheetsUrlEjecutados = cfg.sheets_url_ejecutados;
                     if (!sheetsUrlLlamadas && cfg.sheets_url_llamadas) sheetsUrlLlamadas = cfg.sheets_url_llamadas;
                     if (!sheetsUrlTecnicos && cfg.sheets_url_tecnicos) sheetsUrlTecnicos = cfg.sheets_url_tecnicos;
+                    if (!cartoApiKey && cfg.carto_api_key) cartoApiKey = cfg.carto_api_key;
                 }
             } catch(e) {}
         }
@@ -39,7 +42,8 @@ module.exports = async (req, res) => {
             sheets_url: sheetsUrl,
             sheets_url_ejecutados: sheetsUrlEjecutados,
             sheets_url_llamadas: sheetsUrlLlamadas,
-            sheets_url_tecnicos: sheetsUrlTecnicos
+            sheets_url_tecnicos: sheetsUrlTecnicos,
+            carto_api_key: cartoApiKey
         });
 
         if (typeof res.status === 'function') return res.status(200).send(payload);

@@ -1610,21 +1610,62 @@
 
         // Inicializar Mapa Leaflet
         function initMap() {
+            if (leafletMap) return;
+
             leafletMap = L.map('map', {
                 zoomControl: false,
                 preferCanvas: true
             }).setView([-12.046374, -77.042793], 11);
 
-            const cartoApiKey = sessionStorage.getItem('oms_carto_key') || 'cb1_27lw_1_d612fa2bb664e7fb0d1f742c';
-            const tileUrl = cartoApiKey 
-                ? `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?api_key=${cartoApiKey}`
-                : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-            L.tileLayer(tileUrl, {
+            let cartoApiKey = sessionStorage.getItem('oms_carto_key') || '';
+            if (cartoApiKey === 'cb1_27lw_1_d612fa2bb664e7fb0d1f742c' || cartoApiKey === 'undefined' || cartoApiKey === 'null') {
+                cartoApiKey = '';
+            }
+
+            const keyParam = cartoApiKey ? `?api_key=${encodeURIComponent(cartoApiKey)}` : '';
+
+            // Capas Base Disponibles
+            const voyagerLayer = L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png${keyParam}`, {
                 attribution: '&copy; OpenStreetMap &copy; CARTO',
                 subdomains: 'abcd',
-                maxZoom: 19
-            }).addTo(leafletMap);
+                maxZoom: 20
+            });
 
+            const positronLayer = L.tileLayer(`https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png${keyParam}`, {
+                attribution: '&copy; OpenStreetMap &copy; CARTO',
+                subdomains: 'abcd',
+                maxZoom: 20
+            });
+
+            const darkLayer = L.tileLayer(`https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png${keyParam}`, {
+                attribution: '&copy; OpenStreetMap &copy; CARTO',
+                subdomains: 'abcd',
+                maxZoom: 20
+            });
+
+            const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors',
+                maxZoom: 19
+            });
+
+            const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles &copy; Esri',
+                maxZoom: 19
+            });
+
+            // Capa por defecto
+            voyagerLayer.addTo(leafletMap);
+
+            // Selector de Mapas Base en la esquina superior derecha
+            const baseMaps = {
+                "🗺️ CARTO Voyager": voyagerLayer,
+                "☀️ CARTO Claro (Positron)": positronLayer,
+                "🌙 CARTO Oscuro (Dark)": darkLayer,
+                "🌍 OpenStreetMap": osmLayer,
+                "🛰️ Satélite (Esri)": satelliteLayer
+            };
+
+            L.control.layers(baseMaps, null, { position: 'topright', collapsed: true }).addTo(leafletMap);
             L.control.zoom({ position: 'bottomright' }).addTo(leafletMap);
 
             markersGroup = L.layerGroup().addTo(leafletMap);
@@ -3186,6 +3227,9 @@
                     if (cfg.sheets_url_ejecutados) GOOGLE_SHEET_EJECUTADOS_URL = cfg.sheets_url_ejecutados;
                     if (cfg.sheets_url_llamadas) GOOGLE_SHEET_LLAMADAS_URL = cfg.sheets_url_llamadas;
                     if (cfg.sheets_url_tecnicos) GOOGLE_SHEET_TECNICOS_URL = cfg.sheets_url_tecnicos;
+                    if (cfg.carto_api_key) {
+                        sessionStorage.setItem("oms_carto_key", cfg.carto_api_key);
+                    }
                 }
             } catch (e) {
                 console.warn("No se pudo cargar config remota:", e);
