@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OMS Map - Pluz Energía</title>
     
+    <!-- Favicon Oficial Pluz -->
+    <link rel="icon" type="image/png" href="PLUZ.png" />
     <!-- Fuentes Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,12 +21,12 @@
 
     <style>
         :root {
-            --pluz-blue: #375ab2;
-            --pluz-blue-hover: #2b4791;
-            --pluz-yellow: #f4b428;
-            --pluz-green: #65a557;
+            --pluz-blue: #3c5a9f;
+            --pluz-blue-hover: #2e4885;
+            --pluz-yellow: #fbc140;
+            --pluz-green: #6cab5e;
             --pluz-dark: #111c38;
-            --dark-panel: rgba(17, 28, 56, 0.94);
+            --dark-panel: rgba(17, 28, 56, 0.95);
             --card-bg: #ffffff;
             --text-dark: #1e293b;
             --text-muted: #64748b;
@@ -83,7 +85,7 @@
             justify-content: space-between;
             gap: 12px;
             color: #ffffff;
-            border: 1px solid rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(60, 90, 159, 0.35);
         }
 
         .brand-title {
@@ -352,13 +354,7 @@
             justify-content: space-between;
             align-items: center;
             border-bottom: 3px solid var(--pluz-yellow);
-            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-        }
-            padding: 14px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 2px solid var(--pluz-blue);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
         }
         .modal-header-title {
             font-weight: 700;
@@ -718,7 +714,7 @@
         .tech-chart-subtitle { margin:5px 0 10px; color:#64748b; font-size:11px; }
         .tech-chart-scroll { max-height:520px; overflow:auto; padding-right:3px; }
         .tech-average-legend { display:inline-flex; align-items:center; gap:5px; margin-left:10px; color:#64748b; font-size:10px; font-weight:600; }
-        .tech-average-legend i { display:inline-block; width:18px; border-top:2px dashed #f4b428; }
+        .tech-average-legend i { display:inline-block; width:18px; border-top:2px dashed #fbc140; }
         /* ESTILOS MODAL DETALLE DE TÉCNICO */
         .tech-modal-overlay {
             position: fixed;
@@ -899,9 +895,11 @@
             text-align: center;
             border: 2px solid var(--pluz-blue);
         ">
-            <div style="font-size: 40px; margin-bottom: 8px;">🔒</div>
-            <h2 style="font-size: 18px; font-weight: 700; color: var(--pluz-dark); margin-bottom: 4px;">Acceso Restringido</h2>
-            <p style="font-size: 12px; color: #64748b; margin-bottom: 16px;">Pluz Energía — OMS Map</p>
+            <div style="margin-bottom: 14px; display: flex; justify-content: center;">
+                <img src="PLUZ.png" alt="Pluz Energía" style="height: 42px; width: auto; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.15));">
+            </div>
+            <h2 style="font-size: 18px; font-weight: 800; color: var(--pluz-dark); margin-bottom: 2px; font-family: 'Outfit', sans-serif;">Portal OMS Map</h2>
+            <p style="font-size: 12px; color: #64748b; margin-bottom: 18px; font-weight: 500;">Autenticación y Control Operativo</p>
 
             <div style="text-align: left; margin-bottom: 12px;">
                 <label style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 4px; display: block;">Perfil / Usuario</label>
@@ -968,7 +966,11 @@
         <!-- BARRA SUPERIOR CON LOGO PLUZ -->
         <div class="top-navbar">
             <div class="brand-title">
-                ⚡ <span>OMS Map</span>
+                <img src="PLUZ.png" alt="Pluz Energía" style="height: 26px; width: auto; object-fit: contain; vertical-align: middle; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">
+                <div style="display: flex; flex-direction: column; line-height: 1.1;">
+                    <span style="font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 800; letter-spacing: 0.4px;">OMS MAP</span>
+                    <small style="font-size: 8.5px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px;">Control Operativo</small>
+                </div>
             </div>
             <div class="navbar-center">
                 <div class="map-tabs-nav">
@@ -992,7 +994,7 @@
                 </div>
                 <div class="nav-kpi-item" style="border-left-color: var(--pluz-green);" title="Hora de última actualización de datos">
                     <div class="nav-kpi-title">Subida</div>
-                    <div class="nav-kpi-val" id="topNavTime" style="color: var(--pluz-green); font-family: monospace;">🕒 --:--</div>
+                    <div class="nav-kpi-val" id="topNavTime" style="color: var(--pluz-green); font-family: monospace;">🕒 --/-- --:--</div>
                 </div>
                 <div class="nav-kpi-item" style="border-left-color: var(--pluz-blue); display: flex; gap: 6px;">
                     <button class="btn-nav-primary" id="btn-download-base" title="Descargar Base Pendientes (CSV)">📥 Pend.</button>
@@ -1645,17 +1647,32 @@
             mapLocations = [];
             tdOmsRecords = [];
 
-            // Detectar Fecha y Hora de la última subida (sin segundos)
+            // Detectar Fecha y Hora de la última subida (Día/Mes y Hora)
             let lastUploadTime = "";
             if (data && data.length > 0) {
-                lastUploadTime = data[0].FECHA_ACTUALIZACION_SISTEMA || data[0].fecha_actualizacion || "";
+                lastUploadTime = data[0].FECHA_ACTUALIZACION_SISTEMA || data[0].fecha_actualizacion || data[0].FECHA_ACTUALIZACION || "";
             }
             if (!lastUploadTime) {
-                lastUploadTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const now = new Date();
+                const day = String(now.getDate()).padStart(2, '0');
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                lastUploadTime = `${day}/${month} ${time}`;
             } else if (typeof lastUploadTime === 'string') {
-                const match = lastUploadTime.match(/(\d{1,2}:\d{2})(?::\d{2})?/);
-                if (match) {
-                    lastUploadTime = match[1];
+                const dateFullMatch = lastUploadTime.match(/(\d{1,2})[\/\-](\d{1,2})(?:[\/\-]\d{2,4})?\s+(\d{1,2}:\d{2})/);
+                if (dateFullMatch) {
+                    const day = dateFullMatch[1].padStart(2, '0');
+                    const month = dateFullMatch[2].padStart(2, '0');
+                    const time = dateFullMatch[3];
+                    lastUploadTime = `${day}/${month} ${time}`;
+                } else {
+                    const matchTime = lastUploadTime.match(/(\d{1,2}:\d{2})(?::\d{2})?/);
+                    if (matchTime) {
+                        const now = new Date();
+                        const day = String(now.getDate()).padStart(2, '0');
+                        const month = String(now.getMonth() + 1).padStart(2, '0');
+                        lastUploadTime = `${day}/${month} ${matchTime[1]}`;
+                    }
                 }
             }
             const timeEl = document.getElementById("topNavTime");
@@ -1760,8 +1777,8 @@
 
                 const popupHtml = `
                     <div style="font-family: Arial, sans-serif; font-size: 12px; min-width: 260px; line-height: 1.5;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #375ab2; padding-bottom:4px; margin-bottom:6px;">
-                            <h4 style="margin:0; color:#375ab2; font-size:13px;">${loc.emoji} Ticket: ${escapeHtml(loc.ticket)}</h4>
+                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #3c5a9f; padding-bottom:4px; margin-bottom:6px;">
+                            <h4 style="margin:0; color:#3c5a9f; font-size:13px; font-weight:700;">${loc.emoji} Ticket: ${escapeHtml(loc.ticket)}</h4>
                             <span class="status-badge ${stateClass}">${escapeHtml(loc.estado)}</span>
                         </div>
                         <b>ODM:</b> ${escapeHtml(loc.odm)}<br>
@@ -1777,7 +1794,7 @@
                         <div style="margin-top: 10px; display: flex; gap: 6px; justify-content: center; align-items: center; flex-wrap: wrap;">
                             <a href="https://www.google.com/maps?q=${loc.lat},${loc.lon}" target="_blank" title="Ver Punto en Google Maps" style="
                                 display: inline-block;
-                                background-color: #65a557;
+                                background-color: #6cab5e;
                                 color: white;
                                 text-decoration: none;
                                 padding: 6px 12px;
@@ -1788,7 +1805,7 @@
                             ">📍 Google Maps</a>
                             <a href="https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lon}" target="_blank" title="Trazar Ruta en Google Maps" style="
                                 display: inline-block;
-                                background-color: #2563eb;
+                                background-color: #3c5a9f;
                                 color: white;
                                 text-decoration: none;
                                 padding: 6px 12px;
@@ -2122,7 +2139,7 @@
         function renderModernCharts(records) {
             const target = document.getElementById("tdOmsCharts");
             // Paleta de Colores Pluz Oficial: Azul Royal, Amarillo Dorado, Verde Energía, Rojo Emergencia, Púrpura
-            const palette = ['#375ab2', '#f4b428', '#65a557', '#e11d48', '#8b5cf6'];
+            const palette = ['#3c5a9f', '#fbc140', '#6cab5e', '#ef4444', '#8b5cf6'];
 
             const chartDefs = [
                 ['Tickets por EE.CC', 'empresa', true],
@@ -2739,13 +2756,13 @@
             const bars = rows.map((row, index) => {
                 const y = top + index * rowHeight + 4, barWidth = Math.max(1, (row.value / maxValue) * plotWidth);
                 const label = row.label.length > 25 ? `${row.label.slice(0, 24)}…` : row.label;
-                const color = row.value < average ? '#f59e0b' : '#65a557';
+                const color = row.value < average ? '#fbc140' : '#6cab5e';
                 return `<text x="${left - 9}" y="${y + 12}" text-anchor="end" font-size="11" font-weight="600" fill="#334155">${escapeHtml(label)}</text><rect x="${left}" y="${y}" width="${barWidth}" height="15" rx="4" fill="${color}"><title>${escapeHtml(row.label)}: ${row.value} cierres</title></rect><text x="${Math.min(width - right + 3, left + barWidth + 6)}" y="${y + 12}" font-size="10" font-weight="700" fill="#334155">${row.value}</text>`;
             }).join('');
             const stateJobs = needle => records.filter(row => String(row['Estado de orden'] || '').toLowerCase().includes(needle)).reduce((sum,row) => sum + (Number(row['Cantidad de trabajos']) || 0), 0);
             const totalJobs = records.reduce((sum,row) => sum + (Number(row['Cantidad de trabajos']) || 0), 0);
             const closed = stateJobs('cerrado'), restored = stateJobs('restaurado'), other = Math.max(0, totalJobs - closed - restored);
-            const outcomes = [{label:'Cerrados', value:closed, color:'#65a557'}, {label:'Restaurados', value:restored, color:'#375ab2'}, ...(other ? [{label:'Otros estados', value:other, color:'#94a3b8'}] : [])];
+            const outcomes = [{label:'Cerrados', value:closed, color:'#6cab5e'}, {label:'Restaurados', value:restored, color:'#3c5a9f'}, ...(other ? [{label:'Otros estados', value:other, color:'#94a3b8'}] : [])];
             const outcomeHtml = outcomes.map(item => {
                 const pct = totalJobs ? (item.value / totalJobs * 100).toFixed(1) : '0.0';
                 return `<div style="border-left:4px solid ${item.color};background:#f8fafc;border-radius:7px;padding:10px 11px"><div style="font-size:11px;font-weight:800;color:#475569">${item.label}</div><div style="font-size:23px;font-weight:800;color:#0f172a;margin-top:2px">${item.value}</div><div style="font-size:11px;color:#64748b">${pct}% de trabajos</div></div>`;
@@ -2754,7 +2771,7 @@
                 <section class="tech-chart-card">
                     <h3 class="tech-chart-title">${escapeHtml(scope.title)} <span class="tech-average-legend"><i></i>Promedio: ${average.toFixed(1)}</span></h3>
                     <p class="tech-chart-subtitle">${escapeHtml(scope.subtitle)} · ${rows.length} ${scope.label}${rows.length === 1 ? '' : 's'} · barras ámbar bajo el promedio</p>
-                    <div class="tech-chart-scroll"><svg viewBox="0 0 ${width} ${height}" style="display:block;width:100%;min-width:560px;height:${height}px" role="img" aria-label="${escapeHtml(scope.title)}"><line x1="${avgX}" y1="${top - 8}" x2="${avgX}" y2="${height - 14}" stroke="#f4b428" stroke-width="2" stroke-dasharray="5 4"/>${bars}</svg></div>
+                    <div class="tech-chart-scroll"><svg viewBox="0 0 ${width} ${height}" style="display:block;width:100%;min-width:560px;height:${height}px" role="img" aria-label="${escapeHtml(scope.title)}"><line x1="${avgX}" y1="${top - 8}" x2="${avgX}" y2="${height - 14}" stroke="#fbc140" stroke-width="2" stroke-dasharray="5 4"/>${bars}</svg></div>
                 </section>
                 <section class="tech-chart-card">
                     <h3 class="tech-chart-title">Embudo operativo</h3>
