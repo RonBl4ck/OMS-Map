@@ -56,7 +56,14 @@ module.exports = async (req, res) => {
         }
 
         // Obtener Carto Key de entorno o config local
-        let resolvedCartoKey = process.env.CARTO_API_KEY || "";
+        let resolvedCartoKey = process.env.CARTO_API_KEY || 
+                               process.env.CARTO_KEY || 
+                               process.env.CARTO_APIKEY || 
+                               process.env.CARTODB_API_KEY || 
+                               process.env.CARTO_TOKEN || 
+                               process.env.CARTO_MAP_KEY || 
+                               process.env.CARTO_BASEMAP_KEY || 
+                               process.env.NEXT_PUBLIC_CARTO_API_KEY || "";
 
         // 2. Fallback con variables de entorno o archivo local si la hoja no está configurada aún
         if (!users || users.length === 0 || !resolvedCartoKey) {

@@ -1608,21 +1608,24 @@
             document.querySelectorAll(".multiselect-dropdown-menu.show").forEach(m => m.classList.remove("show"));
         });
 
-        // Inicializar Mapa Leaflet
-        function initMap() {
-            if (leafletMap) return;
+        let baseLayersControl = null;
+        let activeBaseLayer = null;
 
-            leafletMap = L.map('map', {
-                zoomControl: false,
-                preferCanvas: true
-            }).setView([-12.046374, -77.042793], 11);
+        function applyBaseLayers(cartoKey) {
+            if (!leafletMap) return;
 
-            let cartoApiKey = sessionStorage.getItem('oms_carto_key') || '';
-            if (cartoApiKey === 'cb1_27lw_1_d612fa2bb664e7fb0d1f742c' || cartoApiKey === 'undefined' || cartoApiKey === 'null') {
-                cartoApiKey = '';
+            let key = (cartoKey || sessionStorage.getItem('oms_carto_key') || '').trim();
+            if (key === 'undefined' || key === 'null') {
+                key = '';
             }
 
-            const keyParam = cartoApiKey ? `?api_key=${encodeURIComponent(cartoApiKey)}` : '';
+            if (key) {
+                sessionStorage.setItem('oms_carto_key', key);
+            }
+
+            console.log("🗺️ [CARTO Basemaps] Aplicando capa base con API Key:", key ? `${key.substring(0, 8)}...` : "(Modo público)");
+
+            const keyParam = key ? `?api_key=${encodeURIComponent(key)}` : '';
 
             // Capas Base Disponibles
             const voyagerLayer = L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png${keyParam}`, {
@@ -1653,10 +1656,16 @@
                 maxZoom: 19
             });
 
-            // Capa por defecto
-            voyagerLayer.addTo(leafletMap);
+            if (activeBaseLayer) {
+                try { leafletMap.removeLayer(activeBaseLayer); } catch(e) {}
+            }
+            activeBaseLayer = voyagerLayer;
+            activeBaseLayer.addTo(leafletMap);
 
-            // Selector de Mapas Base en la esquina superior derecha
+            if (baseLayersControl) {
+                try { leafletMap.removeControl(baseLayersControl); } catch(e) {}
+            }
+
             const baseMaps = {
                 "🗺️ CARTO Voyager": voyagerLayer,
                 "☀️ CARTO Claro (Positron)": positronLayer,
@@ -1665,7 +1674,20 @@
                 "🛰️ Satélite (Esri)": satelliteLayer
             };
 
-            L.control.layers(baseMaps, null, { position: 'topright', collapsed: true }).addTo(leafletMap);
+            baseLayersControl = L.control.layers(baseMaps, null, { position: 'topright', collapsed: true }).addTo(leafletMap);
+        }
+
+        // Inicializar Mapa Leaflet
+        function initMap() {
+            if (leafletMap) return;
+
+            leafletMap = L.map('map', {
+                zoomControl: false,
+                preferCanvas: true
+            }).setView([-12.046374, -77.042793], 11);
+
+            applyBaseLayers(sessionStorage.getItem('oms_carto_key') || '');
+
             L.control.zoom({ position: 'bottomright' }).addTo(leafletMap);
 
             markersGroup = L.layerGroup().addTo(leafletMap);
@@ -3229,6 +3251,7 @@
                     if (cfg.sheets_url_tecnicos) GOOGLE_SHEET_TECNICOS_URL = cfg.sheets_url_tecnicos;
                     if (cfg.carto_api_key) {
                         sessionStorage.setItem("oms_carto_key", cfg.carto_api_key);
+                        applyBaseLayers(cfg.carto_api_key);
                     }
                 }
             } catch (e) {
@@ -3315,6 +3338,7 @@
                         sessionStorage.setItem("oms_user_role", data.role);
                         if (data.cartoApiKey) {
                             sessionStorage.setItem("oms_carto_key", data.cartoApiKey);
+                            applyBaseLayers(data.cartoApiKey);
                         }
 
                         if (authOverlay) authOverlay.style.display = "none";

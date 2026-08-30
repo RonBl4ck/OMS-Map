@@ -19,7 +19,14 @@ module.exports = async (req, res) => {
         let sheetsUrlLlamadas = process.env.SHEETS_URL_LLAMADAS || "";
         let sheetsUrlTecnicos = process.env.SHEETS_URL_TECNICOS || "";
 
-        let cartoApiKey = process.env.CARTO_API_KEY || "";
+        let cartoApiKey = process.env.CARTO_API_KEY || 
+                          process.env.CARTO_KEY || 
+                          process.env.CARTO_APIKEY || 
+                          process.env.CARTODB_API_KEY || 
+                          process.env.CARTO_TOKEN || 
+                          process.env.CARTO_MAP_KEY || 
+                          process.env.CARTO_BASEMAP_KEY || 
+                          process.env.NEXT_PUBLIC_CARTO_API_KEY || "";
 
         // Fallback local a config.json si no están en process.env
         if (!sheetsUrl || !sheetsUrlEjecutados || !cartoApiKey) {
