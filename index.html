@@ -1615,17 +1615,15 @@
             if (!leafletMap) return;
 
             let key = (cartoKey || sessionStorage.getItem('oms_carto_key') || '').trim();
-            if (key === 'undefined' || key === 'null') {
-                key = '';
+            if (!key || key === 'undefined' || key === 'null') {
+                key = 'cb1_27lw_1_d612fa2bb664e7fb0d1f742c';
             }
 
-            if (key) {
-                sessionStorage.setItem('oms_carto_key', key);
-            }
+            sessionStorage.setItem('oms_carto_key', key);
+            console.log("🗺️ [CARTO Basemaps] Capa base configurada con Key:", `${key.substring(0, 8)}...`);
 
-            console.log("🗺️ [CARTO Basemaps] Aplicando capa base con API Key:", key ? `${key.substring(0, 8)}...` : "(Modo público)");
-
-            const keyParam = key ? `?api_key=${encodeURIComponent(key)}` : '';
+            const cleanKey = encodeURIComponent(key);
+            const keyParam = `?key=${cleanKey}&api_key=${cleanKey}`;
 
             // Capas Base Disponibles
             const voyagerLayer = L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png${keyParam}`, {

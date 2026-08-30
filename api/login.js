@@ -63,7 +63,9 @@ module.exports = async (req, res) => {
                                process.env.CARTO_TOKEN || 
                                process.env.CARTO_MAP_KEY || 
                                process.env.CARTO_BASEMAP_KEY || 
-                               process.env.NEXT_PUBLIC_CARTO_API_KEY || "";
+                               process.env.CARTO_CLIENT_ID ||
+                               process.env.NEXT_PUBLIC_CARTO_API_KEY || 
+                               process.env.NEXT_PUBLIC_CARTO_KEY || "";
 
         // 2. Fallback con variables de entorno o archivo local si la hoja no está configurada aún
         if (!users || users.length === 0 || !resolvedCartoKey) {
@@ -76,11 +78,15 @@ module.exports = async (req, res) => {
                     if ((!users || users.length === 0) && Array.isArray(cfg.users) && cfg.users.length > 0) {
                         users = cfg.users;
                     }
-                    if (!resolvedCartoKey && cfg.carto_api_key) {
-                        resolvedCartoKey = cfg.carto_api_key;
+                    if (!resolvedCartoKey && (cfg.carto_api_key || cfg.cartoApiKey || cfg.carto_key)) {
+                        resolvedCartoKey = cfg.carto_api_key || cfg.cartoApiKey || cfg.carto_key;
                     }
                 }
             } catch(e) {}
+        }
+
+        if (!resolvedCartoKey) {
+            resolvedCartoKey = "cb1_27lw_1_d612fa2bb664e7fb0d1f742c";
         }
 
         // Fallback para desarrollo local si la hoja de Google Sheets no está en entorno local

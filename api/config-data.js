@@ -26,7 +26,9 @@ module.exports = async (req, res) => {
                           process.env.CARTO_TOKEN || 
                           process.env.CARTO_MAP_KEY || 
                           process.env.CARTO_BASEMAP_KEY || 
-                          process.env.NEXT_PUBLIC_CARTO_API_KEY || "";
+                          process.env.CARTO_CLIENT_ID ||
+                          process.env.NEXT_PUBLIC_CARTO_API_KEY || 
+                          process.env.NEXT_PUBLIC_CARTO_KEY || "";
 
         // Fallback local a config.json si no están en process.env
         if (!sheetsUrl || !sheetsUrlEjecutados || !cartoApiKey) {
@@ -40,9 +42,15 @@ module.exports = async (req, res) => {
                     if (!sheetsUrlEjecutados && cfg.sheets_url_ejecutados) sheetsUrlEjecutados = cfg.sheets_url_ejecutados;
                     if (!sheetsUrlLlamadas && cfg.sheets_url_llamadas) sheetsUrlLlamadas = cfg.sheets_url_llamadas;
                     if (!sheetsUrlTecnicos && cfg.sheets_url_tecnicos) sheetsUrlTecnicos = cfg.sheets_url_tecnicos;
-                    if (!cartoApiKey && cfg.carto_api_key) cartoApiKey = cfg.carto_api_key;
+                    if (!cartoApiKey && (cfg.carto_api_key || cfg.cartoApiKey || cfg.carto_key)) {
+                        cartoApiKey = cfg.carto_api_key || cfg.cartoApiKey || cfg.carto_key;
+                    }
                 }
             } catch(e) {}
+        }
+
+        if (!cartoApiKey) {
+            cartoApiKey = "cb1_27lw_1_d612fa2bb664e7fb0d1f742c";
         }
 
         const payload = JSON.stringify({
