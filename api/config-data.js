@@ -18,6 +18,7 @@ module.exports = async (req, res) => {
         let sheetsUrlEjecutados = process.env.SHEETS_URL_EJECUTADOS || "";
         let sheetsUrlLlamadas = process.env.SHEETS_URL_LLAMADAS || "";
         let sheetsUrlTecnicos = process.env.SHEETS_URL_TECNICOS || "";
+        let sheetsUrlSedCriticas = process.env.SHEETS_URL_SED_CRITICAS || "";
 
         let cartoApiKey = process.env.CARTO_API_KEY || 
                           process.env.CARTO_KEY || 
@@ -42,6 +43,7 @@ module.exports = async (req, res) => {
                     if (!sheetsUrlEjecutados && cfg.sheets_url_ejecutados) sheetsUrlEjecutados = cfg.sheets_url_ejecutados;
                     if (!sheetsUrlLlamadas && cfg.sheets_url_llamadas) sheetsUrlLlamadas = cfg.sheets_url_llamadas;
                     if (!sheetsUrlTecnicos && cfg.sheets_url_tecnicos) sheetsUrlTecnicos = cfg.sheets_url_tecnicos;
+                    if (!sheetsUrlSedCriticas && cfg.sheets_url_sed_criticas) sheetsUrlSedCriticas = cfg.sheets_url_sed_criticas;
                     if (!cartoApiKey && (cfg.carto_api_key || cfg.cartoApiKey || cfg.carto_key)) {
                         cartoApiKey = cfg.carto_api_key || cfg.cartoApiKey || cfg.carto_key;
                     }
@@ -58,6 +60,7 @@ module.exports = async (req, res) => {
             sheets_url_ejecutados: sheetsUrlEjecutados,
             sheets_url_llamadas: sheetsUrlLlamadas,
             sheets_url_tecnicos: sheetsUrlTecnicos,
+            sheets_url_sed_criticas: sheetsUrlSedCriticas,
             carto_api_key: cartoApiKey
         });
 

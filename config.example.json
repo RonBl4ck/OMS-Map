@@ -1,0 +1,8 @@
+﻿{
+  "sheets_url": "https://docs.google.com/spreadsheets/d/e/TU_SHEET_ID/pub?output=csv",
+  "sheets_url_ejecutados": "https://docs.google.com/spreadsheets/d/e/TU_SHEET_ID/pub?output=csv&single=true&gid=0",
+  "sheets_url_llamadas": "https://docs.google.com/spreadsheets/d/e/TU_SHEET_ID/pub?output=csv&single=true&gid=0",
+  "sheets_url_tecnicos": "https://docs.google.com/spreadsheets/d/e/TU_SHEET_ID/pub?output=csv&single=true&gid=0",
+  "sheets_url_sed_criticas": "https://docs.google.com/spreadsheets/d/e/TU_SHEET_ID/pub?output=csv&single=true&gid=0",
+  "carto_api_key": ""
+}
