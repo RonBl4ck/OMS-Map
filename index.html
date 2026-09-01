@@ -2301,6 +2301,27 @@
         let currentSortCol = null;
         let currentSortDir = 'asc';
 
+        // Convierte fechas de la fuente (DD/MM/AAAA HH:MM:SS o AAAA-MM-DD HH:MM:SS)
+        // a un valor cronológico, sin depender del orden lexicográfico del texto.
+        function parseTdOmsDate(value) {
+            if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.getTime();
+
+            const text = String(value || '').trim();
+            let match = text.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})(?:\s+(\d{1,2})(?::(\d{2}))?(?::(\d{2}))?)?$/);
+            if (match) {
+                const year = Number(match[3].length === 2 ? `20${match[3]}` : match[3]);
+                return new Date(year, Number(match[2]) - 1, Number(match[1]), Number(match[4] || 0), Number(match[5] || 0), Number(match[6] || 0)).getTime();
+            }
+
+            match = text.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})(?:[T\s]+(\d{1,2})(?::(\d{2}))?(?::(\d{2}))?)?$/);
+            if (match) {
+                return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), Number(match[4] || 0), Number(match[5] || 0), Number(match[6] || 0)).getTime();
+            }
+
+            const fallback = new Date(text).getTime();
+            return Number.isNaN(fallback) ? null : fallback;
+        }
+
         function sortTdOmsTable(key) {
             if (currentSortCol === key) {
                 currentSortDir = currentSortDir === 'asc' ? 'desc' : 'asc';
@@ -2360,6 +2381,12 @@
                     if (currentSortCol === 'hora_inicio') {
                         valA = a.hora_inicio || a.fecha_inicio || '';
                         valB = b.hora_inicio || b.fecha_inicio || '';
+
+                        const dateA = parseTdOmsDate(valA);
+                        const dateB = parseTdOmsDate(valB);
+                        if (dateA !== null && dateB !== null) return (dateA - dateB) * mult;
+                        if (dateA !== null) return -1 * mult;
+                        if (dateB !== null) return 1 * mult;
                     } else if (currentSortCol === 'latitud') {
                         valA = a.latitud !== undefined && a.latitud !== null ? a.latitud : (a.lat !== undefined ? a.lat : '');
                         valB = b.latitud !== undefined && b.latitud !== null ? b.latitud : (b.lat !== undefined ? b.lat : '');
