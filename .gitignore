@@ -3,6 +3,12 @@ node_modules/
 .vercel
 dist/
 build/
+coverage/
+tmp/
+temp/
+.cache/
+*.cache
+*.pid
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -24,6 +30,7 @@ data_ejecutados.json
 data_tecnicos.json
 
 # Herramientas y Asistentes IA
+.agy/
 .claude/
 .gemini/
 .cursor/
@@ -42,6 +49,11 @@ Desktop.ini
 *.tmp
 *.bak
 *.swp
+
+# Exportaciones generadas desde el OMS Map
+base_*.csv
+base_*.xlsx
+tickets_*.xlsx
 
 # Python (en caso de scripts de automatización / backend)
 __pycache__/

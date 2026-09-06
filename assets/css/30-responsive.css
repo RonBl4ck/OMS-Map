@@ -1,0 +1,243 @@
+        /* =========================================================
+           ESTILOS RESPONSIVOS PARA DISPOSITIVOS MÓVILES (MÓVIL / TABLET)
+           ========================================================= */
+        .mobile-filter-toggle-btn {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .map-top-controls {
+                left: 10px;
+                right: 10px;
+                top: 8px;
+                bottom: 0;
+            }
+
+            /* 1. Ajustes en la Barra Superior */
+            .top-navbar {
+                padding: 8px 10px;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+
+            .brand-title {
+                font-size: 14px;
+                justify-content: space-between;
+            }
+
+            .navbar-center {
+                width: 100%;
+            }
+
+            .map-tabs-nav {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .map-tabs-nav button.tab-btn {
+                flex: 1;
+                text-align: center;
+                padding: 6px 8px;
+                font-size: 11px;
+            }
+
+            .kpi-badges-row {
+                width: 100%;
+                overflow-x: auto;
+                white-space: nowrap;
+                padding-bottom: 4px;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+            }
+
+            .kpi-badges-row::-webkit-scrollbar {
+                display: none;
+            }
+
+            .nav-kpi-item {
+                flex-shrink: 0;
+            }
+
+            .btn-nav-primary {
+                padding: 5px 10px;
+                font-size: 11px;
+                white-space: nowrap;
+            }
+
+            /* 2. Ajustes en el Buscador y Filtros del Mapa (Fijo abajo en Móvil) */
+            .search-container-map {
+                position: fixed;
+                left: 10px;
+                right: 10px;
+                top: auto;
+                bottom: 25px;
+                padding: 8px 10px;
+                gap: 6px;
+                max-height: 55vh;
+                overflow-y: auto;
+                flex-direction: column;
+                flex-wrap: nowrap;
+                align-items: stretch;
+                box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+            }
+
+            .mobile-filter-toggle-btn {
+                display: flex !important;
+                align-items: center;
+                justify-content: space-between;
+                width: 100%;
+                background: var(--pluz-blue);
+                color: white;
+                border: 0;
+                padding: 7px 12px;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: 700;
+                cursor: pointer;
+            }
+
+            .map-filter-content-wrapper {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 6px !important;
+            }
+
+            .map-filter-content-wrapper.collapsed-mobile {
+                display: none !important;
+            }
+
+            .search-container-map input {
+                width: 100%;
+            }
+
+            #searchTypeMap {
+                width: 100%;
+            }
+
+            .address-search-options {
+                display: none;
+                flex-direction: column;
+                align-items: stretch;
+                width: 100%;
+            }
+
+            .address-search-options select {
+                width: 100%;
+            }
+
+            .custom-multiselect {
+                width: 100%;
+            }
+
+            .multiselect-btn {
+                width: 100%;
+            }
+
+            .multiselect-dropdown-menu {
+                width: 100%;
+                max-height: 180px;
+            }
+
+            .checkbox-filter-label {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .btn-action-sm {
+                width: 100%;
+                text-align: center;
+            }
+
+            /* 3. Leyenda en Esquina Inferior */
+            .map-legend-bottom-right {
+                display: none; /* Ocultar leyenda en móvil para dejar máximo espacio al mapa */
+            }
+
+            /* 4. Tablero Indicadores TD OMS (Full-View) */
+            .td-oms-full-view {
+                padding: 12px 10px;
+            }
+
+            .view-header-bar {
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
+                padding: 12px 14px;
+            }
+
+            .modal-header-title {
+                font-size: 14px;
+                justify-content: center;
+            }
+
+            .kpi-cards-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+
+            .exec-kpi-card {
+                padding: 10px 12px;
+            }
+
+            .kpi-num {
+                font-size: 20px;
+            }
+
+            .filters-toolbar {
+                flex-direction: column;
+                align-items: stretch;
+                padding: 12px;
+                gap: 10px;
+            }
+
+            .filter-group {
+                width: 100%;
+                min-width: 100%;
+            }
+
+            .charts-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .chart-card {
+                padding: 12px;
+                min-height: 280px;
+            }
+
+            .table-section-card {
+                padding: 12px !important;
+            }
+
+            #inputFilterTable {
+                width: 100% !important;
+            }
+
+            .address-result-box {
+                left: 10px !important;
+                right: 10px !important;
+                top: 175px !important;
+                bottom: auto !important;
+                width: auto !important;
+                max-width: none !important;
+                max-height: 34vh !important;
+            }
+
+            .map-locate-control button {
+                width: 48px;
+                height: 48px;
+                font-size: 23px;
+            }
+
+            .leaflet-top .map-locate-control {
+                margin-top: 150px;
+                margin-right: 10px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .kpi-cards-grid {
+                grid-template-columns: 1fr;
+            }
+        }

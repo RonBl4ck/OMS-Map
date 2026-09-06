@@ -14,7 +14,7 @@
       ]
     },
     {
-      "source": "/(index.html|config.json|data.json|data_ejecutados.json|data_tecnicos.json|/)",
+      "source": "/(index.html|config.json|/)",
       "headers": [
         {
           "key": "Cache-Control",

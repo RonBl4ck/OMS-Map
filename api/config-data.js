@@ -6,6 +6,7 @@ module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+    res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=3600');
 
     if (req.method === 'OPTIONS') {
         if (typeof res.status === 'function') return res.status(200).end();
