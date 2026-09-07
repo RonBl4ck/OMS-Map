@@ -32,8 +32,8 @@ module.exports = async (req, res) => {
                           process.env.NEXT_PUBLIC_CARTO_API_KEY || 
                           process.env.NEXT_PUBLIC_CARTO_KEY || "";
 
-        // Fallback local a config.json si no están en process.env
-        if (!sheetsUrl || !sheetsUrlEjecutados || !cartoApiKey) {
+        // Fallback a config.json si alguna variable no está en process.env
+        if (!sheetsUrl || !sheetsUrlEjecutados || !sheetsUrlLlamadas || !sheetsUrlTecnicos || !sheetsUrlSedCriticas || !cartoApiKey) {
             const fs = require('fs');
             const path = require('path');
             try {
@@ -50,6 +50,10 @@ module.exports = async (req, res) => {
                     }
                 }
             } catch(e) {}
+        }
+
+        if (!sheetsUrlSedCriticas) {
+            sheetsUrlSedCriticas = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRzHH9n7otRwazt1x3iWe9qDNVHeHBo0oMGM4i9LiO-Y3VM504bgNx7GihLR0Yb81DtqoiLt3QIRrmY/pub?output=csv&single=true&gid=921101383";
         }
 
         if (!cartoApiKey) {

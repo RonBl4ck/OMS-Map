@@ -47,6 +47,7 @@ En el panel de tu proyecto en [vercel.com](https://vercel.com) (pestaña **Setti
 | `SHEETS_URL_EJECUTADOS` | URL CSV de la base de ejecutados. |
 | `SHEETS_URL_LLAMADAS` | URL CSV de la base de llamadas. |
 | `SHEETS_URL_TECNICOS` | URL CSV de la base de técnicos. |
+| `SHEETS_URL_SED_CRITICAS` | URL CSV de la lista de SEDs Críticas (`.../pub?output=csv&single=true&gid=921101383`). |
 
 ---
 
