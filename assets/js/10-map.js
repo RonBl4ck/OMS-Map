@@ -230,6 +230,9 @@
                 if (loc.estado.toLowerCase().includes("ejecuc")) stateClass = "ejecucion";
                 else if (loc.estado.toLowerCase().includes("pendient")) stateClass = "pendiente";
 
+                const numLlamadas = parseInt(loc.llamadas || 0, 10) || 0;
+                const llamadasLabel = (loc.llamadas && loc.llamadas !== 'N/A') ? loc.llamadas : '0';
+
                 const popupHtml = `
                     <div style="font-family: Arial, sans-serif; font-size: 12px; min-width: 260px; line-height: 1.5;">
                         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #3c5a9f; padding-bottom:4px; margin-bottom:6px;">
@@ -243,6 +246,7 @@
                         <b>SED Llave:</b> ${escapeHtml(loc.sed)} ${loc.es_sed_critica ? `<span style="font-size:10px; font-weight:bold; color:#b45309; background:#fef3c7; border:1px solid #fcd34d; padding:1px 6px; border-radius:4px;">🚨 SED CRÍTICA</span>` : ''} ${loc.sed_count > 0 ? `<span style="font-size:10px; font-weight:bold; color:${loc.sed_reincidente ? '#dc2626' : '#2b4791'}; background:${loc.sed_reincidente ? '#fee2e2' : '#dbeafe'}; padding:1px 6px; border-radius:4px;">(7D: ${loc.sed_count}${loc.sed_reincidente ? ' 🚨 REINCIDENTE >2' : ' fallas'})</span>` : ''}<br>
                         <b>Alimentador:</b> ${escapeHtml(loc.alimentador || 'N/A')}<br>
                         <b>Suministro:</b> ${escapeHtml(loc.suministro)} ${loc.suministro_count > 0 ? `<span style="font-size:10px; font-weight:bold; color:#0d9488; background:#ccfbf1; padding:1px 6px; border-radius:4px;">(7D: ${loc.suministro_count} fallas)</span>` : ''}<br>
+                        <b>Llamadas:</b> ${escapeHtml(llamadasLabel)} ${numLlamadas >= 7 ? `<span style="font-size:10px; font-weight:bold; color:#be123c; background:#ffe4e6; border:1px solid #fecdd3; padding:1px 6px; border-radius:4px;">📞 ≥7 LLAMADAS</span>` : ''}<br>
                         <b>Fecha Inicio:</b> ${escapeHtml(loc.fecha_inicio)}<br>
                         <b>Dirección:</b> ${escapeHtml(loc.direccion)}<br>
                         <b>Distrito:</b> ${escapeHtml(loc.distrito)}
