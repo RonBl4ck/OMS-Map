@@ -21,7 +21,7 @@
     <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
 
     <link rel="stylesheet" href="assets/css/00-foundation.css">
-    <link rel="stylesheet" href="assets/css/10-map.css">
+    <link rel="stylesheet" href="assets/css/10-map.css?v=20260913-map-legend">
     <link rel="stylesheet" href="assets/css/20-dashboard.css">
     <link rel="stylesheet" href="assets/css/30-responsive.css">
     <link rel="stylesheet" href="assets/css/40-technicians.css?v=20260910-ticket-search">
@@ -219,8 +219,9 @@
                     <input type="checkbox" id="chkCriticaMap" data-requires-primary-data style="cursor: pointer; accent-color: #d97706; width: 13px; height: 13px;">
                     <span>🚨 Crítica</span>
                 </label>
-                <button type="button" class="btn-layer-toggle" id="btnToggleSedLayer" data-requires-primary-data title="Activar/Desactivar visualización de perímetros por SED" onclick="toggleSedPerimeters()">
-                    📐 Perímetros SED
+                <button type="button" class="btn-layer-toggle" id="btnToggleSedLayer" data-requires-primary-data aria-pressed="false" title="Activar/Desactivar visualización de perímetros por SED" onclick="toggleSedPerimeters()">
+                    <span class="btn-layer-icon" aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><path d="M3 15.5 6.2 4.3l5.2 2.2L17 3.8v11.7l-5.6 2.2-5.2-2.2L3 17.2Z"/><path d="M6.2 4.3v11.2m5.2-9v11.2"/></svg></span>
+                    <span class="btn-layer-label">Perímetros SED</span>
                 </button>
                 <button class="btn-action-sm btn-reset" id="btnLimpiar" data-requires-primary-data>Limpiar</button>
             </div>
@@ -239,23 +240,23 @@
         <div class="legend-title-box"><span>🛠️ Tipo de Falla</span></div>
         <div class="legend-items-list">
             <div class="legend-item-row">
-                <span class="legend-icon-slot"><img src="assets/icons/suministro.svg" alt="Suministro"></span>
+                <span class="legend-icon-slot"><img src="assets/icons/suministro.svg?v=20260913-map-legend" alt="Suministro"></span>
                 <span>SUMINISTRO (4h)</span>
             </div>
             <div class="legend-item-row">
-                <span class="legend-icon-slot"><img src="assets/icons/red_aerea.svg" alt="Red Aérea"></span>
+                <span class="legend-icon-slot"><img src="assets/icons/red_aerea.svg?v=20260913-map-legend" alt="Red Aérea"></span>
                 <span>RED / CNX AÉREA (8h)</span>
             </div>
             <div class="legend-item-row">
-                <span class="legend-icon-slot"><img src="assets/icons/subterranea.svg" alt="Subterránea"></span>
+                <span class="legend-icon-slot"><img src="assets/icons/subterranea.svg?v=20260913-map-legend" alt="Subterránea"></span>
                 <span>RED / CNX SUBT. (12h/8h)</span>
             </div>
             <div class="legend-item-row">
-                <span class="legend-icon-slot"><img src="assets/icons/fusible.svg" alt="Fusible"></span>
+                <span class="legend-icon-slot"><img src="assets/icons/fusible.svg?v=20260913-map-legend" alt="Fusible"></span>
                 <span>FUSIBLE (4h)</span>
             </div>
             <div class="legend-item-row">
-                <span class="legend-icon-slot"><img src="assets/icons/poste.svg" alt="Poste"></span>
+                <span class="legend-icon-slot"><img src="assets/icons/poste.svg?v=20260913-map-legend" alt="Poste"></span>
                 <span>POSTE (8h)</span>
             </div>
         </div>
@@ -685,13 +686,13 @@
 
     <script src="assets/js/00-core.js?v=20260912-facets"></script>
     <script src="assets/js/sed-geometry.js"></script>
-    <script src="assets/js/10-map.js?v=20260912-facets"></script>
+    <script src="assets/js/10-map.js?v=20260913-map-legend"></script>
     <script src="assets/js/20-dashboard.js?v=20260912-facets"></script>
     <script src="assets/js/30-llamadas.js?v=20260912-facets"></script>
     <script src="assets/js/40-tecnicos.js?v=20260912-facets"></script>
     <script src="assets/js/50-navigation.js?v=20260912-facets"></script>
     <script src="assets/js/60-auth.js?v=20260912-stage2"></script>
     <script src="assets/js/70-admin.js"></script>
-    <script src="assets/js/80-bootstrap.js?v=20260912-stage2"></script>
+    <script src="assets/js/80-bootstrap.js?v=20260913-map-legend"></script>
 </body>
 </html>

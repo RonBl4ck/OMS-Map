@@ -50,3 +50,23 @@ test('la leyenda del mapa tiene un control desplegable accesible', () => {
     assert.match(page, /id="btnToggleMapLegend"[^>]+aria-expanded="true"[^>]+aria-controls="mapLegendContent"/);
     assert.match(page, /id="mapLegendContent"/);
 });
+
+test('los recursos de la leyenda invalidan el cache antiguo en cada despliegue', () => {
+    const page = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    const release = '20260913-map-legend';
+
+    assert.match(page, new RegExp(`assets/css/10-map\\.css\\?v=${release}`));
+    assert.match(page, new RegExp(`assets/js/10-map\\.js\\?v=${release}`));
+    assert.match(page, new RegExp(`assets/js/80-bootstrap\\.js\\?v=${release}`));
+    for (const name of iconNames) {
+        assert.match(page, new RegExp(`assets/icons/${name}\\.svg\\?v=${release}`));
+    }
+});
+
+test('el botón de perímetros usa un icono vectorial estable y estado accesible', () => {
+    const page = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+
+    assert.match(page, /id="btnToggleSedLayer"[^>]+aria-pressed="false"/);
+    assert.match(page, /class="btn-layer-icon"[^>]+aria-hidden="true"[^>]*>\s*<svg/);
+    assert.doesNotMatch(page, /📐\s*Perímetros SED/);
+});

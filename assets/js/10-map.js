@@ -1119,7 +1119,9 @@
             const btn = document.getElementById("btnToggleSedLayer");
             if (btn) {
                 btn.classList.toggle("active", showSedPerimeters);
-                btn.innerHTML = showSedPerimeters ? "📐 Perímetros SED (ON)" : "📐 Perímetros SED";
+                btn.setAttribute('aria-pressed', String(showSedPerimeters));
+                const label = btn.querySelector('.btn-layer-label');
+                if (label) label.textContent = showSedPerimeters ? 'Perímetros activos' : 'Perímetros SED';
             }
             document.body.classList.toggle('sed-perimeters-active', showSedPerimeters);
             filterMapMarkers();
