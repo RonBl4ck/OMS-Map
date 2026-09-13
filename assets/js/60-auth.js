@@ -34,6 +34,7 @@
 
         // Carga de Datos
         async function loadData() {
+            setAppDataLoadState('loading');
             try {
                 // Intentamos consultar la API segura /api/config-data, con fallback a config.json
                 let cfg = null;
@@ -118,19 +119,29 @@
                     finalFetchUrl += (finalFetchUrl.includes('?') ? '&' : '?') + '_nocache=' + Date.now();
                 }
 
-                if (finalFetchUrl) {
+                if (!finalFetchUrl) throw new Error('Fuente de casos no configurada');
+
+                await new Promise((resolve, reject) => {
                     Papa.parse(finalFetchUrl, {
                         download: true,
                         header: true,
                         skipEmptyLines: true,
                         complete: function(results) {
-                            processRawData(results.data);
-                        }
+                            try {
+                                processRawData(results.data || []);
+                                resolve();
+                            } catch (error) {
+                                reject(error);
+                            }
+                        },
+                        error: reject
                     });
-                }
+                });
+                setAppDataLoadState('ready');
 
             } catch (err) {
                 console.error("Error cargando datos:", err);
+                setAppDataLoadState('error', 'No pudimos cargar los datos.');
             }
         }
 

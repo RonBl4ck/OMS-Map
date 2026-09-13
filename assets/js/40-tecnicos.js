@@ -26,8 +26,15 @@
             const reference = selected === todayKey ? today : new Date(`${selected}T18:00:00`);
             return Math.max(0, (reference.getTime() - last.getTime()) / 1000);
         };
+        function techActivityStatus(seconds) {
+            if (seconds > 4 * 3600) return { key: 'alert', label: 'Sin cierre >4h' };
+            if (seconds > 2 * 3600) return { key: 'attention', label: 'Atención requerida' };
+            return { key: 'recent', label: 'Activo recientemente' };
+        }
         const TECH_FILTER_FIELDS = {'día':'techDate', Empresa:'techCompany', 'Tecnico visible':'techName', Skill:'techSkill', 'Zona / SET':'techZone', 'Estado de orden':'techState'};
-        const TECH_FILTER_LABELS = {techDate:'Fecha', techCompany:'Todas las empresas', techName:'Todos los técnicos', techSkill:'Todos los skills', techZone:'Todas las zonas / SET', techState:'Todos los estados'};
+        const TECH_FILTER_LABELS = {techDate:'Fecha', techCompany:'Empresa', techName:'Técnico', techSkill:'Skill', techZone:'Zona / SET', techState:'Estado'};
+        let techFilterControls = {};
+        let techChartMode = 'hierarchy';
         let currentTechSortCol = 'dia';
         let currentTechSortDir = 'desc';
         function techAllowedRecords() {
@@ -35,38 +42,41 @@
             return tecnicosRecords.filter(row => contractor === '*' || techKey(row.Empresa) === techKey(contractor));
         }
         function techFilterValues() {
-            return Object.fromEntries(Object.values(TECH_FILTER_FIELDS).map(id => [id, document.getElementById(id)?.value || '']));
+            return Object.fromEntries(Object.values(TECH_FILTER_FIELDS).map(id => [id, techFilterControls[id]?.getSelected() || []]));
         }
         function techMatchesFilters(row, values, excludedId = '') {
             return Object.entries(TECH_FILTER_FIELDS).every(([field, id]) => {
                 const selected = values[id];
-                return id === excludedId || !selected || String(row[field] || '') === selected;
+                return id === excludedId || matchesMultiSelection(row[field], selected);
             });
         }
-        function setTechSelectOptions(id, values, selected) {
-            const select = document.getElementById(id); if (!select) return false;
-            const unique = [...new Set(values.filter(Boolean).map(String))].sort((a,b) => id === 'techDate' ? b.localeCompare(a) : a.localeCompare(b, 'es', {numeric:true}));
-            const isDate = id === 'techDate';
-            const options = (isDate ? '' : `<option value="">${TECH_FILTER_LABELS[id]}</option>`) + unique.map(value => `<option value="${escapeHtml(value)}">${isDate ? 'Fecha: ' : ''}${escapeHtml(value)}</option>`).join('');
-            select.innerHTML = options || `<option value="">${isDate ? 'Sin fechas disponibles' : TECH_FILTER_LABELS[id]}</option>`;
-            let next = unique.includes(selected) ? selected : '';
-            if (isDate && !next && unique.length) next = unique.includes(techTodayKey()) ? techTodayKey() : unique[0];
-            select.value = next;
-            return next !== selected;
-        }
         function refreshTechFilterOptions() {
-            // Dos pasadas limpian cualquier selección incompatible y actualizan todos los desplegables entre sí.
-            for (let pass = 0; pass < 2; pass++) {
-                const values = techFilterValues();
-                Object.entries(TECH_FILTER_FIELDS).forEach(([field, id]) => {
-                    const candidates = techAllowedRecords().filter(row => techMatchesFilters(row, values, id));
-                    setTechSelectOptions(id, candidates.map(row => row[field]), values[id]);
-                });
-            }
+            const allowed = techAllowedRecords();
+            const selections = techFilterValues();
+            Object.entries(TECH_FILTER_FIELDS).forEach(([field, id]) => {
+                techFilterControls[id]?.setOptions(getFacetedFilterValues(allowed, field, TECH_FILTER_FIELDS, selections, id));
+            });
+        }
+        function applyTechFilters() {
+            refreshTechFilterOptions();
+            renderTecnicos();
         }
         function initializeTechFilters() {
-            Object.values(TECH_FILTER_FIELDS).forEach(id => { const select = document.getElementById(id); if (select) select.value = ''; });
-            refreshTechFilterOptions();
+            const allowed = techAllowedRecords();
+            techFilterControls = {};
+            Object.entries(TECH_FILTER_FIELDS).forEach(([field, id]) => {
+                techFilterControls[id] = initMultiSelect(id, TECH_FILTER_LABELS[id], allowed.map(row => String(row[field] || '')).filter(Boolean), applyTechFilters);
+            });
+        }
+
+        function toggleTechChartMode() {
+            techChartMode = techChartMode === 'technicians' ? 'hierarchy' : 'technicians';
+            const button = document.getElementById('btnTechChartMode');
+            if (button) {
+                button.textContent = techChartMode === 'technicians' ? 'Vista jerárquica' : 'Vista por técnicos';
+                button.setAttribute('aria-pressed', String(techChartMode === 'technicians'));
+            }
+            renderTecnicos();
         }
         function techSortValue(row, key) {
             const values = {dia: row['día'], tecnico: row['Tecnico visible'], skill: row.Skill, empresa: row.Empresa, zona: row['Zona / SET'], estado: row['Estado de orden'], primer: techDateValue(row['Primer trabajo'])?.getTime() || 0, ultimo: techDateValue(row['Último trabajo'])?.getTime() || 0, trabajos: Number(row['Cantidad de trabajos']) || 0, tiempo: techSecondsSinceLast(row), alerta: techSecondsSinceLast(row) > 4 * 3600 ? 1 : 0};
@@ -93,9 +103,11 @@
         }
         function techChartScope() {
             const filters = techFilterValues();
-            if (filters.techCompany && filters.techSkill) return { field:'Tecnico visible', label:'técnico', title:'Cierres por técnico', subtitle:`${filters.techCompany} · ${filters.techSkill}` };
-            if (filters.techCompany) return { field:'Skill', label:'skill', title:'Cierres por skill', subtitle:filters.techCompany };
-            return { field:'Empresa', label:'empresa', title:'Cierres por empresa', subtitle:filters.techSkill ? `Skill: ${filters.techSkill}` : 'Vista general' };
+            const companies = techFilterControls.techCompany?.isAllSelected() ? [] : (filters.techCompany || []);
+            const skills = techFilterControls.techSkill?.isAllSelected() ? [] : (filters.techSkill || []);
+            if (techChartMode === 'technicians' || skills.length) return { field:'Tecnico visible', label:'técnico', title:'Cierres por técnico', subtitle:skills.length ? `Skill: ${skills.join(', ')}` : 'Comparación general de técnicos' };
+            if (companies.length) return { field:'Skill', label:'skill', title:'Cierres por skill', subtitle:companies.join(', ') };
+            return { field:'Empresa', label:'empresa', title:'Cierres por contratista', subtitle:'Vista general' };
         }
         function renderTechCharts(records) {
             const target = document.getElementById('techCharts');
@@ -129,6 +141,15 @@
                 const pct = totalJobs ? (item.value / totalJobs * 100).toFixed(1) : '0.0';
                 return `<div style="border-left:4px solid ${item.color};background:#f8fafc;border-radius:7px;padding:10px 11px"><div style="font-size:11px;font-weight:800;color:#475569">${item.label}</div><div style="font-size:23px;font-weight:800;color:#0f172a;margin-top:2px">${item.value}</div><div style="font-size:11px;color:#64748b">${pct}% de trabajos</div></div>`;
             }).join('');
+            const activityCounts = records.reduce((summary, row) => {
+                summary[techActivityStatus(techSecondsSinceLast(row)).key] += 1;
+                return summary;
+            }, { recent: 0, attention: 0, alert: 0 });
+            const activityHtml = [
+                { key:'recent', label:'Activos recientemente', color:'#6cab5e' },
+                { key:'attention', label:'Atención requerida', color:'#f0ad2f' },
+                { key:'alert', label:'Sin cierre >4h', color:'#ef5b66' }
+            ].map(item => `<div class="tech-activity-summary" style="--activity-color:${item.color}"><strong>${activityCounts[item.key]}</strong><span>${item.label}</span></div>`).join('');
             target.innerHTML = `
                 <section class="tech-chart-card">
                     <h3 class="tech-chart-title">${escapeHtml(scope.title)} <span class="tech-average-legend"><i></i>Promedio: ${average.toFixed(1)}</span></h3>
@@ -136,8 +157,9 @@
                     <div class="tech-chart-scroll"><svg viewBox="0 0 ${width} ${height}" style="display:block;width:100%;min-width:560px;height:${height}px" role="img" aria-label="${escapeHtml(scope.title)}"><line x1="${avgX}" y1="${top - 8}" x2="${avgX}" y2="${height - 14}" stroke="#fbc140" stroke-width="2" stroke-dasharray="5 4"/>${bars}</svg></div>
                 </section>
                 <section class="tech-chart-card">
-                    <h3 class="tech-chart-title">Embudo operativo</h3>
-                    <p class="tech-chart-subtitle">${escapeHtml(scope.subtitle)} · distribución de los trabajos por resultado de cierre</p>
+                    <h3 class="tech-chart-title">Resumen operativo</h3>
+                    <p class="tech-chart-subtitle">${escapeHtml(scope.subtitle)} · actividad reciente y resultado de los cierres</p>
+                    <div class="tech-activity-grid">${activityHtml}</div>
                     <div style="background:var(--pluz-blue);color:#fff;border-radius:8px;padding:14px 15px;margin:12px 0 10px"><div style="font-size:11px;font-weight:700;opacity:.88;text-transform:uppercase">Trabajos registrados</div><div style="font-size:31px;font-weight:800;line-height:1.1">${totalJobs}</div></div>
                     <div style="height:14px;width:0;border-left:12px solid transparent;border-right:12px solid transparent;border-top:14px solid var(--pluz-blue);margin:-10px auto 10px"></div>
                     <div style="display:grid;gap:8px">${outcomeHtml}</div>
@@ -159,6 +181,61 @@
             return Array.isArray(raw) ? raw : [];
         }
 
+        function techSearchKey(value) {
+            return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        }
+
+        function findTechTicketMatches(rows, query) {
+            const needle = techSearchKey(query);
+            if (!needle) return [];
+            const matches = [];
+            (rows || []).forEach(row => {
+                parseTechTickets(row).forEach(ticket => {
+                    if (techSearchKey(ticket.ticket).includes(needle) || techSearchKey(ticket.odm).includes(needle)) matches.push({row, ticket});
+                });
+            });
+            return matches;
+        }
+
+        function techTicketNoteText(ticket) {
+            const note = String(ticket?.nota || '').trim();
+            return note || 'Sin nota específica registrada.';
+        }
+
+        function renderTechGlobalSearchResults() {
+            const input = document.getElementById('inputFilterTecnicos');
+            const target = document.getElementById('techGlobalSearchResults');
+            if (!input || !target) return;
+            const query = input.value.trim();
+            const matches = techSearchKey(query).length >= 4 ? findTechTicketMatches(techAllowedRecords(), query).slice(0, 12) : [];
+            if (!matches.length) {
+                target.classList.remove('show');
+                target.innerHTML = '';
+                return;
+            }
+            target.innerHTML = matches.map((match, index) => `
+                <button type="button" class="tech-search-result" role="option" onclick="openTechGlobalSearchResult(${index})">
+                    <strong>Ticket ${escapeHtml(match.ticket.ticket || '--')}</strong> · ODM ${escapeHtml(match.ticket.odm || '--')}
+                    <span style="display:block;margin-top:2px;font-size:10.5px;color:#64748b">${escapeHtml(match.row['Tecnico visible'] || 'Sin técnico')} · ${escapeHtml(match.row.Empresa || 'Sin empresa')} · ${escapeHtml(match.row['día'] || '')}</span>
+                </button>`).join('');
+            target.classList.add('show');
+        }
+
+        function openTechGlobalSearchResult(index) {
+            const query = document.getElementById('inputFilterTecnicos')?.value || '';
+            const match = findTechTicketMatches(techAllowedRecords(), query).slice(0, 12)[index];
+            if (!match) return;
+            document.getElementById('techGlobalSearchResults')?.classList.remove('show');
+            openTechDetailModal(match.row);
+            const detailInput = document.getElementById('inputFilterTechDetail');
+            if (detailInput) {
+                detailInput.value = match.ticket.ticket || match.ticket.odm || query;
+                renderTechDetailTable();
+            }
+            const ticketIndex = currentTechTimelineTickets.findIndex(ticket => ticket === match.ticket || (String(ticket.ticket) === String(match.ticket.ticket) && String(ticket.odm) === String(match.ticket.odm)));
+            showTechTimelineNote(ticketIndex >= 0 ? ticketIndex : 0);
+        }
+
         function openTechDetailByIndex(index) {
             const records = getVisibleTechRecords();
             records.sort((a, b) => {
@@ -175,6 +252,11 @@
         function openTechDetailModal(row) {
             currentActiveTechRow = row;
             currentActiveTechTickets = parseTechTickets(row);
+            const selectedNote = document.getElementById('techTimelineNote');
+            if (selectedNote) {
+                selectedNote.style.display = 'none';
+                selectedNote.innerHTML = '';
+            }
 
             // Título e Insignias del Encabezado
             const nameEl = document.getElementById('techDetailName');
@@ -244,7 +326,7 @@
             }
 
             if (legend) {
-                legend.innerText = `${tickets.length} trabajos registrados · Pasa el mouse para ver notas`;
+                legend.innerText = `${tickets.length} trabajos registrados · Haz clic en un cierre para ver su nota`;
             }
 
             const sorted = [...tickets].sort((a, b) => {
@@ -252,6 +334,7 @@
                 const dateB = techDateValue(b.fin || b.inicio)?.getTime() || 0;
                 return dateA - dateB;
             });
+            currentTechTimelineTickets = sorted;
 
             let html = '';
             let prevDate = null;
@@ -273,7 +356,7 @@
                 }
 
                 html += `
-                    <div class="tech-timeline-item" title="Ticket: ${escapeHtml(item.ticket)} | ODM: ${escapeHtml(item.odm || 'S/N')} | ${escapeHtml(item.tipo || '')} | ${escapeHtml(item.distrito || '')}">
+                    <button type="button" class="tech-timeline-item" onclick="showTechTimelineNote(${idx})" title="Clic para ver la nota del ticket ${escapeHtml(item.ticket)}">
                         <div style="font-weight: 800; color: var(--pluz-blue); display: flex; align-items: center; gap: 4px;">
                             <span>#${idx + 1}</span> <span>${escapeHtml(timeStr)}</span>
                         </div>
@@ -283,13 +366,22 @@
                         <div style="color: #64748b; font-size: 9.5px; max-width: 110px; overflow: hidden; text-overflow: ellipsis;">
                             ${escapeHtml(item.sed || item.distrito || 'SED/Distrito')}
                         </div>
-                    </div>
+                    </button>
                 `;
 
                 prevDate = itemDate;
             });
 
             track.innerHTML = html;
+        }
+
+        let currentTechTimelineTickets = [];
+        function showTechTimelineNote(index) {
+            const target = document.getElementById('techTimelineNote');
+            const ticket = currentTechTimelineTickets[index] || currentActiveTechTickets[index];
+            if (!target || !ticket) return;
+            target.innerHTML = `<strong>Ticket ${escapeHtml(ticket.ticket || '--')} · ODM ${escapeHtml(ticket.odm || '--')}</strong><br>${escapeHtml(techTicketNoteText(ticket))}`;
+            target.style.display = 'block';
         }
 
         function renderTechDetailTable() {
@@ -317,17 +409,17 @@
                 const stateColor = st.includes('cerrad') ? '#047857' : (st.includes('restaur') ? '#2563eb' : '#475569');
                 return `
                     <tr style="background: ${bg};">
-                        <td style="font-weight: 700; color: #64748b;">${idx + 1}</td>
-                        <td style="font-weight: 700; color: var(--pluz-blue); white-space: nowrap;">${escapeHtml(item.ticket || '--')}</td>
-                        <td style="white-space: nowrap; font-weight: 600; color: #334155;">${escapeHtml(item.odm || '--')}</td>
-                        <td style="white-space: nowrap;"><span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-weight: 600; font-size: 10px;">${escapeHtml(item.tipo || 'Sin tipo')}</span></td>
-                        <td style="white-space: nowrap; font-weight: 600; color: #0f766e;">${escapeHtml(item.sed || '--')}</td>
-                        <td style="white-space: nowrap;">${escapeHtml(item.distrito || '--')}</td>
-                        <td style="white-space: nowrap; font-size: 10.5px;">${escapeHtml(item.inicio || '--')}</td>
-                        <td style="white-space: nowrap; font-size: 10.5px; font-weight: 600;">${escapeHtml(item.fin || '--')}</td>
-                        <td style="white-space: nowrap; font-weight: 700; color: #0f172a;">${escapeHtml(item.duracion || '--')}</td>
-                        <td style="white-space: nowrap;"><span style="color: ${stateColor}; font-weight: 700;">${escapeHtml(item.estado || '--')}</span></td>
-                        <td style="min-width: 200px; color: #475569; font-size: 10.5px; line-height: 1.3;">${escapeHtml(item.nota || '')}</td>
+                        <td data-label="#" style="font-weight: 700; color: #64748b;">${idx + 1}</td>
+                        <td data-label="Ticket" style="font-weight: 700; color: var(--pluz-blue); white-space: nowrap;">${escapeHtml(item.ticket || '--')}</td>
+                        <td data-label="ODM" style="white-space: nowrap; font-weight: 600; color: #334155;">${escapeHtml(item.odm || '--')}</td>
+                        <td data-label="Tipo de falla" style="white-space: nowrap;"><span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-weight: 600; font-size: 10px;">${escapeHtml(item.tipo || 'Sin tipo')}</span></td>
+                        <td data-label="SED" style="white-space: nowrap; font-weight: 600; color: #0f766e;">${escapeHtml(item.sed || '--')}</td>
+                        <td data-label="Distrito" style="white-space: nowrap;">${escapeHtml(item.distrito || '--')}</td>
+                        <td data-label="Inicio" style="white-space: nowrap; font-size: 10.5px;">${escapeHtml(item.inicio || '--')}</td>
+                        <td data-label="Restauración / fin" style="white-space: nowrap; font-size: 10.5px; font-weight: 600;">${escapeHtml(item.fin || '--')}</td>
+                        <td data-label="Duración" style="white-space: nowrap; font-weight: 700; color: #0f172a;">${escapeHtml(item.duracion || '--')}</td>
+                        <td data-label="Estado" style="white-space: nowrap;"><span style="color: ${stateColor}; font-weight: 700;">${escapeHtml(item.estado || '--')}</span></td>
+                        <td data-label="Nota" style="min-width: 200px; color: #475569; font-size: 10.5px; line-height: 1.3;">${escapeHtml(item.nota || '')}</td>
                     </tr>
                 `;
             }).join('');
@@ -351,10 +443,10 @@
             renderTechCharts(records);
             updateTechSortHeaderIcons();
             body.innerHTML = records.length ? records.map((row, idx) => {
-                const seconds = techSecondsSinceLast(row); const alert = seconds > 4 * 3600;
+                const seconds = techSecondsSinceLast(row); const activity = techActivityStatus(seconds); const alert = activity.key === 'alert';
                 const first = techDateValue(row['Primer trabajo']); const last = techDateValue(row['Último trabajo']);
                 const hour = value => value ? value.toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'}) : '--';
-                return `<tr class="tech-row-clickable" onclick="openTechDetailByIndex(${idx})" title="🔍 Clic para ver los tickets cerrados y cronología de ${escapeHtml(row['Tecnico visible'])}"><td>${escapeHtml(row['día'])}</td><td><strong>${escapeHtml(row['Tecnico visible'])}</strong> <span style="font-size:10px;opacity:.65;">🔍</span></td><td>${escapeHtml(row.Skill)}</td><td>${escapeHtml(row.Empresa)}</td><td>${escapeHtml(row['Zona / SET'])}</td><td>${escapeHtml(row['Estado de orden'])}</td><td>${hour(first)}</td><td>${hour(last)}</td><td style="text-align:center;font-weight:700;">${escapeHtml(row['Cantidad de trabajos'])}</td><td>${techDurationLabel(seconds)}</td><td><span class="${alert?'tech-alert':'tech-ok'}">${alert?'Más de 4h':'Al día'}</span></td></tr>`;
+                return `<tr class="tech-row-clickable" onclick="openTechDetailByIndex(${idx})" title="Ver cierres y cronología de ${escapeHtml(row['Tecnico visible'])}"><td data-label="Fecha">${escapeHtml(row['día'])}</td><td data-label="Técnico"><strong>${escapeHtml(row['Tecnico visible'])}</strong></td><td data-label="Skill">${escapeHtml(row.Skill)}</td><td data-label="Empresa">${escapeHtml(row.Empresa)}</td><td data-label="Zona / SET">${escapeHtml(row['Zona / SET'])}</td><td data-label="Estado">${escapeHtml(row['Estado de orden'])}</td><td data-label="Primer cierre">${hour(first)}</td><td data-label="Último cierre">${hour(last)}</td><td data-label="Trabajos" style="text-align:center;font-weight:700;">${escapeHtml(row['Cantidad de trabajos'])}</td><td data-label="Desde último cierre">${techDurationLabel(seconds)}</td><td data-label="Estado de actividad"><span class="tech-activity-status tech-activity-status--${activity.key}">${activity.label}</span></td></tr>`;
             }).join('') : '<tr><td colspan="11" style="padding:18px;text-align:center">No hay registros para el filtro actual.</td></tr>';
         }
 

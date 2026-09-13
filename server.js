@@ -1,6 +1,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { resolvePublicFile, cacheControlFor, securityHeaders } = require('./server-utils');
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = __dirname;
@@ -12,6 +13,7 @@ const MIME_TYPES = {
     '.json': 'application/json; charset=utf-8',
     '.png': 'image/png',
     '.jpg': 'image/jpeg',
+    '.svg': 'image/svg+xml',
     '.ico': 'image/x-icon',
 };
 
@@ -44,7 +46,12 @@ const server = http.createServer((req, res) => {
         }
     }
 
-    let filePath = path.join(PUBLIC_DIR, pathname === '/' ? 'index.html' : pathname);
+    const filePath = resolvePublicFile(PUBLIC_DIR, pathname);
+    if (!filePath) {
+        res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8', ...securityHeaders() });
+        res.end('Solicitud no válida');
+        return;
+    }
     const extname = String(path.extname(filePath)).toLowerCase();
     const contentType = MIME_TYPES[extname] || 'application/octet-stream';
 
@@ -60,8 +67,8 @@ const server = http.createServer((req, res) => {
         } else {
             res.writeHead(200, {
                 'Content-Type': contentType,
-                'Cache-Control': 'no-cache',
-                'Access-Control-Allow-Origin': '*'
+                'Cache-Control': cacheControlFor(extname),
+                ...securityHeaders()
             });
             res.end(content, 'utf-8');
         }

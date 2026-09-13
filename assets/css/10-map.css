@@ -66,7 +66,7 @@
             cursor: pointer;
             font-weight: 700;
             font-size: 12px;
-            transition: all 0.2s ease;
+            transition: transform 140ms ease-out, background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
         }
         .map-tabs-nav button.tab-btn:hover {
             background: rgba(255, 255, 255, 0.1);
@@ -347,20 +347,65 @@
             margin: 4px 0;
         }
 
-        /* LEYENDA PEQUEÑA EN ESQUINA INFERIOR DERECHA */
+        /* LEYENDA EN ESQUINA INFERIOR DERECHA */
         .map-legend-bottom-right {
             position: absolute;
             bottom: 25px;
             right: 15px;
             z-index: 999;
-            background: var(--dark-panel);
-            backdrop-filter: blur(8px);
             color: #ffffff;
+            font-size: 11px;
+        }
+        .map-legend-toggle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            min-width: 112px;
+            background: var(--dark-panel);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            color: #ffffff;
+            padding: 8px 11px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+            cursor: pointer;
+            font: inherit;
+            font-weight: 700;
+            transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease;
+        }
+        .map-legend-toggle:active { transform: scale(0.97); }
+        .map-legend-chevron { transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1); }
+        .map-legend-bottom-right.is-collapsed .map-legend-chevron { transform: rotate(180deg); }
+        .map-legend-content {
+            position: absolute;
+            right: 0;
+            bottom: calc(100% + 8px);
+            width: 214px;
+            box-sizing: border-box;
+            background: var(--dark-panel);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             padding: 10px 14px;
             border-radius: 10px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.35);
-            font-size: 11px;
             border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0) scale(1);
+            transform-origin: bottom right;
+            transition: opacity 160ms ease, transform 180ms cubic-bezier(0.23, 1, 0.32, 1), visibility 0s;
+        }
+        .map-legend-bottom-right.is-collapsed .map-legend-content {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transform: translateY(5px) scale(0.97);
+            transition: opacity 120ms ease, transform 140ms cubic-bezier(0.23, 1, 0.32, 1), visibility 0s 140ms;
+        }
+        @media (hover: hover) and (pointer: fine) {
+            .map-legend-toggle:hover { background-color: rgba(30, 45, 74, 0.96); }
         }
         .legend-title-box {
             font-weight: 700;
@@ -371,30 +416,195 @@
             margin-bottom: 6px;
             border-bottom: 1px solid rgba(244, 180, 40, 0.3);
             padding-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .legend-section-divider {
+            margin: 8px 0 6px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 6px;
+            font-weight: 700;
+            font-size: 9.5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #94a3b8;
         }
         .legend-items-list {
             display: grid;
             grid-template-columns: 1fr;
-            gap: 4px;
+            gap: 5px;
         }
         .legend-item-row {
             display: flex;
             align-items: center;
             gap: 8px;
             color: #f1f5f9;
+            font-size: 10.5px;
         }
-        .legend-emoji-icon {
-            font-size: 14px;
+        .legend-icon-slot {
+            width: 20px;
+            height: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .legend-icon-slot img {
             width: 18px;
-            text-align: center;
+            height: 18px;
+            object-fit: contain;
+        }
+        .legend-sla-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+        .legend-sla-dot.sla-ok { background: #16a34a; box-shadow: 0 0 6px #16a34a; }
+        .legend-sla-dot.sla-warning { background: #f59e0b; box-shadow: 0 0 6px #f59e0b; }
+        .legend-sla-dot.sla-overdue { background: #dc2626; box-shadow: 0 0 6px #dc2626; }
+
+        /* MARCADORES CON PESTAÑA SLA */
+        .marker-sla-badge {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(248, 250, 252, 0.82);
+            border: 0;
+            box-shadow: 0 2px 5px rgba(15, 23, 42, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+            position: relative;
+        }
+        .marker-sla-badge::after {
+            content: '';
+            position: absolute;
+            left: 9px;
+            right: 9px;
+            bottom: -3px;
+            height: 5px;
+            border: 1px solid rgba(248, 250, 252, 0.95);
+            border-radius: 999px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.24);
+        }
+        .marker-sla-badge.sla-ok::after { background: #16a34a; }
+        .marker-sla-badge.sla-warning::after { background: #f59e0b; }
+        .marker-sla-badge.sla-overdue::after { background: #dc2626; }
+        @media (hover: hover) and (pointer: fine) {
+            .marker-sla-badge:hover {
+                transform: scale(1.12) translateY(-1px);
+                z-index: 10000 !important;
+            }
         }
 
-        .custom-leaflet-emoji {
-            font-size: 24px;
-            text-align: center;
-            cursor: pointer;
-            transition: transform 0.15s ease;
+        .fault-icon-img {
+            width: 30px;
+            height: 30px;
+            object-fit: contain;
+            display: block;
+            filter: drop-shadow(0 1px 1px rgba(15, 23, 42, 0.22));
+            pointer-events: none;
+            user-select: none;
         }
-        .custom-leaflet-emoji:hover {
-            transform: scale(1.3);
+        .sed-perimeter-shape {
+            filter: drop-shadow(0 1px 2px rgba(76, 29, 149, 0.18));
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        .sed-cloud-label {
+            background: rgba(49, 46, 129, 0.9) !important;
+            border: 1px solid rgba(255, 255, 255, 0.85) !important;
+            border-radius: 999px !important;
+            color: #fff !important;
+            box-shadow: 0 2px 8px rgba(49, 46, 129, 0.24) !important;
+            font: 700 10px/1.1 'Segoe UI', system-ui, sans-serif !important;
+            padding: 4px 7px !important;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+        .sed-cloud-label::before {
+            display: none;
+        }
+        .fault-icon-emoji {
+            font-size: 18px;
+            line-height: 1;
+            display: block;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        /* BADGES SLA EN POPUP */
+        .popup-sla-banner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 5px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            margin: 6px 0;
+            gap: 6px;
+        }
+        .popup-sla-banner.sla-ok {
+            background: #dcfce7;
+            color: #15803d;
+            border: 1px solid #bbf7d0;
+        }
+        .popup-sla-banner.sla-warning {
+            background: #fef3c7;
+            color: #b45309;
+            border: 1px solid #fde68a;
+        }
+        .popup-sla-banner.sla-overdue {
+            background: #fee2e2;
+            color: #b91c1c;
+            border: 1px solid #fecaca;
+        }
+
+        /* BOTÓN TOGGLE CAPA PERÍMETROS SED */
+        .btn-layer-toggle {
+            padding: 5px 11px;
+            border-radius: 6px;
+            font-size: 11.5px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border: 1px solid #3c5a9f;
+            background: #ffffff;
+            color: #3c5a9f;
+            transition: transform 140ms ease-out, background-color 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+            user-select: none;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .btn-layer-toggle:hover {
+            background: #f0f4ff;
+        }
+        .btn-layer-toggle.active {
+            background: #3c5a9f;
+            color: #ffffff;
+            border-color: #2a4175;
+            box-shadow: 0 2px 6px rgba(60, 90, 159, 0.35);
+        }
+
+        /* TOOLTIP PERÍMETROS SED */
+        .sed-polygon-tooltip {
+            background: rgba(15, 23, 42, 0.92) !important;
+            border: 1px solid #38bdf8 !important;
+            color: #f8fafc !important;
+            font-family: 'Segoe UI', system-ui, sans-serif !important;
+            font-size: 11px !important;
+            font-weight: 700 !important;
+            padding: 4px 8px !important;
+            border-radius: 6px !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+        }
+        .sed-polygon-tooltip::before {
+            border-top-color: rgba(15, 23, 42, 0.92) !important;
         }

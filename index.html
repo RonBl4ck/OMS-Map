@@ -14,6 +14,8 @@
     
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
     
     <!-- PapaParse -->
     <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
@@ -22,7 +24,8 @@
     <link rel="stylesheet" href="assets/css/10-map.css">
     <link rel="stylesheet" href="assets/css/20-dashboard.css">
     <link rel="stylesheet" href="assets/css/30-responsive.css">
-    <link rel="stylesheet" href="assets/css/40-technicians.css">
+    <link rel="stylesheet" href="assets/css/40-technicians.css?v=20260910-ticket-search">
+    <link rel="stylesheet" href="assets/css/90-modern.css?v=20260912-facets">
 </head>
 <body>
 
@@ -117,6 +120,12 @@
 
     <div id="map"></div>
 
+    <div id="appDataStatus" class="app-data-status" data-state="idle" role="status" aria-live="polite" aria-atomic="true" aria-busy="false">
+        <span class="app-data-spinner" aria-hidden="true"></span>
+        <span id="appDataStatusMessage">Cargando datos…</span>
+        <button id="btnRetryDataLoad" type="button" hidden>Reintentar</button>
+    </div>
+
     <!-- CONTENEDOR SUPERIOR (BARRA + FILTROS AUTOMÁTICOS) -->
     <div class="map-top-controls">
         <!-- BARRA SUPERIOR CON LOGO PLUZ -->
@@ -129,32 +138,40 @@
                 </div>
             </div>
             <div class="navbar-center">
-                <div class="map-tabs-nav">
-                    <button id="tabTdOms" class="tab-btn" type="button" title="Tablero de Indicadores y Métricas">📊 KPIs</button>
-                    <button id="tabTecnicos" class="tab-btn" type="button" title="Seguimiento de cierres por técnico">👷 Seguimiento</button>
-                    <button id="tabLlamadas" class="tab-btn" type="button" style="display: none;">📞 Llamadas</button>
+                <div class="map-tabs-nav" role="tablist" aria-label="Secciones principales">
+                    <button id="tabMapa" class="tab-btn active" type="button" role="tab" aria-selected="true" aria-controls="map">Mapa</button>
+                    <button id="tabTdOms" class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="tdOmsModalOverlay" title="Tablero de indicadores y métricas">Indicadores</button>
+                    <button id="tabTecnicos" class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="tecnicosModalOverlay" title="Seguimiento de cierres por técnico">Seguimiento</button>
+                    <button id="tabLlamadas" class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="llamadasModalOverlay" style="display: none;">Llamadas</button>
                 </div>
             </div>
             <div class="kpi-badges-row">
                 <div class="nav-kpi-item" id="navUserBadge" style="border-left-color: var(--pluz-yellow); display: flex; align-items: center; gap: 8px;">
-                    <div>
+                    <div class="nav-user-copy">
                         <div class="nav-kpi-title">Usuario</div>
                         <div class="nav-kpi-val" id="navUserName" style="font-size: 12px; color: var(--pluz-yellow);">👤 --</div>
                     </div>
                     <button id="btnOpenConfig" title="Configuración y Gestión de Accesos" style="display: none; background: rgba(59,130,246,0.2); color: #93c5fd; border: 1px solid rgba(59,130,246,0.4); padding: 3px 6px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 700; line-height: 1;">⚙️</button>
                     <button id="btnLogout" title="Cerrar Sesión" style="background: rgba(239,68,68,0.2); color: #fca5a5; border: 1px solid rgba(239,68,68,0.4); padding: 3px 6px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 700; line-height: 1;">🚪</button>
+                    <div class="mobile-actions">
+                        <button id="btnMobileActions" class="mobile-actions-trigger" type="button" aria-expanded="false" aria-controls="mobileActionsMenu">Acciones</button>
+                        <div id="mobileActionsMenu" class="mobile-actions-menu" role="menu" hidden>
+                            <button id="btn-mobile-download-base" type="button" role="menuitem" data-requires-primary-data>Descargar pendientes</button>
+                            <button id="btn-mobile-download-ejecutados" type="button" role="menuitem" data-requires-primary-data>Descargar ejecutados</button>
+                        </div>
+                    </div>
                 </div>
                 <div class="nav-kpi-item" title="Incidencias pendientes de Baja Tensión">
                     <div class="nav-kpi-title">Pend. BT</div>
-                    <div class="nav-kpi-val" id="topNavCount">🚨 0</div>
+                        <div class="nav-kpi-val" id="topNavCount" data-loading-kpi>—</div>
                 </div>
                 <div class="nav-kpi-item" style="border-left-color: var(--pluz-green);" title="Hora de última actualización de datos">
                     <div class="nav-kpi-title">Subida</div>
                     <div class="nav-kpi-val" id="topNavTime" style="color: var(--pluz-green); font-family: monospace;">🕒 --/-- --:--</div>
                 </div>
                 <div class="nav-kpi-item" style="border-left-color: var(--pluz-blue); display: flex; gap: 6px;">
-                    <button class="btn-nav-primary" id="btn-download-base" title="Descargar Base Pendientes (CSV)">📥 Pend.</button>
-                    <button class="btn-nav-primary" id="btn-download-ejecutados" style="background: var(--pluz-green);" title="Descargar Base Ejecutados (CSV)">📥 Ejec.</button>
+                    <button class="btn-nav-primary" id="btn-download-base" data-requires-primary-data title="Descargar Base Pendientes (CSV)">📥 Pend.</button>
+                    <button class="btn-nav-primary" id="btn-download-ejecutados" data-requires-primary-data style="background: var(--pluz-green);" title="Descargar Base Ejecutados (CSV)">📥 Ejec.</button>
                 </div>
             </div>
         </div>
@@ -165,13 +182,13 @@
                 <span>🔍 Filtros y Búsqueda</span> <span id="mobileFilterIcon">▼</span>
             </button>
             <div id="mapFilterContentWrapper" class="map-filter-content-wrapper" style="display: flex; gap: 8px; flex-wrap: wrap; width: 100%;">
-                <select id="searchTypeMap" style="padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; font-weight: 700; color: #1e293b; outline: none; background: #ffffff; cursor: pointer;">
+                <select id="searchTypeMap" data-requires-primary-data style="padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; font-weight: 700; color: #1e293b; outline: none; background: #ffffff; cursor: pointer;">
                     <option value="ticket">Ticket / ODM</option>
                     <option value="sed">SED</option>
                     <option value="alimentador">Alimentador</option>
                     <option value="address">📍 Dirección / Ref.</option>
                 </select>
-                <input type="text" id="inputTicket" placeholder="Buscar por Ticket o ODM...">
+                <input type="text" id="inputTicket" data-requires-primary-data placeholder="Buscar por Ticket o ODM...">
                 <div id="addressSearchOptions" class="address-search-options" aria-label="Opciones de búsqueda por dirección">
                     <select id="addressSearchMode" title="Modo de búsqueda por dirección">
                         <option value="point">📍 Punto y misma dirección</option>
@@ -187,23 +204,25 @@
                 <div id="mapMultiEmpresa"></div>
                 <div id="mapMultiFalla"></div>
                 <label class="checkbox-filter-label" style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; color: #be123c; user-select: none;" title="Filtrar por incidencias con 7 o más llamadas">
-                    <input type="checkbox" id="chk7LlamadasMap" style="cursor: pointer; accent-color: #e11d48; width: 13px; height: 13px;">
+                    <input type="checkbox" id="chk7LlamadasMap" data-requires-primary-data style="cursor: pointer; accent-color: #e11d48; width: 13px; height: 13px;">
                     <span>📞 ≥7 Llam.</span>
                 </label>
                 <label class="checkbox-filter-label" style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; color: #dc2626; user-select: none;" title="Filtrar por SEDs con más de 2 fallas en los últimos 7 días">
-                    <input type="checkbox" id="chkReincSedMap" style="cursor: pointer; accent-color: #dc2626; width: 13px; height: 13px;">
+                    <input type="checkbox" id="chkReincSedMap" data-requires-primary-data style="cursor: pointer; accent-color: #dc2626; width: 13px; height: 13px;">
                     <span>🚨 SED >2</span>
                 </label>
                 <label class="checkbox-filter-label" style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; background: #ccfbf1; border: 1px solid #99f6e4; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; color: #0d9488; user-select: none;" title="Filtrar por Suministros con 2 o más fallas en los últimos 7 días">
-                    <input type="checkbox" id="chkReincSuminMap" style="cursor: pointer; accent-color: #0d9488; width: 13px; height: 13px;">
+                    <input type="checkbox" id="chkReincSuminMap" data-requires-primary-data style="cursor: pointer; accent-color: #0d9488; width: 13px; height: 13px;">
                     <span>👤 Sum. ≥2</span>
                 </label>
                 <label class="checkbox-filter-label" style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; background: #fef3c7; border: 1px solid #fcd34d; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; color: #b45309; user-select: none;" title="Filtrar por SEDs Críticas (Compensación / Historial)">
-                    <input type="checkbox" id="chkCriticaMap" style="cursor: pointer; accent-color: #d97706; width: 13px; height: 13px;">
+                    <input type="checkbox" id="chkCriticaMap" data-requires-primary-data style="cursor: pointer; accent-color: #d97706; width: 13px; height: 13px;">
                     <span>🚨 Crítica</span>
                 </label>
-                <button class="btn-action-sm btn-search" id="btnBuscar">Buscar</button>
-                <button class="btn-action-sm btn-reset" id="btnLimpiar">Limpiar</button>
+                <button type="button" class="btn-layer-toggle" id="btnToggleSedLayer" data-requires-primary-data title="Activar/Desactivar visualización de perímetros por SED" onclick="toggleSedPerimeters()">
+                    📐 Perímetros SED
+                </button>
+                <button class="btn-action-sm btn-reset" id="btnLimpiar" data-requires-primary-data>Limpiar</button>
             </div>
         </div>
     </div>
@@ -211,17 +230,51 @@
     <!-- Panel de Resultados de Búsqueda por Dirección -->
     <div id="addressResultBox" class="address-result-box" role="status" aria-live="polite"></div>
 
-    <!-- Leyenda de Emojis en Esquina Inferior Derecha -->
+    <!-- Leyenda de iconos y estado del plazo -->
     <div class="map-legend-bottom-right" id="mapEmojiLegend">
-        <div class="legend-title-box">🛠️ Tipo de Falla</div>
+        <button class="map-legend-toggle" id="btnToggleMapLegend" type="button" aria-expanded="true" aria-controls="mapLegendContent">
+            <span>🎨 Leyenda</span><span class="map-legend-chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="map-legend-content" id="mapLegendContent">
+        <div class="legend-title-box"><span>🛠️ Tipo de Falla</span></div>
         <div class="legend-items-list">
-            <div class="legend-item-row"><span class="legend-emoji-icon">🚚</span> RED SUBTERRÁNEA</div>
-            <div class="legend-item-row"><span class="legend-emoji-icon">🪜</span> RED / CNX AÉREA</div>
-            <div class="legend-item-row"><span class="legend-emoji-icon">🛻</span> CNX SUBTERRÁNEA</div>
-            <div class="legend-item-row"><span class="legend-emoji-icon">👤</span> SUMINISTRO</div>
-            <div class="legend-item-row"><span class="legend-emoji-icon">📦</span> FUSIBLE</div>
-            <div class="legend-item-row"><span class="legend-emoji-icon">🏗️</span> POSTE</div>
-            <div class="legend-item-row"><span class="legend-emoji-icon">📍</span> GENERAL / OTRO</div>
+            <div class="legend-item-row">
+                <span class="legend-icon-slot"><img src="assets/icons/suministro.svg" alt="Suministro"></span>
+                <span>SUMINISTRO (4h)</span>
+            </div>
+            <div class="legend-item-row">
+                <span class="legend-icon-slot"><img src="assets/icons/red_aerea.svg" alt="Red Aérea"></span>
+                <span>RED / CNX AÉREA (8h)</span>
+            </div>
+            <div class="legend-item-row">
+                <span class="legend-icon-slot"><img src="assets/icons/subterranea.svg" alt="Subterránea"></span>
+                <span>RED / CNX SUBT. (12h/8h)</span>
+            </div>
+            <div class="legend-item-row">
+                <span class="legend-icon-slot"><img src="assets/icons/fusible.svg" alt="Fusible"></span>
+                <span>FUSIBLE (4h)</span>
+            </div>
+            <div class="legend-item-row">
+                <span class="legend-icon-slot"><img src="assets/icons/poste.svg" alt="Poste"></span>
+                <span>POSTE (8h)</span>
+            </div>
+        </div>
+
+        <div class="legend-section-divider">Estado del plazo</div>
+        <div class="legend-items-list">
+            <div class="legend-item-row">
+                <span class="legend-sla-dot sla-ok"></span>
+                <span>&lt; 75% Plazo (Dentro de tiempo)</span>
+            </div>
+            <div class="legend-item-row">
+                <span class="legend-sla-dot sla-warning"></span>
+                <span>&ge; 75% Plazo (A poco de vencer)</span>
+            </div>
+            <div class="legend-item-row">
+                <span class="legend-sla-dot sla-overdue"></span>
+                <span>&ge; 100% Plazo (Fuera de plazo)</span>
+            </div>
+        </div>
         </div>
     </div>
 
@@ -231,30 +284,27 @@
             <div class="modal-header-title">
                 📊 Indicadores TD OMS — Tablero Ejecutivo Pluz
             </div>
-            <button id="btnCloseModal" class="btn-action-sm btn-search" style="background: var(--pluz-blue); display: inline-flex; align-items: center; gap: 6px;" title="Volver al Mapa (Esc)">
-                📍 Volver al Mapa
-            </button>
         </div>
         <div class="kpi-cards-grid">
-                    <div class="exec-kpi-card">
-                        <div class="kpi-lbl">Total Incidencias</div>
-                        <div class="kpi-num" id="kpiTotalInc">0</div>
+                    <div class="exec-kpi-card kpi-total">
+                        <div class="kpi-lbl">Total de incidencias</div>
+                        <div class="kpi-num" id="kpiTotalInc" data-loading-kpi>—</div>
                         <div class="kpi-sub">En el filtro actual</div>
                     </div>
-                    <div class="exec-kpi-card kpi-execution">
-                        <div class="kpi-lbl">En Ejecución</div>
-                        <div class="kpi-num" id="kpiEnEjecucion">0</div>
-                        <div class="kpi-sub" id="kpiEjecucionPct">0% del total</div>
+                    <div class="exec-kpi-card kpi-within">
+                        <div class="kpi-lbl">Dentro de plazo</div>
+                        <div class="kpi-num" id="kpiWithinDeadline" data-loading-kpi>—</div>
+                        <div class="kpi-sub" id="kpiWithinDeadlinePct">0% del total</div>
                     </div>
-                    <div class="exec-kpi-card kpi-pending">
-                        <div class="kpi-lbl">Pendientes</div>
-                        <div class="kpi-num" id="kpiPendientes">0</div>
-                        <div class="kpi-sub" id="kpiPendientesPct">0% del total</div>
+                    <div class="exec-kpi-card kpi-warning">
+                        <div class="kpi-lbl">Próximas a vencer</div>
+                        <div class="kpi-num" id="kpiDeadlineWarning" data-loading-kpi>—</div>
+                        <div class="kpi-sub" id="kpiDeadlineWarningPct">0% del total</div>
                     </div>
-                    <div class="exec-kpi-card kpi-company">
-                        <div class="kpi-lbl">Top Contratista</div>
-                        <div class="kpi-num" id="kpiTopEmpresa" style="font-size: 16px; font-weight:700;">-</div>
-                        <div class="kpi-sub" id="kpiTopEmpresaCount">0 tickets</div>
+                    <div class="exec-kpi-card kpi-overdue">
+                        <div class="kpi-lbl">Fuera de plazo</div>
+                        <div class="kpi-num" id="kpiDeadlineOverdue" data-loading-kpi>—</div>
+                        <div class="kpi-sub" id="kpiDeadlineOverduePct">0% del total</div>
                     </div>
                 </div>
 
@@ -308,7 +358,8 @@
                         </h3>
                         <input type="text" id="inputFilterTable" placeholder="🔍 Filtrar en tabla..." style="padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; width: 220px; outline: none;">
                     </div>
-                    <div style="overflow-x: auto; max-height: 420px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+                    <p class="dashboard-table-hint" id="dashboardTableHint">Desliza horizontalmente para consultar todas las columnas.</p>
+                    <div class="dashboard-table-scroll" tabindex="0" role="region" aria-label="Casos pendientes; tabla desplazable" aria-describedby="dashboardTableHint" style="overflow-x: auto; max-height: 420px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
                         <table id="tdOmsTable" style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: left;">
                             <thead>
                                 <tr style="background: var(--pluz-dark); color: white; position: sticky; top: 0; z-index: 5;">
@@ -340,21 +391,22 @@
 
     <!-- VISTA EXCLUSIVA PLUZ: REGISTRO DE LLAMADAS -->
     <div id="tecnicosModalOverlay" class="td-oms-full-view">
-        <div class="view-header-bar"><div class="modal-header-title">👷 Seguimiento de cierres por técnico</div><button id="btnCloseTecnicos" class="btn-action-sm btn-search" style="background: var(--pluz-blue);">📍 Volver al Mapa</button></div>
+        <div class="view-header-bar"><div class="modal-header-title">Seguimiento de cierres por técnico</div></div>
         <div class="kpi-cards-grid"><div class="exec-kpi-card"><div class="kpi-lbl">Técnicos con actividad</div><div class="kpi-num" id="techKpiActive">0</div></div><div class="exec-kpi-card"><div class="kpi-lbl">Trabajos cerrados</div><div class="kpi-num" id="techKpiJobs">0</div></div><div class="exec-kpi-card"><div class="kpi-lbl">Prom. desde último trabajo</div><div class="kpi-num" id="techKpiAverage">--</div></div><div class="exec-kpi-card kpi-pending"><div class="kpi-lbl">Sin cierre &gt;4h</div><div class="kpi-num" id="techKpiAlerts">0</div></div></div>
         <div class="table-section-card" style="max-width:1200px;margin:0 auto;background:#fff;border-radius:10px;padding:18px">
-            <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><div><h3 style="margin:0;color:var(--pluz-blue)">Cierres diarios</h3><p id="techStatus" style="margin:5px 0;color:#64748b"></p></div><input id="inputFilterTecnicos" placeholder="🔍 Técnico, skill, empresa..." class="tech-control"></div>
+            <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap"><div><h3 style="margin:0;color:var(--pluz-blue)">Cierres diarios</h3><p id="techStatus" style="margin:5px 0;color:#64748b"></p></div><div class="tech-global-search"><input id="inputFilterTecnicos" placeholder="Buscar Ticket, ODM, técnico o empresa" class="tech-control" autocomplete="off" aria-label="Buscar en seguimiento técnico" aria-controls="techGlobalSearchResults"><div id="techGlobalSearchResults" class="tech-global-search-results" role="listbox"></div></div></div>
             <div id="techFilters" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;margin:12px 0">
-                <select id="techDate" class="tech-control" title="Fecha"></select>
-                <select id="techCompany" class="tech-control" title="Empresa"><option value="">Todas las empresas</option></select>
-                <select id="techName" class="tech-control" title="Técnico"><option value="">Todos los técnicos</option></select>
-                <select id="techSkill" class="tech-control" title="Skill"><option value="">Todos los skills</option></select>
-                <select id="techZone" class="tech-control" title="Zona / SET"><option value="">Todas las zonas / SET</option></select>
-                <select id="techState" class="tech-control" title="Estado"><option value="">Todos los estados</option></select>
+                <div id="techDate" class="tech-control" title="Fecha"></div>
+                <div id="techCompany" class="tech-control" title="Empresa"></div>
+                <div id="techName" class="tech-control" title="Técnico"></div>
+                <div id="techSkill" class="tech-control" title="Skill"></div>
+                <div id="techZone" class="tech-control" title="Zona / SET"></div>
+                <div id="techState" class="tech-control" title="Estado"></div>
+                <button id="btnTechChartMode" class="btn-action-sm tech-chart-mode" type="button" aria-pressed="false">Vista por técnicos</button>
                 <button id="btnResetTechFilters" class="btn-action-sm btn-reset" type="button">Limpiar filtros</button>
             </div>
             <div id="techCharts" class="tech-charts-grid" aria-live="polite"></div>
-            <div style="overflow:auto;max-height:620px;border:1px solid #e2e8f0;border-radius:8px"><table class="tech-table" style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:var(--pluz-dark);color:#fff;position:sticky;top:0"><th data-tech-sort="dia" data-label="Fecha" onclick="sortTecnicosTable('dia')" title="Ordenar por Fecha">Fecha <span>↕</span></th><th data-tech-sort="tecnico" data-label="Técnico" onclick="sortTecnicosTable('tecnico')" title="Ordenar por Técnico">Técnico <span>↕</span></th><th data-tech-sort="skill" data-label="Skill" onclick="sortTecnicosTable('skill')" title="Ordenar por Skill">Skill <span>↕</span></th><th data-tech-sort="empresa" data-label="Empresa" onclick="sortTecnicosTable('empresa')" title="Ordenar por Empresa">Empresa <span>↕</span></th><th data-tech-sort="zona" data-label="Zona / SET" onclick="sortTecnicosTable('zona')" title="Ordenar por Zona / SET">Zona / SET <span>↕</span></th><th data-tech-sort="estado" data-label="Estado" onclick="sortTecnicosTable('estado')" title="Ordenar por Estado">Estado <span>↕</span></th><th data-tech-sort="primer" data-label="Primer trabajo" onclick="sortTecnicosTable('primer')" title="Ordenar por Primer trabajo">Primer trabajo <span>↕</span></th><th data-tech-sort="ultimo" data-label="Último trabajo" onclick="sortTecnicosTable('ultimo')" title="Ordenar por Último trabajo">Último trabajo <span>↕</span></th><th data-tech-sort="trabajos" data-label="Trabajos" onclick="sortTecnicosTable('trabajos')" title="Ordenar por Trabajos">Trabajos <span>↕</span></th><th data-tech-sort="tiempo" data-label="Tiempo desde último" onclick="sortTecnicosTable('tiempo')" title="Ordenar por Tiempo desde último">Tiempo desde último <span>↕</span></th><th data-tech-sort="alerta" data-label="Alerta" onclick="sortTecnicosTable('alerta')" title="Ordenar por Alerta">Alerta <span>↕</span></th></tr></thead><tbody id="tecnicosTableBody"></tbody></table></div>
+            <div class="tech-table-scroll" style="overflow:auto;max-height:620px;border:1px solid #e2e8f0;border-radius:8px"><table class="tech-table" style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:var(--pluz-dark);color:#fff;position:sticky;top:0"><th data-tech-sort="dia" data-label="Fecha" onclick="sortTecnicosTable('dia')" title="Ordenar por Fecha">Fecha <span>↕</span></th><th data-tech-sort="tecnico" data-label="Técnico" onclick="sortTecnicosTable('tecnico')" title="Ordenar por Técnico">Técnico <span>↕</span></th><th data-tech-sort="skill" data-label="Skill" onclick="sortTecnicosTable('skill')" title="Ordenar por Skill">Skill <span>↕</span></th><th data-tech-sort="empresa" data-label="Empresa" onclick="sortTecnicosTable('empresa')" title="Ordenar por Empresa">Empresa <span>↕</span></th><th data-tech-sort="zona" data-label="Zona / SET" onclick="sortTecnicosTable('zona')" title="Ordenar por Zona / SET">Zona / SET <span>↕</span></th><th data-tech-sort="estado" data-label="Estado" onclick="sortTecnicosTable('estado')" title="Ordenar por Estado">Estado <span>↕</span></th><th data-tech-sort="primer" data-label="Primer cierre" onclick="sortTecnicosTable('primer')" title="Ordenar por primer cierre">Primer cierre <span>↕</span></th><th data-tech-sort="ultimo" data-label="Último cierre" onclick="sortTecnicosTable('ultimo')" title="Ordenar por último cierre">Último cierre <span>↕</span></th><th data-tech-sort="trabajos" data-label="Trabajos" onclick="sortTecnicosTable('trabajos')" title="Ordenar por Trabajos">Trabajos <span>↕</span></th><th data-tech-sort="tiempo" data-label="Tiempo desde último" onclick="sortTecnicosTable('tiempo')" title="Ordenar por Tiempo desde último">Tiempo desde último <span>↕</span></th><th data-tech-sort="alerta" data-label="Alerta" onclick="sortTecnicosTable('alerta')" title="Ordenar por Alerta">Alerta <span>↕</span></th></tr></thead><tbody id="tecnicosTableBody"></tbody></table></div>
         </div>
     </div>
 
@@ -410,6 +462,7 @@
                         <div id="techTimelineLegend" style="font-size: 11px; color: #64748b;"></div>
                     </div>
                     <div id="techTimelineTrack" class="tech-timeline-track"></div>
+                    <div id="techTimelineNote" class="tech-timeline-note" aria-live="polite"></div>
                 </div>
 
                 <!-- Tabla de tickets cerrados -->
@@ -453,24 +506,48 @@
     <!-- VISTA EXCLUSIVA PLUZ: REGISTRO DE LLAMADAS -->
     <div id="llamadasModalOverlay" class="td-oms-full-view">
         <div class="view-header-bar">
-            <div class="modal-header-title">📞 Registro de llamadas</div>
-            <button id="btnCloseLlamadas" class="btn-action-sm btn-search" style="background: var(--pluz-blue); display: inline-flex; align-items: center; gap: 6px;" title="Volver al Mapa (Esc)">📍 Volver al Mapa</button>
-        </div>
-        <div class="table-section-card" style="max-width: 1200px; margin: 0 auto; background: white; border-radius: 10px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px; flex-wrap: wrap; gap: 10px;">
-                <div>
-                    <h3 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--pluz-blue); text-transform: uppercase; letter-spacing: 0.5px;">Detalle (<span id="tableLlamadasCount">0</span>)</h3>
-                    <p id="llamadasStatus" style="margin: 5px 0 0; color: #64748b; font-size: 12px;"></p>
-                </div>
-                <input type="text" id="inputFilterLlamadas" placeholder="🔍 Buscar aviso, ticket, suministro, distrito..." style="padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; width: 260px; outline: none;">
+            <div>
+                <div class="modal-header-title">Registro de llamadas</div>
+                <p class="view-header-description">Señales de contacto y casos que concentran mayor presión de llamadas.</p>
             </div>
-            <div style="overflow-x: auto; max-height: 620px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
-                <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+        </div>
+        <div class="calls-kpi-grid" aria-label="Resumen de llamadas">
+            <article class="calls-kpi calls-kpi--total"><span>Registros de llamadas</span><strong id="callsKpiTotal">0</strong><small>Contactos recibidos</small></article>
+            <article class="calls-kpi calls-kpi--incidents"><span>ODM con llamadas</span><strong id="callsKpiIncidents">0</strong><small>Casos identificados</small></article>
+            <article class="calls-kpi calls-kpi--repeated"><span>Contactos reiterados</span><strong id="callsKpiRepeated">0</strong><small>ODM con 2 o más</small></article>
+            <article class="calls-kpi calls-kpi--critical"><span>Alta presión</span><strong id="callsKpiCritical">0</strong><small>ODM con 7 o más</small></article>
+        </div>
+        <div class="table-section-card calls-section-card">
+            <div class="calls-toolbar">
+                <div>
+                    <h3>Detalle de contactos <span class="calls-result-count" id="tableLlamadasCount">0</span></h3>
+                    <p id="llamadasStatus" aria-live="polite"></p>
+                </div>
+                <div class="calls-filter-row">
+                    <label class="calls-search"><span class="sr-only">Buscar llamadas</span><input type="search" id="inputFilterLlamadas" placeholder="Buscar aviso, ticket, suministro o distrito…"></label>
+                    <label><span>Frecuencia</span><div id="callsRepeatFilter"></div></label>
+                    <label><span>Estado</span><div id="callsStatusFilter"></div></label>
+                    <button id="btnClearCallsFilters" class="calls-clear-button" type="button">Limpiar</button>
+                </div>
+            </div>
+            <div class="calls-table-scroll">
+                <table class="calls-table">
                     <thead><tr style="background: var(--pluz-dark); color: white; position: sticky; top: 0; z-index: 5;"><th data-call-sort="aviso" data-label="Aviso" onclick="sortLlamadasTable('aviso')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Aviso">Aviso <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="ticket" data-label="Ticket" onclick="sortLlamadasTable('ticket')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Ticket">Ticket <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="suministro" data-label="Suministro" onclick="sortLlamadasTable('suministro')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Suministro">Suministro <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="odm" data-label="ODM" onclick="sortLlamadasTable('odm')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por ODM">ODM <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="nombre" data-label="Nombre" onclick="sortLlamadasTable('nombre')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Nombre">Nombre <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="horaRegistro" data-label="Hora de registro" onclick="sortLlamadasTable('horaRegistro')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Hora de registro">Hora de registro <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="distrito" data-label="Distrito" onclick="sortLlamadasTable('distrito')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Distrito">Distrito <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="direccion" data-label="Dirección" onclick="sortLlamadasTable('direccion')" style="padding: 9px 10px; cursor: pointer; user-select: none;" title="Ordenar por Dirección">Dirección <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="estado" data-label="Estado del aviso" onclick="sortLlamadasTable('estado')" style="padding: 9px 10px; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Estado del aviso">Estado del aviso <span style="opacity: .3; font-size: 9px;">↕</span></th><th data-call-sort="nota" data-label="Nota específica" onclick="sortLlamadasTable('nota')" style="padding: 9px 10px; cursor: pointer; user-select: none;" title="Ordenar por Nota específica">Nota específica <span style="opacity: .3; font-size: 9px;">↕</span></th></tr></thead>
                     <tbody id="llamadasTableBody"></tbody>
                 </table>
             </div>
+            <button id="callsLoadMore" class="calls-load-more" type="button" hidden>Mostrar más registros</button>
         </div>
+    </div>
+
+    <div id="callDetailOverlay" class="call-detail-overlay" style="display:none;" aria-hidden="true">
+        <section class="call-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="callDetailTitle">
+            <header class="call-detail-header">
+                <div><span class="call-detail-eyebrow">Detalle del contacto</span><h3 id="callDetailTitle">Llamada</h3></div>
+                <button id="btnCloseCallDetail" type="button" aria-label="Cerrar detalle">✕</button>
+            </header>
+            <div class="call-detail-body" id="callDetailBody"></div>
+        </section>
     </div>
 
     <!-- MODAL PARA INGRESAR CONTRASEÑA MAESTRA / PIN DE CONFIGURACIÓN -->
@@ -552,7 +629,7 @@
             <div class="modal-header-title" style="display: flex; align-items: center; gap: 8px;">
                 ⚙️ <span>Configuración y Gestión de Accesos (PLUZ Admin)</span>
             </div>
-            <button id="btnCloseConfigAdmin" class="btn-action-sm btn-search" style="background: var(--pluz-blue); display: inline-flex; align-items: center; gap: 6px;" title="Volver al Mapa (Esc)">📍 Volver al Mapa</button>
+            <button id="btnCloseConfigAdmin" class="btn-action-sm btn-search" style="background: var(--pluz-blue); display: inline-flex; align-items: center; gap: 6px;" title="Cerrar configuración (Esc)">Cerrar configuración</button>
         </div>
         <div style="max-width: 1000px; margin: 20px auto; padding: 0 15px; font-family: 'Segoe UI', system-ui, sans-serif;">
             
@@ -604,15 +681,17 @@
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
-    <script src="assets/js/00-core.js"></script>
-    <script src="assets/js/10-map.js?v=20260909-cachefix"></script>
-    <script src="assets/js/20-dashboard.js"></script>
-    <script src="assets/js/30-llamadas.js"></script>
-    <script src="assets/js/40-tecnicos.js"></script>
-    <script src="assets/js/50-navigation.js"></script>
-    <script src="assets/js/60-auth.js"></script>
+    <script src="assets/js/00-core.js?v=20260912-facets"></script>
+    <script src="assets/js/sed-geometry.js"></script>
+    <script src="assets/js/10-map.js?v=20260912-facets"></script>
+    <script src="assets/js/20-dashboard.js?v=20260912-facets"></script>
+    <script src="assets/js/30-llamadas.js?v=20260912-facets"></script>
+    <script src="assets/js/40-tecnicos.js?v=20260912-facets"></script>
+    <script src="assets/js/50-navigation.js?v=20260912-facets"></script>
+    <script src="assets/js/60-auth.js?v=20260912-stage2"></script>
     <script src="assets/js/70-admin.js"></script>
-    <script src="assets/js/80-bootstrap.js"></script>
+    <script src="assets/js/80-bootstrap.js?v=20260912-stage2"></script>
 </body>
 </html>

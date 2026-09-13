@@ -65,6 +65,11 @@
             baseLayersControl = L.control.layers(baseMaps, null, { position: 'topright', collapsed: true }).addTo(leafletMap);
         }
 
+        let sedPerimetersGroup = null;
+        let sedCloudLayers = [];
+        let activeSedCloudKey = '';
+        let showSedPerimeters = false;
+
         // Inicializar Mapa Leaflet
         function initMap() {
             if (leafletMap) return;
@@ -80,21 +85,62 @@
 
             initLocateControl();
 
-            markersGroup = L.layerGroup().addTo(leafletMap);
+            markersGroup = L.markerClusterGroup({
+                disableClusteringAtZoom: MAP_CLUSTER_MAX_ZOOM,
+                maxClusterRadius: 54,
+                showCoverageOnHover: false,
+                spiderfyOnMaxZoom: false,
+                zoomToBoundsOnClick: true,
+                animate: false,
+                removeOutsideVisibleBounds: true,
+                chunkedLoading: true,
+                chunkInterval: 80,
+                chunkDelay: 20,
+                iconCreateFunction(cluster) {
+                    const count = cluster.getChildCount();
+                    const size = count >= 100 ? 'large' : count >= 20 ? 'medium' : 'small';
+                    return L.divIcon({
+                        html: `<span>${count}</span>`,
+                        className: `oms-marker-cluster oms-marker-cluster--${size}`,
+                        iconSize: L.point(44, 44)
+                    });
+                }
+            }).addTo(leafletMap);
+            sedPerimetersGroup = L.layerGroup().addTo(leafletMap);
+            leafletMap.on('zoomend', syncSedCloudLabelVisibility);
         }
 
         let mapCtrlEstado, mapCtrlEmpresa, mapCtrlFalla;
         let tdCtrlIntervalo, tdCtrlEmpresa, tdCtrlFalla, tdCtrlEstado;
+        const MAP_FILTER_FIELDS = { estado: 'mapMultiEstado', empresa: 'mapMultiEmpresa', falla: 'mapMultiFalla' };
+        const TD_FILTER_FIELDS = { intervalo: 'tdMultiIntervalo', empresa: 'tdMultiEmpresa', falla: 'tdMultiFalla', estado: 'tdMultiEstado' };
+
+        function filterSelections(controls) {
+            return Object.fromEntries(Object.entries(controls).map(([id, control]) => [id, control?.getSelected() || []]));
+        }
+
+        function refreshFacetedControls(records, fields, controls) {
+            const selections = filterSelections(controls);
+            Object.entries(fields).forEach(([field, id]) => {
+                controls[id]?.setOptions(getFacetedFilterValues(records, field, fields, selections, id));
+            });
+        }
+
+        function applyMapFilters() {
+            const controls = { mapMultiEstado: mapCtrlEstado, mapMultiEmpresa: mapCtrlEmpresa, mapMultiFalla: mapCtrlFalla };
+            refreshFacetedControls(mapLocations, MAP_FILTER_FIELDS, controls);
+            filterMapMarkers();
+        }
+
+        function applyDashboardFilters() {
+            const controls = { tdMultiIntervalo: tdCtrlIntervalo, tdMultiEmpresa: tdCtrlEmpresa, tdMultiFalla: tdCtrlFalla, tdMultiEstado: tdCtrlEstado };
+            refreshFacetedControls(tdOmsRecords, TD_FILTER_FIELDS, controls);
+            refreshDashboard();
+        }
 
         function processRawData(data) {
             const assignedContractor = sessionStorage.getItem("oms_assigned_contractor");
-            if (assignedContractor && assignedContractor !== "*") {
-                const targetEmp = assignedContractor.trim().toUpperCase();
-                data = (data || []).filter(item => {
-                    const emp = getProp(item, 'Empresa', 'Contratista', 'CONTRATISTA', 'empresa').toUpperCase();
-                    return emp.includes(targetEmp);
-                });
-            }
+            data = filterRecordsForAssignedContractor(data, assignedContractor);
 
             rawData = data;
             mapLocations = [];
@@ -190,9 +236,18 @@
                 const suministroCount = parseInt(rawSuminCount, 10) || 0;
 
                 const esCritica = isSedCritica(sed);
+                const prioridad = getProp(item, 'Prioridad', 'PRIORIDAD', 'prioridad');
+                const duracion = getProp(item, 'Duración', 'Duracion', 'Hora Transcurrida', 'hora_transcurrida', 'duracion');
+
+                const sla = calculateTicketSla({
+                    falla: fal,
+                    prioridad: prioridad,
+                    duracion: duracion,
+                    fecha_inicio: fechaIni
+                });
 
                 const record = {
-                    lat, lon, ticket, odm, estado: est, empresa: emp, falla: fal,
+                    lat, lon, ticket, odm, estado: est, empresa: emp, falla: fal, prioridad, duracion, sla,
                     cadena, suministro, suministro_count: suministroCount, fecha_inicio: fechaIni, hora_inicio: fechaIni,
                     direccion, distrito, intervalo, dia, sed, alimentador, sed_count: sedCount, sed_reincidente: sedReincidente, es_sed_critica: esCritica, afectacion, llamadas,
                     latitud: latitudVal, longitud: longitudVal, emoji: getEmoji(fal)
@@ -206,15 +261,15 @@
             });
 
             // Filtros en el Mapa
-            mapCtrlEstado = initMultiSelect("mapMultiEstado", "Estado", mapLocations.map(m => m.estado), filterMapMarkers);
-            mapCtrlEmpresa = initMultiSelect("mapMultiEmpresa", "Empresa", mapLocations.map(m => m.empresa), filterMapMarkers);
-            mapCtrlFalla = initMultiSelect("mapMultiFalla", "Falla", mapLocations.map(m => m.falla), filterMapMarkers);
+            mapCtrlEstado = initMultiSelect("mapMultiEstado", "Estado", mapLocations.map(m => m.estado), applyMapFilters);
+            mapCtrlEmpresa = initMultiSelect("mapMultiEmpresa", "Empresa", mapLocations.map(m => m.empresa), applyMapFilters);
+            mapCtrlFalla = initMultiSelect("mapMultiFalla", "Falla", mapLocations.map(m => m.falla), applyMapFilters);
 
             // Filtros en el Modal TD OMS
-            tdCtrlIntervalo = initMultiSelect("tdMultiIntervalo", "Intervalo", tdOmsRecords.map(r => r.intervalo), refreshDashboard);
-            tdCtrlEmpresa = initMultiSelect("tdMultiEmpresa", "Empresa", tdOmsRecords.map(r => r.empresa), refreshDashboard);
-            tdCtrlFalla = initMultiSelect("tdMultiFalla", "Falla", tdOmsRecords.map(r => r.falla), refreshDashboard);
-            tdCtrlEstado = initMultiSelect("tdMultiEstado", "Estado", tdOmsRecords.map(r => r.estado), refreshDashboard);
+            tdCtrlIntervalo = initMultiSelect("tdMultiIntervalo", "Intervalo", tdOmsRecords.map(r => r.intervalo), applyDashboardFilters);
+            tdCtrlEmpresa = initMultiSelect("tdMultiEmpresa", "Empresa", tdOmsRecords.map(r => r.empresa), applyDashboardFilters);
+            tdCtrlFalla = initMultiSelect("tdMultiFalla", "Falla", tdOmsRecords.map(r => r.falla), applyDashboardFilters);
+            tdCtrlEstado = initMultiSelect("tdMultiEstado", "Estado", tdOmsRecords.map(r => r.estado), applyDashboardFilters);
 
             setupMapMarkers();
             filterMapMarkers();
@@ -234,10 +289,14 @@
                 const llamadasLabel = (loc.llamadas && loc.llamadas !== 'N/A') ? loc.llamadas : '0';
 
                 const popupHtml = `
-                    <div style="font-family: Arial, sans-serif; font-size: 12px; min-width: 260px; line-height: 1.5;">
+                    <div style="font-family: Arial, sans-serif; font-size: 12px; min-width: 265px; line-height: 1.5;">
                         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #3c5a9f; padding-bottom:4px; margin-bottom:6px;">
                             <h4 style="margin:0; color:#3c5a9f; font-size:13px; font-weight:700;">${loc.emoji} Ticket: ${escapeHtml(loc.ticket)}</h4>
                             <span class="status-badge ${stateClass}">${escapeHtml(loc.estado)}</span>
+                        </div>
+                        <div class="popup-sla-banner ${loc.sla.statusClass}">
+                            <span>⏱️ <b>${loc.sla.elapsed}h / ${loc.sla.maxHours}h (${loc.sla.pct}%)</b></span>
+                            <span>${escapeHtml(loc.sla.label)}</span>
                         </div>
                         <b>ODM:</b> ${escapeHtml(loc.odm)}<br>
                         <b>Cadena:</b> ${escapeHtml(loc.cadena)}<br>
@@ -277,14 +336,23 @@
                     </div>
                 `;
 
+                const iconHtml = `
+                    <div class="marker-sla-badge ${loc.sla.statusClass}" title="Ticket: ${escapeHtml(loc.ticket)} | ${escapeHtml(loc.falla)} | Plazo: ${escapeHtml(loc.sla.label)}">
+                        ${getFaultIconHtml(loc.falla)}
+                    </div>
+                `;
+
                 const customIcon = L.divIcon({
-                    className: 'custom-leaflet-emoji',
-                    html: `<div style="font-size: 24px; text-align: center; cursor: pointer;">${loc.emoji}</div>`,
-                    iconSize: [30, 30],
-                    iconAnchor: [15, 15]
+                    className: 'custom-leaflet-marker-wrapper',
+                    html: iconHtml,
+                    iconSize: [36, 36],
+                    iconAnchor: [18, 18],
+                    popupAnchor: [0, -18]
                 });
 
                 const marker = L.marker([loc.lat, loc.lon], { icon: customIcon }).bindPopup(popupHtml);
+                marker.on('popupopen', () => focusSedCloud(loc.sed));
+                marker.on('popupclose', () => focusSedCloud(null));
                 markerMap.set(loc.ticket.toLowerCase(), { marker, loc });
             });
         }
@@ -863,6 +931,7 @@
             markersGroup.clearLayers();
             let count = 0;
             const bounds = [];
+            const visibleLocations = [];
 
             mapLocations.forEach(loc => {
                 let matchQuery = true;
@@ -876,9 +945,9 @@
                     matchQuery = addressSearchTicketKeys.has(String(loc.ticket || '').toLowerCase());
                 }
 
-                const matchEst = selEsts.includes(loc.estado);
-                const matchEmp = selEmps.includes(loc.empresa);
-                const matchFal = selFallas.includes(loc.falla);
+                const matchEst = matchesMultiSelection(loc.estado, selEsts);
+                const matchEmp = matchesMultiSelection(loc.empresa, selEmps);
+                const matchFal = matchesMultiSelection(loc.falla, selFallas);
                 const numLlamadas = parseInt(loc.llamadas || 0, 10) || 0;
                 const matchLlamadas = !only7Llamadas || numLlamadas >= 7;
                 const matchSed = !onlyReincSed || (loc.sed_reincidente || loc.sed_count > 2);
@@ -889,6 +958,7 @@
                     if (markerMap.has(loc.ticket.toLowerCase())) {
                         markersGroup.addLayer(markerMap.get(loc.ticket.toLowerCase()).marker);
                         bounds.push([loc.lat, loc.lon]);
+                        visibleLocations.push(loc);
                         count++;
                     }
                 }
@@ -898,6 +968,181 @@
                 leafletMap.fitBounds(L.latLngBounds(bounds).pad(0.1));
             }
             document.getElementById("topNavCount").innerText = `🚨 ${count}`;
+
+            renderSedPerimeters(visibleLocations);
+        }
+
+        function computeConvexHull(points) {
+            if (points.length <= 2) return points;
+            const pts = points.slice().sort((a, b) => a[0] === b[0] ? a[1] - b[1] : a[0] - b[0]);
+
+            function cross(o, a, b) {
+                return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+            }
+
+            const lower = [];
+            for (let i = 0; i < pts.length; i++) {
+                while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], pts[i]) <= 0) {
+                    lower.pop();
+                }
+                lower.push(pts[i]);
+            }
+
+            const upper = [];
+            for (let i = pts.length - 1; i >= 0; i--) {
+                while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], pts[i]) <= 0) {
+                    upper.pop();
+                }
+                upper.push(pts[i]);
+            }
+
+            lower.pop();
+            upper.pop();
+            return lower.concat(upper);
+        }
+
+        function renderSedPerimeters(locations) {
+            if (!sedPerimetersGroup) return;
+            sedPerimetersGroup.clearLayers();
+            sedCloudLayers = [];
+            if (!showSedPerimeters) return;
+
+            const sedGroups = new Map();
+            (locations || []).forEach(loc => {
+                const sedKey = String(loc.sed || '').trim().toUpperCase();
+                if (!sedKey || sedKey === 'N/A' || isNaN(loc.lat) || isNaN(loc.lon)) return;
+                if (!sedGroups.has(sedKey)) {
+                    sedGroups.set(sedKey, {
+                        sed: loc.sed,
+                        es_critica: loc.es_sed_critica,
+                        sed_reincidente: loc.sed_reincidente,
+                        sed_count: loc.sed_count,
+                        alimentador: loc.alimentador,
+                        empresa: loc.empresa,
+                        points: [],
+                        tickets: []
+                    });
+                }
+                const group = sedGroups.get(sedKey);
+                group.points.push([loc.lat, loc.lon]);
+                group.tickets.push(loc);
+            });
+
+            sedGroups.forEach((group) => {
+                const pts = group.points;
+                const count = pts.length;
+                const currentSedKey = String(group.sed || '').trim().toUpperCase();
+                if (count < 2) return;
+                const isCritical = group.es_critica || group.sed_reincidente || group.sed_count > 2;
+                const strokeColor = '#6d5bd0';
+                const fillColor = '#8b7de3';
+                const fillOpacity = 0.12;
+
+                let layer = null;
+                const shape = buildSedCloudShape(pts, { paddingMeters: 75 });
+                const pathStyle = {
+                    color: strokeColor,
+                    fillColor,
+                    fillOpacity,
+                    weight: 3,
+                    opacity: 0.9,
+                    className: 'sed-perimeter-shape'
+                };
+
+                const popupContent = `
+                    <div style="font-family: Arial, sans-serif; font-size: 12px; min-width: 230px; line-height: 1.4;">
+                        <div style="border-bottom: 2px solid ${strokeColor}; padding-bottom: 4px; margin-bottom: 6px;">
+                            <h4 style="margin:0; color: ${strokeColor}; font-size: 13px; font-weight: 700;">
+                                📐 Zona aproximada SED: ${escapeHtml(group.sed)}
+                            </h4>
+                        </div>
+                        <b>Tickets activos:</b> ${count}<br>
+                        <b>Alimentador:</b> ${escapeHtml(group.alimentador || 'N/A')}<br>
+                        <b>Empresa:</b> ${escapeHtml(group.empresa || 'N/A')}<br>
+                        ${isCritical ? `<div style="margin-top:4px; font-size:10.5px; font-weight:bold; color:#b91c1c; background:#fee2e2; padding:2px 6px; border-radius:4px; border:1px solid #fca5a5;">🚨 SED CRÍTICA / REINCIDENTE (${group.sed_count} fallas en 7D)</div>` : ''}
+                        <div style="margin-top: 6px; border-top: 1px solid #e2e8f0; padding-top: 4px; max-height: 120px; overflow-y: auto;">
+                            <b>Tickets:</b>
+                            <ul style="margin: 2px 0; padding-left: 16px; font-size: 11px;">
+                                ${group.tickets.map(t => `<li>Ticket <b>${escapeHtml(t.ticket)}</b> - ${escapeHtml(t.falla)} (${escapeHtml(t.sla ? t.sla.label : '')})</li>`).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                `;
+
+                if (shape.kind === 'cloud') {
+                    layer = L.polygon(shape.points, pathStyle);
+                }
+
+                if (layer) {
+                    layer.bindTooltip(`SED ${escapeHtml(group.sed)} · ${count} fallas`, {
+                        permanent: false,
+                        direction: 'center',
+                        className: 'sed-cloud-label',
+                        opacity: 1
+                    });
+                    layer.bindPopup(popupContent);
+                    layer.on('popupopen', () => focusSedCloud(group.sed));
+                    layer.on('popupclose', () => focusSedCloud(null));
+                    layer.on('mouseover', function () {
+                        const style = getSedCloudFocusStyle(currentSedKey === activeSedCloudKey, Boolean(activeSedCloudKey));
+                        this.setStyle({ ...style, weight: 4, fillOpacity: Math.min(0.3, style.fillOpacity + 0.08) });
+                    });
+                    layer.on('mouseout', function () {
+                        this.setStyle({ ...getSedCloudFocusStyle(currentSedKey === activeSedCloudKey, Boolean(activeSedCloudKey)), weight: 3 });
+                    });
+                    sedPerimetersGroup.addLayer(layer);
+                    sedCloudLayers.push({ layer, count, sedKey: currentSedKey });
+                }
+            });
+            syncSedCloudLabelVisibility();
+        }
+
+        function syncSedCloudLabelVisibility() {
+            if (!leafletMap) return;
+            const zoom = leafletMap.getZoom();
+            sedCloudLayers.forEach(({ layer, count }) => {
+                if (shouldPersistSedCloudLabel(count, zoom)) layer.openTooltip();
+                else layer.closeTooltip();
+            });
+        }
+
+        function focusSedCloud(sed) {
+            const selectedKey = String(sed || '').trim().toUpperCase();
+            activeSedCloudKey = selectedKey;
+            sedCloudLayers.forEach(({ layer, sedKey }) => {
+                layer.setStyle(getSedCloudFocusStyle(sedKey === selectedKey, Boolean(selectedKey)));
+            });
+        }
+
+        function toggleSedPerimeters() {
+            showSedPerimeters = !showSedPerimeters;
+            const btn = document.getElementById("btnToggleSedLayer");
+            if (btn) {
+                btn.classList.toggle("active", showSedPerimeters);
+                btn.innerHTML = showSedPerimeters ? "📐 Perímetros SED (ON)" : "📐 Perímetros SED";
+            }
+            document.body.classList.toggle('sed-perimeters-active', showSedPerimeters);
+            filterMapMarkers();
+        }
+
+        function setMapLegendExpanded(expanded, persist = true) {
+            const legend = document.getElementById('mapEmojiLegend');
+            const button = document.getElementById('btnToggleMapLegend');
+            if (!legend || !button) return;
+            legend.classList.toggle('is-collapsed', !expanded);
+            button.setAttribute('aria-expanded', String(expanded));
+            if (persist) localStorage.setItem('oms-map-legend-expanded', String(expanded));
+        }
+
+        function initMapLegend() {
+            const button = document.getElementById('btnToggleMapLegend');
+            if (!button) return;
+            const saved = localStorage.getItem('oms-map-legend-expanded');
+            const defaultExpanded = window.matchMedia('(min-width: 769px)').matches;
+            setMapLegendExpanded(saved === null ? defaultExpanded : saved === 'true', false);
+            button.addEventListener('click', () => {
+                setMapLegendExpanded(button.getAttribute('aria-expanded') !== 'true');
+            });
         }
 
         const searchTypeMapEl = document.getElementById("searchTypeMap");
@@ -918,6 +1163,7 @@
         }
 
         if (searchTypeMapEl && inputTicketEl) {
+            const deferredMapTextFilter = debounceUi(filterMapMarkers, 120);
             searchTypeMapEl.addEventListener("change", () => {
                 const mode = searchTypeMapEl.value;
                 addressSearchTicketKeys = null;
@@ -940,7 +1186,7 @@
 
             inputTicketEl.addEventListener("input", () => {
                 if (searchTypeMapEl.value !== "address") {
-                    filterMapMarkers();
+                    deferredMapTextFilter();
                 } else {
                     addressSearchTicketKeys = null;
                     addressPendingCandidates = [];
@@ -952,37 +1198,18 @@
             inputTicketEl.addEventListener("keyup", (e) => {
                 if (e.key === "Enter") {
                     if (searchTypeMapEl.value === "address") {
-                        buscarDireccionEnMapa();
-                    } else {
-                        document.getElementById("btnBuscar").click();
+                        if (inputTicketEl.value.trim().length >= 3) buscarDireccionEnMapa();
+                    } else if (searchTypeMapEl.value === "ticket") {
+                        const query = inputTicketEl.value.trim().toLowerCase();
+                        if (markerMap.has(query)) {
+                            const target = markerMap.get(query);
+                            leafletMap.flyTo([target.loc.lat, target.loc.lon], 17, { animate: true, duration: 1.2 });
+                            setTimeout(() => target.marker.openPopup(), 1200);
+                        }
                     }
                 }
             });
         }
-
-        document.getElementById("btnBuscar").addEventListener("click", () => {
-            const mode = searchTypeMapEl ? searchTypeMapEl.value : "ticket";
-            if (mode === "address") {
-                buscarDireccionEnMapa();
-                return;
-            }
-
-            const query = document.getElementById("inputTicket").value.trim().toLowerCase();
-            if (!query) return;
-
-            if (mode === "sed" || mode === "alimentador") {
-                filterMapMarkers();
-                return;
-            }
-
-            if (markerMap.has(query)) {
-                const target = markerMap.get(query);
-                leafletMap.flyTo([target.loc.lat, target.loc.lon], 17, { animate: true, duration: 1.2 });
-                setTimeout(() => target.marker.openPopup(), 1200);
-            } else {
-                filterMapMarkers();
-            }
-        });
 
         document.getElementById("btnLimpiar").addEventListener("click", () => {
             document.getElementById("inputTicket").value = "";

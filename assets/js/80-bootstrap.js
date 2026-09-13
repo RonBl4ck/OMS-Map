@@ -8,6 +8,8 @@
                     if (iconFilter) iconFilter.textContent = isCollapsed ? "▲" : "▼";
                 });
             }
+            initMapLegend();
             initConfigSecurity();
+            document.getElementById('btnRetryDataLoad')?.addEventListener('click', loadData);
             checkAuthentication();
         });

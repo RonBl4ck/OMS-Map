@@ -20,10 +20,10 @@
                 const matchSum = !onlyReincSum || (r.suministro_count >= 2);
                 const matchCrit = !onlyCritModal || r.es_sed_critica;
                 return (
-                    selIntervalos.includes(r.intervalo) &&
-                    selEmps.includes(r.empresa) &&
-                    selFallas.includes(r.falla) &&
-                    selStates.includes(r.estado) &&
+                    matchesMultiSelection(r.intervalo, selIntervalos) &&
+                    matchesMultiSelection(r.empresa, selEmps) &&
+                    matchesMultiSelection(r.falla, selFallas) &&
+                    matchesMultiSelection(r.estado, selStates) &&
                     matchLlamadas &&
                     matchSed &&
                     matchSum &&
@@ -32,40 +32,49 @@
             });
         }
 
+        function summarizeDeadlineStatus(records) {
+            return (records || []).reduce((summary, record) => {
+                const pct = Number(record?.sla?.pct);
+                summary.total += 1;
+                if (pct >= 100) summary.overdue += 1;
+                else if (pct >= 75) summary.warning += 1;
+                else summary.within += 1;
+                return summary;
+            }, { total: 0, within: 0, warning: 0, overdue: 0 });
+        }
+
         function updateKpiCards(records) {
-            const total = records.length;
-            const enEjecucion = records.filter(r => r.estado.toLowerCase().includes("ejecuc")).length;
-            const pendientes = records.filter(r => r.estado.toLowerCase().includes("pendient")).length;
+            const summary = summarizeDeadlineStatus(records);
+            const pct = value => summary.total ? `${(value / summary.total * 100).toFixed(1)}% del total` : '0% del total';
 
-            document.getElementById("kpiTotalInc").innerText = total;
-            document.getElementById("kpiEnEjecucion").innerText = enEjecucion;
-            document.getElementById("kpiEjecucionPct").innerText = total ? `${(enEjecucion / total * 100).toFixed(1)}% del total` : "0%";
-            document.getElementById("kpiPendientes").innerText = pendientes;
-            document.getElementById("kpiPendientesPct").innerText = total ? `${(pendientes / total * 100).toFixed(1)}% del total` : "0%";
-
-            const countsByEmpresa = {};
-            records.forEach(r => { countsByEmpresa[r.empresa] = (countsByEmpresa[r.empresa] || 0) + 1; });
-            let topEmp = "-", topCount = 0;
-            Object.entries(countsByEmpresa).forEach(([emp, count]) => {
-                if (count > topCount) { topCount = count; topEmp = emp; }
-            });
-            document.getElementById("kpiTopEmpresa").innerText = topEmp;
-            document.getElementById("kpiTopEmpresaCount").innerText = `${topCount} tickets`;
+            document.getElementById("kpiTotalInc").innerText = summary.total;
+            document.getElementById("kpiWithinDeadline").innerText = summary.within;
+            document.getElementById("kpiWithinDeadlinePct").innerText = pct(summary.within);
+            document.getElementById("kpiDeadlineWarning").innerText = summary.warning;
+            document.getElementById("kpiDeadlineWarningPct").innerText = pct(summary.warning);
+            document.getElementById("kpiDeadlineOverdue").innerText = summary.overdue;
+            document.getElementById("kpiDeadlineOverduePct").innerText = pct(summary.overdue);
         }
 
         function renderModernCharts(records) {
             const target = document.getElementById("tdOmsCharts");
             // Paleta de Colores Pluz Oficial: Azul Royal, Amarillo Dorado, Verde Energía, Rojo Emergencia, Púrpura
-            const palette = ['#3c5a9f', '#fbc140', '#6cab5e', '#ef4444', '#8b5cf6'];
+            const palette = ['#3c5a9f', '#6cab5e', '#ef5b66', '#f0ad2f', '#7656b5'];
+            const stateColor = state => {
+                const normalized = String(state || '').toLowerCase();
+                if (normalized.includes('ejecuc')) return '#3c5a9f';
+                if (normalized.includes('pendient')) return '#fbc140';
+                return '#3c5a9f';
+            };
 
             const chartDefs = [
-                ['Tickets por EE.CC', 'empresa', true],
-                ['Tickets por Tipo de Falla', 'falla', true],
-                ['Tickets por Intervalo', 'intervalo', false],
-                ['Tickets por Día', 'dia', false]
+                ['Carga por contratista', 'empresa', true, 'Distribución de incidencias por empresa ejecutora'],
+                ['Composición por tipo de falla', 'falla', true, 'Volumen operativo según naturaleza de la incidencia'],
+                ['Antigüedad de los casos', 'intervalo', false, 'Distribución según intervalo transcurrido'],
+                ['Evolución diaria', 'dia', false, 'Comportamiento de incidencias en el periodo visible']
             ];
 
-            target.innerHTML = chartDefs.map(([title, field, isHorizontal]) => {
+            target.innerHTML = chartDefs.map(([title, field, isHorizontal, description]) => {
                 const sortFn = (field === 'intervalo') ? sortIntervals : (a,b) => String(a).localeCompare(String(b), 'es');
                 const categories = [...new Set(records.map(r => r[field]))].sort(sortFn);
                 if (!categories.length) {
@@ -95,7 +104,7 @@
                             const val = s.values[cIdx] || 0;
                             const barW = (val / maxVal) * plotW;
                             const y = y0 + sIdx * barH;
-                            const color = palette[sIdx % palette.length];
+                            const color = stateColor(s.name) || palette[sIdx % palette.length];
 
                             if (val > 0) {
                                 svgContent += `<rect x="${leftMargin}" y="${y}" width="${Math.max(2, barW)}" height="${barH - 1}" fill="${color}" rx="3" ry="3"><title>${escapeHtml(s.name)}: ${val}</title></rect>`;
@@ -125,7 +134,7 @@
                             const barH = (val / maxVal) * plotH;
                             const x = x0 + sIdx * barW;
                             const y = topMargin + plotH - barH;
-                            const color = palette[sIdx % palette.length];
+                            const color = stateColor(s.name) || palette[sIdx % palette.length];
 
                             if (val > 0) {
                                 svgContent += `<rect x="${x}" y="${y}" width="${Math.max(2, barW - 1)}" height="${barH}" fill="${color}" rx="3" ry="3"><title>${escapeHtml(s.name)}: ${val}</title></rect>`;
@@ -139,15 +148,17 @@
 
                 const legendHtml = series.map((s, idx) => `
                     <div class="chart-legend-item">
-                        <span class="legend-color" style="background:${palette[idx % palette.length]}"></span>
+                        <span class="legend-color" style="background:${stateColor(s.name) || palette[idx % palette.length]}"></span>
                         <span>${escapeHtml(s.name)}</span>
                     </div>
                 `).join('');
 
                 return `
                     <section class="chart-card">
-                        <h3>${escapeHtml(title)}</h3>
-                        <svg viewBox="0 0 ${W} ${H}" style="width:100%; height:230px; overflow:visible;">${svgContent}</svg>
+                        <div class="chart-card__header">
+                            <div><h3>${escapeHtml(title)}</h3><p>${escapeHtml(description)}</p></div>
+                        </div>
+                        <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Gráfico: ${escapeHtml(title)}, ${records.length} casos" style="width:100%; height:230px; overflow:visible;">${svgContent}</svg>
                         <div class="chart-legend">${legendHtml}</div>
                     </section>
                 `;
@@ -288,21 +299,21 @@
                 let odmCellHtml = (!rawOdm || rawOdm === 'N/A' || rawOdm === 'Sin dato' || rawOdm === '0' || rawOdm === '0.0') ? '' : escapeHtml(rawOdm);
 
                 return `
-                    <tr style="background: ${bg}; border-bottom: 1px solid #e2e8f0; transition: background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='${bg}'">
-                        <td style="padding: 7px 10px; font-weight: 700; color: var(--pluz-blue, #375ab2); white-space: nowrap;">${escapeHtml(r.ticket)}</td>
-                        <td style="padding: 7px 10px; white-space: nowrap;"><span class="status-badge ${stateClass}">${escapeHtml(r.estado)}</span></td>
-                        <td style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.empresa)}</td>
-                        <td style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.falla)}</td>
-                        <td style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.intervalo)}</td>
-                        <td style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.dia)}</td>
-                        <td style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.sed)}${r.es_sed_critica ? ' <span style="font-size:9.5px; font-weight:700; color:#b45309; background:#fef3c7; border:1px solid #fcd34d; padding:1px 5px; border-radius:4px;" title="SED Crítica (Compensación)">🚨 CRÍTICA</span>' : ''}</td>
-                        <td style="padding: 7px 10px; font-weight: 600; color: #475569; white-space: nowrap;">${escapeHtml(r.alimentador || 'N/A')}</td>
-                        <td style="padding: 7px 10px; text-align: center; white-space: nowrap;">${escapeHtml(r.afectacion)}</td>
-                        <td style="padding: 7px 10px; text-align: center; white-space: nowrap;">${escapeHtml(r.llamadas)}</td>
-                        <td style="padding: 7px 10px; white-space: nowrap;">${odmCellHtml}</td>
-                        <td style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(horaIni)}</td>
-                        <td style="padding: 7px 10px; font-family: monospace; white-space: nowrap;">${escapeHtml(latVal)}</td>
-                        <td style="padding: 7px 10px; font-family: monospace; white-space: nowrap;">${escapeHtml(lonVal)}</td>
+                    <tr style="background: ${bg}; border-bottom: 1px solid #e2e8f0;">
+                        <td data-label="Ticket" style="padding: 7px 10px; font-weight: 700; color: var(--pluz-blue, #375ab2); white-space: nowrap;">${escapeHtml(r.ticket)}</td>
+                        <td data-label="Estado" style="padding: 7px 10px; white-space: nowrap;"><span class="status-badge ${stateClass}">${escapeHtml(r.estado)}</span></td>
+                        <td data-label="Empresa" style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.empresa)}</td>
+                        <td data-label="Falla" style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.falla)}</td>
+                        <td data-label="Intervalo" style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.intervalo)}</td>
+                        <td data-label="Día" style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.dia)}</td>
+                        <td data-label="SED" style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.sed)}${r.es_sed_critica ? ' <span style="font-size:9.5px; font-weight:700; color:#b45309; background:#fef3c7; border:1px solid #fcd34d; padding:1px 5px; border-radius:4px;" title="SED Crítica (Compensación)">CRÍTICA</span>' : ''}</td>
+                        <td data-label="Alimentador" style="padding: 7px 10px; font-weight: 600; color: #475569; white-space: nowrap;">${escapeHtml(r.alimentador || 'N/A')}</td>
+                        <td data-label="Afectación" style="padding: 7px 10px; text-align: center; white-space: nowrap;">${escapeHtml(r.afectacion)}</td>
+                        <td data-label="Llamadas" style="padding: 7px 10px; text-align: center; white-space: nowrap;">${escapeHtml(r.llamadas)}</td>
+                        <td data-label="ODM" style="padding: 7px 10px; white-space: nowrap;">${odmCellHtml}</td>
+                        <td data-label="Hora de inicio" style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(horaIni)}</td>
+                        <td data-label="Latitud" style="padding: 7px 10px; font-family: monospace; white-space: nowrap;">${escapeHtml(latVal)}</td>
+                        <td data-label="Longitud" style="padding: 7px 10px; font-family: monospace; white-space: nowrap;">${escapeHtml(lonVal)}</td>
                     </tr>
                 `;
             }).join("");
@@ -317,9 +328,10 @@
 
         const tblFilterInput = document.getElementById("inputFilterTable");
         if (tblFilterInput) {
-            tblFilterInput.addEventListener("input", () => {
+            const deferDashboardFilter = typeof debounceUi === 'function' ? debounceUi : callback => callback;
+            tblFilterInput.addEventListener("input", deferDashboardFilter(() => {
                 renderTdOmsTable(getFilteredTdOms());
-            });
+            }, 100));
         }
 
         const chkModal7 = document.getElementById("chk7LlamadasModal");
@@ -374,13 +386,7 @@
                 return;
             }
 
-            if (assignedContractor !== "*") {
-                const targetEmp = assignedContractor.trim().toUpperCase();
-                dataset = (dataset || []).filter(item => {
-                    const emp = getProp(item, 'Contratista', 'Empresa', 'CONTRATISTA', 'empresa', 'Pto.tbjo.responsable').toUpperCase();
-                    return emp !== 'N/A' && (emp.includes(targetEmp) || targetEmp.includes(emp));
-                });
-            }
+            dataset = filterRecordsForAssignedContractor(dataset, assignedContractor);
 
             if (!dataset || dataset.length === 0) {
                 alert("⚠️ No hay datos registrados para descargar para tu empresa asignada.");
@@ -433,13 +439,11 @@
             }
         }
 
-        document.getElementById('btn-download-base').addEventListener('click', () => {
+        const downloadPendingBase = () => {
             downloadExcel(rawData, 'base_pendientes');
-        });
+        };
 
-        const btnEjecutados = document.getElementById('btn-download-ejecutados');
-        if (btnEjecutados) {
-            btnEjecutados.addEventListener('click', async () => {
+        const downloadExecutedBase = async () => {
                 let downloaded = false;
 
                 // 1. Intentar descargar directamente desde Google Sheets (pestaña BASE_EJECUTADOS)
@@ -472,5 +476,11 @@
                 if (!downloaded) {
                     alert('⚠️ No se pudo obtener la base de ejecutados desde Google Sheets. Intenta nuevamente cuando la hoja esté disponible.');
                 }
-            });
-        }
+        };
+
+        ['btn-download-base', 'btn-mobile-download-base'].forEach(id => {
+            document.getElementById(id)?.addEventListener('click', downloadPendingBase);
+        });
+        ['btn-download-ejecutados', 'btn-mobile-download-ejecutados'].forEach(id => {
+            document.getElementById(id)?.addEventListener('click', downloadExecutedBase);
+        });

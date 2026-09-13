@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img">
+  <title>Falla en poste</title>
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <path d="M32 15v42" stroke="#596579" stroke-width="8"/>
+    <path d="M13 22h38" stroke="#7c8798" stroke-width="7"/>
+    <path d="M19 16v6M45 16v6" stroke="#273548" stroke-width="4"/>
+    <path d="m36 38-8 8m8 0-8-8" stroke="#e5484d" stroke-width="4"/>
+  </g>
+</svg>
