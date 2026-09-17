@@ -363,13 +363,38 @@
         let addressPendingCandidates = [];
         let userLocationMarker = null;
         let userLocationAccuracy = null;
+        const ADDRESS_SEARCH_RADIUS_METERS = 500;
 
         function showMapNotice(message, tone = 'info') {
             const resBox = document.getElementById('addressResultBox');
             if (!resBox) return;
+            syncAddressResultPosition();
             const color = tone === 'error' ? '#f87171' : '#7dd3fc';
             resBox.style.display = 'block';
             resBox.innerHTML = `<span style="color:${color}; font-weight:700;">${message}</span>`;
+        }
+
+        function getMapToolbarBottom() {
+            const toolbar = document.getElementById('mapSearchToolbar');
+            return toolbar ? Math.ceil(toolbar.getBoundingClientRect().bottom) : 0;
+        }
+
+        function syncAddressResultPosition() {
+            const resBox = document.getElementById('addressResultBox');
+            if (!resBox) return;
+            resBox.style.setProperty('--address-result-top', `${getMapToolbarBottom() + 10}px`);
+        }
+
+        function wireAddressResultToggle(resBox) {
+            const button = resBox?.querySelector('[data-address-result-toggle]');
+            if (!button) return;
+            button.addEventListener('click', () => {
+                const collapsed = resBox.classList.toggle('is-collapsed');
+                button.setAttribute('aria-expanded', String(!collapsed));
+                button.textContent = collapsed ? '▾' : '▴';
+                button.title = collapsed ? 'Expandir resultados' : 'Contraer resultados';
+                button.setAttribute('aria-label', button.title);
+            });
         }
 
         function collapseMobileFiltersAfterAddressSearch() {
@@ -482,15 +507,6 @@
                 .trim();
         }
 
-        function normalizeStreetText(value) {
-            return normalizeAddressText(value)
-                .replace(/\b(AVENIDA|AV|JR|JIRON|CALLE|CL|PASAJE|PSJ|PROLONGACION|PROL|CARRETERA|CR|MALECON|MLC)\b/g, ' ')
-                .replace(/\b(?:N|NUM|NUMERO|NO)\s*\d+[A-Z]?\b/g, ' ')
-                .replace(/\b\d+[A-Z]?\b/g, ' ')
-                .replace(/\s+/g, ' ')
-                .trim();
-        }
-
         function recordAddressText(record) {
             return normalizeAddressText(`${record.direccion || ''} ${record.distrito || ''}`);
         }
@@ -498,14 +514,6 @@
         function recordMatchesAddress(record, query) {
             const q = normalizeAddressText(query);
             return Boolean(q && recordAddressText(record).includes(q));
-        }
-
-        function recordMatchesStreet(record, streetKey) {
-            const address = normalizeStreetText(record.direccion || '');
-            const tokens = normalizeStreetText(streetKey).split(' ').filter(token => token.length >= 3);
-            if (!address || !tokens.length) return false;
-            const matched = tokens.filter(token => address.includes(token)).length;
-            return matched >= Math.max(1, Math.ceil(tokens.length * 0.6));
         }
 
         function parsearCoordenadas(texto) {
@@ -526,51 +534,6 @@
             addressSearchLayer = null;
         }
 
-        function getGeometrySegments(geojson) {
-            if (geojson && geojson.type === 'FeatureCollection') {
-                return (geojson.features || []).flatMap(getGeometrySegments);
-            }
-            const geometry = geojson && geojson.type === 'Feature' ? geojson.geometry : geojson;
-            if (!geometry) return [];
-            if (geometry.type === 'GeometryCollection') {
-                return (geometry.geometries || []).flatMap(getGeometrySegments);
-            }
-            const coords = geometry.coordinates || [];
-            const groups = geometry.type === 'LineString' ? [coords]
-                : geometry.type === 'MultiLineString' || geometry.type === 'Polygon' ? coords
-                : geometry.type === 'MultiPolygon' ? coords.flat()
-                : [];
-            return groups.flatMap(group => group.slice(0, -1).map((coord, index) => [coord, group[index + 1]])
-                .filter(pair => pair[0] && pair[1]));
-        }
-
-        function distancePointToSegmentMeters(lat, lon, start, end) {
-            const aLon = Number(start[0]);
-            const aLat = Number(start[1]);
-            const bLon = Number(end[0]);
-            const bLat = Number(end[1]);
-            if (![aLon, aLat, bLon, bLat, lat, lon].every(Number.isFinite)) return Infinity;
-            const metersPerDegree = 111320;
-            const cosLat = Math.cos(lat * Math.PI / 180);
-            const ax = aLon * metersPerDegree * cosLat;
-            const ay = aLat * metersPerDegree;
-            const bx = bLon * metersPerDegree * cosLat;
-            const by = bLat * metersPerDegree;
-            const px = lon * metersPerDegree * cosLat;
-            const py = lat * metersPerDegree;
-            const dx = bx - ax;
-            const dy = by - ay;
-            const lengthSquared = dx * dx + dy * dy;
-            const t = lengthSquared ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lengthSquared)) : 0;
-            return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
-        }
-
-        function distanceToStreetMeters(record, geojson, fallbackLat, fallbackLon) {
-            const segments = getGeometrySegments(geojson);
-            if (!segments.length) return calcularDistanciaMetros(fallbackLat, fallbackLon, Number(record.lat), Number(record.lon));
-            return Math.min(...segments.map(segment => distancePointToSegmentMeters(Number(record.lat), Number(record.lon), segment[0], segment[1])));
-        }
-
         function focusAddressTicket(ticketKey) {
             const target = markerMap.get(String(ticketKey || '').toLowerCase());
             if (!target) return;
@@ -583,49 +546,19 @@
             return address.city_district || address.district || address.municipality || address.suburb || address.town || address.city || address.county || 'Distrito no identificado';
         }
 
-        function isStreetGeocoderResult(result) {
-            return isLinearStreetGeocoderResult(result) || ['neighbourhood', 'locality', 'quarter'].includes(result?.type);
-        }
-
-        function isLinearStreetGeocoderResult(result) {
-            return result?.class === 'highway' || ['road', 'residential', 'secondary', 'tertiary', 'primary', 'pedestrian'].includes(result?.type);
-        }
-
-        function getAddressGeocoderQueries(query, mode) {
-            const queries = [query];
-            const normalized = normalizeAddressText(query);
-            const hasStreetPrefix = /\b(AVENIDA|AV|JR|JIRON|CALLE|CL|PASAJE|PSJ|PROLONGACION|PROL|CARRETERA|CR|MALECON|MLC)\b/.test(normalized);
-            if (mode === 'street' && !hasStreetPrefix) queries.push(`Avenida de ${query}`);
-            return [...new Set(queries.map(value => value.trim()).filter(Boolean))];
-        }
-
-        function combineStreetGeometries(results) {
-            const geometries = (results || []).map(result => result.geojson).filter(Boolean);
-            if (geometries.length === 1) return geometries[0];
-            if (geometries.length > 1) {
-                return {
-                    type: 'FeatureCollection',
-                    features: geometries.map(geometry => ({ type: 'Feature', properties: {}, geometry }))
-                };
-            }
-            return null;
-        }
-
-        function getLocalAddressMatches(query, mode, districtFilter = '') {
+        function getLocalAddressMatches(query, districtFilter = '') {
             const normalizedDistrict = normalizeAddressText(districtFilter);
-            return (tdOmsRecords || []).filter(record => mode === 'street'
-                ? recordMatchesStreet(record, query)
-                : recordMatchesAddress(record, query)).filter(record => {
+            return (tdOmsRecords || []).filter(record => recordMatchesAddress(record, query)).filter(record => {
                     if (!normalizedDistrict) return true;
                     return normalizeAddressText(record.distrito || '').includes(normalizedDistrict);
                 });
         }
 
-        function buildAddressCandidates(query, mode, geocoderResults, districtFilter = '') {
+        function buildAddressCandidates(query, geocoderResults, districtFilter = '') {
             const candidates = [];
             const groups = new Map();
             const normalizedDistrict = normalizeAddressText(districtFilter);
-            const results = (mode === 'street' ? geocoderResults.filter(isStreetGeocoderResult) : geocoderResults).filter(result => {
+            const results = geocoderResults.filter(result => {
                 if (!normalizedDistrict) return true;
                 return normalizeAddressText(getGeocoderDistrict(result)).includes(normalizedDistrict) ||
                     normalizeAddressText(result.display_name).includes(normalizedDistrict);
@@ -637,16 +570,14 @@
                 if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
                 const district = getGeocoderDistrict(result);
                 const road = result.address?.road || query;
-                const groupKey = mode === 'street'
-                    ? `${normalizeStreetText(road)}|${normalizeAddressText(district)}`
-                    : `${normalizeAddressText(result.display_name)}|${normalizeAddressText(district)}`;
+                const groupKey = `${normalizeAddressText(result.display_name)}|${normalizeAddressText(district)}`;
                 if (!groups.has(groupKey)) {
-                    groups.set(groupKey, { mode, query, district, road, results: [], first: result, lat, lon });
+                    groups.set(groupKey, { query, district, road, results: [], first: result, lat, lon });
                 }
                 groups.get(groupKey).results.push(result);
             });
 
-            const localMatches = getLocalAddressMatches(query, mode, districtFilter);
+            const localMatches = getLocalAddressMatches(query, districtFilter);
             const localGroups = new Map();
             localMatches.forEach(record => {
                 const district = String(record.distrito || record.distrito2 || 'Distrito no identificado').trim() || 'Distrito no identificado';
@@ -658,11 +589,7 @@
             groups.forEach(group => {
                 const districtKey = normalizeAddressText(group.district);
                 const matchingLocal = localGroups.get(districtKey)?.records || [];
-                const streetGeometry = mode === 'street'
-                    ? combineStreetGeometries(group.results.filter(isLinearStreetGeocoderResult))
-                    : null;
                 candidates.push({
-                    mode,
                     query,
                     districtFilter,
                     district: group.district,
@@ -670,7 +597,6 @@
                     streetKey: group.road,
                     lat: group.lat,
                     lon: group.lon,
-                    geojson: streetGeometry,
                     localMatchCount: matchingLocal.length
                 });
             });
@@ -681,7 +607,6 @@
                 const locatable = group.records.find(record => Number.isFinite(Number(record.lat)) && Number.isFinite(Number(record.lon)));
                 if (!alreadyCovered && locatable) {
                     candidates.push({
-                        mode,
                         query,
                         districtFilter,
                         district: group.district,
@@ -689,7 +614,6 @@
                         streetKey: query,
                         lat: Number(locatable.lat),
                         lon: Number(locatable.lon),
-                        geojson: null,
                         localMatchCount: group.records.length
                     });
                 }
@@ -707,18 +631,24 @@
             filterMapMarkers();
             resBox.style.display = 'block';
             resBox.innerHTML = `
-                <div style="font-weight:700; color:#7dd3fc;">🔎 Se encontraron varias ubicaciones</div>
-                <div style="font-size:10px; color:#cbd5e1; margin-top:3px;">Elige la ubicación correcta para continuar:</div>
-                <div class="address-result-list">
+                <div class="address-result-heading">
+                    <div><div style="font-weight:700; color:#7dd3fc;">🔎 Se encontraron varias ubicaciones</div></div>
+                    <button type="button" class="address-result-toggle" data-address-result-toggle aria-expanded="true" aria-label="Contraer resultados" title="Contraer resultados">▴</button>
+                </div>
+                <div class="address-result-body">
+                    <div style="font-size:10px; color:#cbd5e1; margin-top:3px;">Elige la ubicación correcta para continuar:</div>
+                    <div class="address-result-list">
                     ${candidates.map((candidate, index) => `
                         <button type="button" class="address-ticket-result" data-address-candidate="${index}">
                             <span>📍 <b>${escapeHtml(candidate.district)}</b><br><small>${escapeHtml(candidate.label)}</small></span>
                             <small>${candidate.localMatchCount ? `🎫 ${candidate.localMatchCount} OMS` : '🗺️ Ver aquí'}</small>
                         </button>
                     `).join('')}
+                    </div>
                 </div>
             `;
             collapseMobileFiltersAfterAddressSearch();
+            wireAddressResultToggle(resBox);
             resBox.querySelectorAll('[data-address-candidate]').forEach(button => {
                 button.addEventListener('click', () => {
                     const candidate = addressPendingCandidates[Number(button.dataset.addressCandidate)];
@@ -727,7 +657,7 @@
             });
         }
 
-        function renderAddressResults({ locationLabel, district, lat, lon, mode, radius, exactMatches, nearbyMatches, noCoordinateCount }) {
+        function renderAddressResults({ locationLabel, district, lat, lon, radius, exactMatches, nearbyMatches, noCoordinateCount }) {
             const resBox = document.getElementById('addressResultBox');
             if (!resBox) return;
             const exactKeys = new Set(exactMatches.map(record => String(record.ticket || '').toLowerCase()).filter(Boolean));
@@ -736,27 +666,30 @@
             filterMapMarkers();
 
             const nearbyOnly = nearbyMatches.filter(item => !exactKeys.has(String(item.r.ticket || '').toLowerCase()));
-            const exactLabel = mode === 'street' ? 'Misma calle' : 'Misma dirección';
+            const exactLabel = 'Misma dirección';
             const results = [
                 ...exactMatches.map(record => ({ record, label: exactLabel, distance: null })),
                 ...nearbyOnly.map(item => ({ record: item.r, label: 'Cercano', distance: item.d }))
             ];
             const visibleResults = results.slice(0, 20);
-            const modeLabel = mode === 'street' ? 'Calle completa' : 'Punto y dirección';
-            const streetLabel = mode === 'street' ? 'Se dibujó la calle y se buscaron tickets en su corredor.' : 'Se buscaron coincidencias de dirección y tickets cercanos.';
+            syncAddressResultPosition();
 
             resBox.style.display = 'block';
             resBox.innerHTML = `
-                <div style="font-weight:700; color:#7dd3fc;">📍 ${escapeHtml(locationLabel)}</div>
-                ${district ? `<div style="font-size:10px; color:#fbbf24; margin-top:3px;">Distrito seleccionado: ${escapeHtml(district)}</div>` : ''}
-                <div style="font-size:10px; color:#cbd5e1; margin-top:3px;">${modeLabel} · ${escapeHtml(streetLabel)}</div>
-                <div class="address-result-summary">
-                    <span class="address-result-chip">🎫 ${exactMatches.length} ${mode === 'street' ? 'misma calle' : 'misma dirección'}</span>
+                <div class="address-result-heading">
+                    <div style="font-weight:700; color:#7dd3fc;">📍 ${escapeHtml(locationLabel)}</div>
+                    <button type="button" class="address-result-toggle" data-address-result-toggle aria-expanded="true" aria-label="Contraer resultados" title="Contraer resultados">▴</button>
+                </div>
+                <div class="address-result-body">
+                    ${district ? `<div style="font-size:10px; color:#fbbf24; margin-top:3px;">Distrito seleccionado: ${escapeHtml(district)}</div>` : ''}
+                    <div style="font-size:10px; color:#cbd5e1; margin-top:3px;">Se encontraron coincidencias de dirección y tickets cercanos.</div>
+                    <div class="address-result-summary">
+                    <span class="address-result-chip">🎫 ${exactMatches.length} misma dirección</span>
                     <span class="address-result-chip">🚨 ${nearbyOnly.length} cercanos</span>
                     ${noCoordinateCount ? `<span class="address-result-chip">⚠️ ${noCoordinateCount} sin coordenadas</span>` : ''}
                     <span class="address-result-chip">Radio ${radius} m</span>
-                </div>
-                ${visibleResults.length ? `<div class="address-result-list">
+                    </div>
+                    ${visibleResults.length ? `<div class="address-result-list">
                     ${visibleResults.map(item => `
                         <button type="button" class="address-ticket-result" data-address-ticket="${escapeHtml(String(item.record.ticket || '').toLowerCase())}">
                             <span>🎫 <b>${escapeHtml(item.record.ticket)}</b> · ${escapeHtml(item.label)}<br><small>${escapeHtml(item.record.direccion || 'Sin dirección')}</small></span>
@@ -766,20 +699,22 @@
                 </div>` : '<div style="color:#cbd5e1; margin-top:8px;">No se encontraron tickets en la dirección o radio indicado.</div>'}
                 ${results.length > visibleResults.length ? `<div style="color:#94a3b8; margin-top:5px;">Mostrando ${visibleResults.length} de ${results.length} resultados.</div>` : ''}
                 ${noCoordinateCount ? '<div style="color:#fbbf24; margin-top:6px;">Los tickets sin coordenadas se muestran aquí, pero no pueden dibujarse en el mapa.</div>' : ''}
-                <div style="margin-top:8px; display:flex; gap:8px; justify-content:center; align-items:center;">
+                    <div style="margin-top:8px; display:flex; gap:8px; justify-content:center; align-items:center;">
                     <a href="https://www.google.com/maps/search/?api=1&query=${lat},${lon}" target="_blank" style="color:#4ade80; font-weight:700; text-decoration:underline;">🗺️ Google Maps</a>
                     <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}" target="_blank" title="Trazar Ruta en Google Maps" style="color:#38bdf8; font-weight:700; font-size:14px; text-decoration:none;">🚗</a>
+                    </div>
                 </div>
             `;
             collapseMobileFiltersAfterAddressSearch();
+            wireAddressResultToggle(resBox);
             resBox.querySelectorAll('[data-address-ticket]').forEach(button => {
                 button.addEventListener('click', () => focusAddressTicket(button.dataset.addressTicket));
             });
         }
 
         function applyAddressCandidate(candidate) {
-            const { query, mode } = candidate;
-            const radius = Number(candidate.radius || document.getElementById('addressRadiusMap')?.value || 500);
+            const { query } = candidate;
+            const radius = ADDRESS_SEARCH_RADIUS_METERS;
             const hasPoint = Number.isFinite(Number(candidate.lat)) && Number.isFinite(Number(candidate.lon));
             addressPendingCandidates = [];
             clearAddressSearchVisuals();
@@ -792,35 +727,22 @@
                     iconAnchor: [16, 32]
                 });
                 addressSearchMarker = L.marker([candidate.lat, candidate.lon], { icon: searchIcon, title: 'Ubicación buscada' }).addTo(leafletMap);
-                addressSearchMarker.bindPopup(`<b>📍 Ubicación buscada:</b><br>${escapeHtml(candidate.label)}`).openPopup();
-            }
-
-            if (mode === 'street' && hasPoint) {
-                if (candidate.geojson) {
-                    addressSearchLayer = L.geoJSON(candidate.geojson, {
-                        style: { color: '#fbc140', weight: 6, opacity: 0.9, dashArray: '9 6' },
-                        pointToLayer: (_feature, point) => L.circleMarker(point, { radius: 6, color: '#fbc140', fillColor: '#fbc140', fillOpacity: 0.9 })
-                    }).addTo(leafletMap);
-                } else {
-                    addressSearchLayer = L.circle([candidate.lat, candidate.lon], { radius: Math.max(120, radius), color: '#fbc140', weight: 3, fillColor: '#fbc140', fillOpacity: 0.08 }).addTo(leafletMap);
-                }
+                addressSearchMarker.bindPopup(`<b>📍 Ubicación buscada:</b><br>${escapeHtml(candidate.label)}`, {
+                    autoPanPaddingTopLeft: [16, getMapToolbarBottom() + 16]
+                });
             }
 
             const candidateDistrict = normalizeAddressText(candidate.districtFilter || candidate.district || '');
             const useDistrict = candidateDistrict && !['LIMA', 'LIMA METROPOLITANA', 'PERU', 'DISTRITO NO IDENTIFICADO', 'COORDENADAS INGRESADAS'].includes(candidateDistrict);
             const exactMatches = (tdOmsRecords || []).filter(record => {
-                const matchesQuery = mode === 'street'
-                    ? recordMatchesStreet(record, candidate.streetKey || query)
-                    : recordMatchesAddress(record, query);
+                const matchesQuery = recordMatchesAddress(record, query);
                 const matchesDistrict = !useDistrict || normalizeAddressText(record.distrito || '').includes(candidateDistrict);
                 return matchesQuery && matchesDistrict;
             });
             const noCoordinateCount = exactMatches.filter(record => !Number.isFinite(Number(record.lat)) || !Number.isFinite(Number(record.lon))).length;
             const nearbyMatches = hasPoint ? mapLocations.map(record => ({
                 r: record,
-                d: mode === 'street' && candidate.geojson
-                    ? distanceToStreetMeters(record, candidate.geojson, candidate.lat, candidate.lon)
-                    : calcularDistanciaMetros(candidate.lat, candidate.lon, Number(record.lat), Number(record.lon))
+                d: calcularDistanciaMetros(candidate.lat, candidate.lon, Number(record.lat), Number(record.lon))
             })).filter(item => Number.isFinite(item.d) && item.d <= radius).sort((a, b) => a.d - b.d) : [];
 
             renderAddressResults({
@@ -828,24 +750,21 @@
                 district: candidate.district,
                 lat: candidate.lat,
                 lon: candidate.lon,
-                mode,
                 radius,
                 exactMatches,
                 nearbyMatches,
                 noCoordinateCount
             });
-            if (mode === 'street' && addressSearchLayer?.getBounds?.().isValid()) {
-                leafletMap.fitBounds(addressSearchLayer.getBounds().pad(0.12));
-            } else if (hasPoint) {
+            if (hasPoint) {
                 leafletMap.setView([candidate.lat, candidate.lon], 16);
+                addressSearchMarker?.openPopup();
             }
         }
 
         async function buscarDireccionEnMapa() {
             const query = document.getElementById('inputTicket').value.trim();
             const resBox = document.getElementById('addressResultBox');
-            const mode = document.getElementById('addressSearchMode')?.value || 'point';
-            const radius = Number(document.getElementById('addressRadiusMap')?.value || 500);
+            const radius = ADDRESS_SEARCH_RADIUS_METERS;
             const districtFilter = '';
             if (!resBox) return;
 
@@ -864,7 +783,6 @@
                 const coordenadas = parsearCoordenadas(query);
                 if (coordenadas) {
                     applyAddressCandidate({
-                        mode,
                         query,
                         radius,
                         districtFilter,
@@ -873,13 +791,12 @@
                         streetKey: query,
                         lat: coordenadas.lat,
                         lon: coordenadas.lon,
-                        geojson: null
                     });
                     return;
                 }
 
                 const resultados = [];
-                const geocoderQueries = getAddressGeocoderQueries(query, mode);
+                const geocoderQueries = [query];
                 for (let index = 0; index < geocoderQueries.length; index++) {
                     if (index > 0) await new Promise(resolve => setTimeout(resolve, 1100));
                     const params = new URLSearchParams({
@@ -889,7 +806,6 @@
                         addressdetails: '1',
                         q: `${geocoderQueries[index]}${districtFilter ? `, ${districtFilter}` : ''}, Lima, Perú`
                     });
-                    if (mode === 'street') params.set('polygon_geojson', '1');
                     const resp = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, { headers: { 'Accept-Language': 'es' } });
                     if (!resp.ok) throw new Error('No se pudo consultar el servicio de mapas');
                     const entries = await resp.json();
@@ -899,7 +815,7 @@
                     result.osm_type && result.osm_id ? `${result.osm_type}:${result.osm_id}` : result.display_name,
                     result
                 ])).values()];
-                const candidates = buildAddressCandidates(query, mode, uniqueResults, districtFilter);
+                const candidates = buildAddressCandidates(query, uniqueResults, districtFilter);
                 if (!candidates.length) throw new Error('No se encontró una ubicación utilizable para esa búsqueda.');
                 if (candidates.length > 1) {
                     renderAddressCandidateChoices(candidates);
@@ -941,8 +857,6 @@
                     matchQuery = String(loc.sed || '').toLowerCase().includes(query);
                 } else if (query && searchType === "alimentador") {
                     matchQuery = String(loc.alimentador || '').toLowerCase().includes(query);
-                } else if (searchType === 'address' && addressSearchTicketKeys instanceof Set) {
-                    matchQuery = addressSearchTicketKeys.has(String(loc.ticket || '').toLowerCase());
                 }
 
                 const matchEst = matchesMultiSelection(loc.estado, selEsts);
@@ -1151,16 +1065,13 @@
         const inputTicketEl = document.getElementById("inputTicket");
         const resBox = document.getElementById("addressResultBox");
         const addressSearchOptionsEl = document.getElementById('addressSearchOptions');
-        const addressSearchModeEl = document.getElementById('addressSearchMode');
-        const addressRadiusEl = document.getElementById('addressRadiusMap');
+        const btnAddressSearchEl = document.getElementById('btnAddressSearch');
 
         function updateAddressSearchUi() {
             const isAddress = searchTypeMapEl?.value === 'address';
             if (addressSearchOptionsEl) addressSearchOptionsEl.style.display = isAddress ? 'flex' : 'none';
             if (isAddress && inputTicketEl) {
-                inputTicketEl.placeholder = addressSearchModeEl?.value === 'street'
-                    ? 'Ej. Av. Faucett o Jr. Pucallpa...'
-                    : 'Ej. Av. Faucett 200, Callao...';
+                inputTicketEl.placeholder = 'Ej. Av. Faucett 200, Callao...';
             }
         }
 
@@ -1243,15 +1154,6 @@
         const chkMapCrit = document.getElementById("chkCriticaMap");
         if (chkMapCrit) chkMapCrit.addEventListener("change", filterMapMarkers);
 
-        if (addressSearchModeEl) {
-            addressSearchModeEl.addEventListener('change', () => {
-                updateAddressSearchUi();
-                if (searchTypeMapEl?.value === 'address' && inputTicketEl?.value.trim()) buscarDireccionEnMapa();
-            });
-        }
-        if (addressRadiusEl) {
-            addressRadiusEl.addEventListener('change', () => {
-                if (searchTypeMapEl?.value === 'address' && inputTicketEl?.value.trim()) buscarDireccionEnMapa();
-            });
-        }
+        if (btnAddressSearchEl) btnAddressSearchEl.addEventListener('click', buscarDireccionEnMapa);
+        window.addEventListener('resize', syncAddressResultPosition);
         updateAddressSearchUi();

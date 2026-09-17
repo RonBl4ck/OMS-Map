@@ -18,13 +18,8 @@
         };
         const techDurationLabel = seconds => { const safe = Math.max(0, Math.floor(seconds || 0)); return `${Math.floor(safe / 3600)}h ${String(Math.floor((safe % 3600) / 60)).padStart(2, '0')}m`; };
         const techSecondsSinceLast = row => {
-            const last = techDateValue(row['Último trabajo']);
-            if (!last) return 0;
-            const selected = String(row['día'] || '');
-            const today = new Date();
-            const todayKey = techTodayKey();
-            const reference = selected === todayKey ? today : new Date(`${selected}T18:00:00`);
-            return Math.max(0, (reference.getTime() - last.getTime()) / 1000);
+            const seconds = Number(row['Segundos desde último trabajo']);
+            return Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
         };
         function techActivityStatus(seconds) {
             if (seconds > 4 * 3600) return { key: 'alert', label: 'Sin cierre >4h' };

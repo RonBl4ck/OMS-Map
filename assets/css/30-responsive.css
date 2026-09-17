@@ -126,6 +126,11 @@
                 width: 100%;
             }
 
+            .address-search-button {
+                display: block;
+                width: 100%;
+            }
+
             .custom-multiselect {
                 width: 100%;
             }

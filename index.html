@@ -190,15 +190,7 @@
                 </select>
                 <input type="text" id="inputTicket" data-requires-primary-data placeholder="Buscar por Ticket o ODM...">
                 <div id="addressSearchOptions" class="address-search-options" aria-label="Opciones de búsqueda por dirección">
-                    <select id="addressSearchMode" title="Modo de búsqueda por dirección">
-                        <option value="point">📍 Punto y misma dirección</option>
-                        <option value="street">🛣️ Calle completa y cercanos</option>
-                    </select>
-                    <select id="addressRadiusMap" title="Radio de tickets cercanos">
-                        <option value="100">100 m</option>
-                        <option value="250">250 m</option>
-                        <option value="500" selected>500 m</option>
-                    </select>
+                    <button type="button" id="btnAddressSearch" class="address-search-button">🔎 Buscar</button>
                 </div>
                 <div id="mapMultiEstado"></div>
                 <div id="mapMultiEmpresa"></div>

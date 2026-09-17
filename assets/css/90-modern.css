@@ -373,7 +373,7 @@ body:not([data-primary-view="map"]) .map-legend { display: none !important; }
   .kpi-badges-row { grid-column: 2; grid-row: 1; }
   #navUserBadge > .nav-user-copy { display: none; }
   #navUserBadge { padding: 0 !important; border-left: 0 !important; background: transparent; }
-  #btnOpenConfig, #btnLogout { min-width: 44px; min-height: 44px; }
+  #btnOpenConfig, #btnLogout { width: 44px; height: 44px; padding: 0 !important; font-size: 20px !important; line-height: 44px !important; text-align: center; }
   .view-header-bar { margin-bottom: 12px; }
   .modal-header-title { font-size: 21px; }
   .kpi-cards-grid { gap: 8px; }

@@ -164,6 +164,18 @@
             outline: none;
             background: #ffffff;
         }
+        .address-search-button {
+            display: none;
+            border: 0;
+            border-radius: 6px;
+            padding: 7px 10px;
+            background: var(--pluz-blue);
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .address-search-button:hover { background: var(--pluz-blue-hover); }
 
         .leaflet-top .map-locate-control {
             display: flex;
@@ -203,9 +215,9 @@
         .address-result-box {
             display: none;
             position: absolute;
-            top: 115px;
+            top: var(--address-result-top, 160px);
             left: 50px;
-            z-index: 999;
+            z-index: 3200;
             background: rgba(15, 23, 42, 0.95);
             backdrop-filter: blur(10px);
             color: white;
@@ -224,6 +236,33 @@
             flex-wrap: wrap;
             margin: 7px 0;
         }
+        .address-result-heading {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .address-result-toggle {
+            flex: 0 0 auto;
+            min-width: 28px;
+            min-height: 28px;
+            border: 1px solid rgba(255,255,255,0.24);
+            border-radius: 6px;
+            background: rgba(255,255,255,0.1);
+            color: #ffffff;
+            font-weight: 800;
+            cursor: pointer;
+        }
+        .address-result-box.is-collapsed {
+            width: fit-content;
+            min-width: 40px;
+            max-width: calc(100vw - 110px);
+            padding: 6px;
+            max-height: none;
+            overflow: visible;
+        }
+        .address-result-box.is-collapsed .address-result-body { display: none; }
+        .address-result-box.is-collapsed .address-result-heading > div { display: none; }
         .address-result-chip {
             padding: 3px 7px;
             border-radius: 999px;
