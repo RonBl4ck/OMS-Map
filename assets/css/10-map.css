@@ -534,6 +534,22 @@
         .marker-sla-badge.sla-ok::after { background: #16a34a; }
         .marker-sla-badge.sla-warning::after { background: #f59e0b; }
         .marker-sla-badge.sla-overdue::after { background: #dc2626; }
+        .marker-vehicle-backdrop {
+            position: absolute;
+            z-index: 0;
+            font-size: 42px;
+            line-height: 1;
+            opacity: 0.42;
+            transform: translate(-1px, 1px);
+            pointer-events: none;
+        }
+        .marker-fault-icon {
+            position: relative;
+            z-index: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
         @media (hover: hover) and (pointer: fine) {
             .marker-sla-badge:hover {
                 transform: scale(1.12) translateY(-1px);

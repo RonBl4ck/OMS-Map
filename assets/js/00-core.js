@@ -20,6 +20,28 @@
         const MAP_CLUSTER_MAX_ZOOM = 12;
 
         const escapeHtml = (val) => String(val || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+        const OMS_STATUS_COLORS = Object.freeze({
+            pendiente: '#FBC13F',
+            ejecucion: '#3B599F',
+            ejecutado: '#6CAC5E',
+            otros: '#C1CBD6'
+        });
+
+        function getOmsStatusClass(status) {
+            const normalized = String(status || '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase();
+            if (normalized.includes('pendient')) return 'pendiente';
+            if (normalized.includes('ejecuc')) return 'ejecucion';
+            if (normalized.includes('ejecutad') || normalized.includes('finaliz') || normalized.includes('cerrad') || normalized.includes('restaur')) return 'ejecutado';
+            return 'otros';
+        }
+
+        function getOmsStatusColor(status) {
+            return OMS_STATUS_COLORS[getOmsStatusClass(status)];
+        }
+
         function debounceUi(callback, wait = 120) {
             let timer = null;
             return function debounced(...args) {

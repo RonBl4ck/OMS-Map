@@ -68,8 +68,8 @@
             display: flex;
             flex-direction: column;
         }
-        .exec-kpi-card.kpi-pending { border-left-color: #ef4444; }
-        .exec-kpi-card.kpi-execution { border-left-color: var(--pluz-green); }
+        .exec-kpi-card.kpi-pending { border-left-color: #FBC13F; }
+        .exec-kpi-card.kpi-execution { border-left-color: #3B599F; }
         .exec-kpi-card.kpi-company { border-left-color: var(--pluz-yellow); }
 
         .kpi-lbl { font-size: 11px; text-transform: uppercase; font-weight: 700; color: #64748b; margin-bottom: 4px; }
@@ -155,6 +155,7 @@
             font-weight: 700;
             text-transform: uppercase;
         }
-        .status-badge.ejecucion { background: #d1fae5; color: #047857; }
-        .status-badge.pendiente { background: #fee2e2; color: #b91c1c; }
-        .status-badge.otros { background: #e0f2fe; color: #0369a1; }
+        .status-badge.ejecucion { background: #3B599F; color: #ffffff; }
+        .status-badge.pendiente { background: #FBC13F; color: #0E2841; }
+        .status-badge.ejecutado { background: #6CAC5E; color: #ffffff; }
+        .status-badge.otros { background: #C1CBD6; color: #0E2841; }

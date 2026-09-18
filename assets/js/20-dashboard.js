@@ -58,14 +58,6 @@
 
         function renderModernCharts(records) {
             const target = document.getElementById("tdOmsCharts");
-            // Paleta de Colores Pluz Oficial: Azul Royal, Amarillo Dorado, Verde Energía, Rojo Emergencia, Púrpura
-            const palette = ['#3c5a9f', '#6cab5e', '#ef5b66', '#f0ad2f', '#7656b5'];
-            const stateColor = state => {
-                const normalized = String(state || '').toLowerCase();
-                if (normalized.includes('ejecuc')) return '#3c5a9f';
-                if (normalized.includes('pendient')) return '#fbc140';
-                return '#3c5a9f';
-            };
 
             const chartDefs = [
                 ['Carga por contratista', 'empresa', true, 'Distribución de incidencias por empresa ejecutora'],
@@ -104,7 +96,7 @@
                             const val = s.values[cIdx] || 0;
                             const barW = (val / maxVal) * plotW;
                             const y = y0 + sIdx * barH;
-                            const color = stateColor(s.name) || palette[sIdx % palette.length];
+                            const color = getOmsStatusColor(s.name);
 
                             if (val > 0) {
                                 svgContent += `<rect x="${leftMargin}" y="${y}" width="${Math.max(2, barW)}" height="${barH - 1}" fill="${color}" rx="3" ry="3"><title>${escapeHtml(s.name)}: ${val}</title></rect>`;
@@ -134,7 +126,7 @@
                             const barH = (val / maxVal) * plotH;
                             const x = x0 + sIdx * barW;
                             const y = topMargin + plotH - barH;
-                            const color = stateColor(s.name) || palette[sIdx % palette.length];
+                            const color = getOmsStatusColor(s.name);
 
                             if (val > 0) {
                                 svgContent += `<rect x="${x}" y="${y}" width="${Math.max(2, barW - 1)}" height="${barH}" fill="${color}" rx="3" ry="3"><title>${escapeHtml(s.name)}: ${val}</title></rect>`;
@@ -148,7 +140,7 @@
 
                 const legendHtml = series.map((s, idx) => `
                     <div class="chart-legend-item">
-                        <span class="legend-color" style="background:${stateColor(s.name) || palette[idx % palette.length]}"></span>
+                        <span class="legend-color" style="background:${getOmsStatusColor(s.name)}"></span>
                         <span>${escapeHtml(s.name)}</span>
                     </div>
                 `).join('');
@@ -285,10 +277,7 @@
             }
 
             tableBody.innerHTML = filtered.map((r, idx) => {
-                let stateClass = "otros";
-                const stLower = String(r.estado || '').toLowerCase();
-                if (stLower.includes("ejecuc")) stateClass = "ejecucion";
-                else if (stLower.includes("pendient")) stateClass = "pendiente";
+                const stateClass = getOmsStatusClass(r.estado);
 
                 const bg = idx % 2 === 0 ? "#ffffff" : "#f8fafc";
                 const horaIni = r.hora_inicio || r.fecha_inicio || 'N/A';

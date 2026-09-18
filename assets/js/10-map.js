@@ -281,9 +281,8 @@
             markerMap.clear();
 
             mapLocations.forEach(loc => {
-                let stateClass = "otros";
-                if (loc.estado.toLowerCase().includes("ejecuc")) stateClass = "ejecucion";
-                else if (loc.estado.toLowerCase().includes("pendient")) stateClass = "pendiente";
+                const stateClass = getOmsStatusClass(loc.estado);
+                const isExecution = stateClass === 'ejecucion';
 
                 const numLlamadas = parseInt(loc.llamadas || 0, 10) || 0;
                 const llamadasLabel = (loc.llamadas && loc.llamadas !== 'N/A') ? loc.llamadas : '0';
@@ -337,17 +336,18 @@
                 `;
 
                 const iconHtml = `
-                    <div class="marker-sla-badge ${loc.sla.statusClass}" title="Ticket: ${escapeHtml(loc.ticket)} | ${escapeHtml(loc.falla)} | Plazo: ${escapeHtml(loc.sla.label)}">
-                        ${getFaultIconHtml(loc.falla)}
+                    <div class="marker-sla-badge ${loc.sla.statusClass}${isExecution ? ' is-execution' : ''}" title="Ticket: ${escapeHtml(loc.ticket)} | ${escapeHtml(loc.falla)} | Plazo: ${escapeHtml(loc.sla.label)}">
+                        ${isExecution ? '<span class="marker-vehicle-backdrop" aria-hidden="true">🚚</span>' : ''}
+                        <span class="marker-fault-icon">${getFaultIconHtml(loc.falla)}</span>
                     </div>
                 `;
 
                 const customIcon = L.divIcon({
                     className: 'custom-leaflet-marker-wrapper',
                     html: iconHtml,
-                    iconSize: [36, 36],
-                    iconAnchor: [18, 18],
-                    popupAnchor: [0, -18]
+                    iconSize: [48, 48],
+                    iconAnchor: [24, 24],
+                    popupAnchor: [0, -24]
                 });
 
                 const marker = L.marker([loc.lat, loc.lon], { icon: customIcon }).bindPopup(popupHtml);
