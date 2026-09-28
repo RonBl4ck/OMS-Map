@@ -26,3 +26,13 @@ test('indicadores conserva una tabla compacta y desplazable en celular', () => {
   assert.match(modernCss, /#tdOmsTable th:first-child,[^}]*#tdOmsTable td:first-child\s*\{[^}]*position:\s*sticky/s);
   assert.doesNotMatch(modernCss, /#tdOmsTable,\s*#tdOmsTable tbody,\s*#tdOmsTable tr,\s*#tdOmsTable td\s*\{\s*display:\s*block/);
 });
+
+test('los gráficos de indicadores permiten filtrado combinado por categoría y estado mediante clic en barra', () => {
+  assert.match(source, /chart-bar-interactive/);
+  assert.match(source, /data-field=/);
+  assert.match(source, /data-value=/);
+  assert.match(source, /data-state=/);
+  assert.match(source, /function handleChartBarClick\(/);
+  assert.match(modernCss, /\.chart-bar-interactive\s*\{[^}]*cursor:\s*pointer/s);
+});
+

@@ -239,6 +239,38 @@
                 margin-top: 150px;
                 margin-right: 10px;
             }
+
+            /* 5. Popups de Leaflet en móviles (sin desbordamiento y espacio bajo navbar) */
+            .leaflet-popup {
+                max-width: calc(100vw - 28px) !important;
+            }
+
+            .leaflet-popup-content-wrapper {
+                max-width: calc(100vw - 28px) !important;
+                box-sizing: border-box;
+                border-radius: 10px;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.3) !important;
+            }
+
+            .leaflet-popup-content {
+                margin: 12px 14px !important;
+                max-width: calc(100vw - 56px) !important;
+                box-sizing: border-box;
+                font-size: 12px !important;
+                line-height: 1.35 !important;
+                word-wrap: break-word;
+            }
+
+            .leaflet-popup-close-button {
+                width: 32px !important;
+                height: 32px !important;
+                font-size: 18px !important;
+                line-height: 32px !important;
+                text-align: center;
+                padding: 0 !important;
+                top: 4px !important;
+                right: 4px !important;
+            }
         }
 
         @media (max-width: 480px) {

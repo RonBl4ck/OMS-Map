@@ -20,13 +20,34 @@
             return aviso ? `AVISO:${aviso}` : '';
         }
         function getCallCounts(records) {
-            return (records || []).reduce((counts, row) => {
+            const counts = {};
+            let hasPrecalculated = false;
+            for (const row of (records || [])) {
                 const key = getCallGroupKey(row);
-                if (key) counts[key] = (counts[key] || 0) + 1;
-                return counts;
+                if (!key) continue;
+                if (counts[key] !== undefined) continue;
+                const rawPre = (typeof getProp === 'function') ? getProp(row, 'Conteo_Llamadas', 'conteo_llamadas') : (row?.Conteo_Llamadas ?? row?.conteo_llamadas);
+                const pre = parseInt(rawPre, 10);
+                if (!isNaN(pre) && pre > 0) {
+                    counts[key] = pre;
+                    hasPrecalculated = true;
+                }
+            }
+            if (hasPrecalculated) return counts;
+
+            return (records || []).reduce((acc, row) => {
+                const key = getCallGroupKey(row);
+                if (key) acc[key] = (acc[key] || 0) + 1;
+                return acc;
             }, {});
         }
         function callPressure(count) {
+            if (typeof count === 'string') {
+                const s = count.toLowerCase();
+                if (s.includes('alta')) return { key: 'critical', label: 'Alta presión' };
+                if (s.includes('reiter')) return { key: 'repeated', label: 'Reiterado' };
+                if (s.includes('nico') || s.includes('unico')) return { key: 'normal', label: 'Contacto único' };
+            }
             if (Number(count) >= 7) return { key: 'critical', label: 'Alta presión' };
             if (Number(count) >= 2) return { key: 'repeated', label: 'Reiterado' };
             return { key: 'normal', label: 'Contacto único' };
@@ -117,7 +138,16 @@
                 const pressure = callPressure(frequency);
                 return `<tr class="calls-row calls-row--${pressure.key}" tabindex="0" role="button" aria-label="Ver detalle de llamadas de la ODM ${escapeHtml(row.odm || 'sin dato')}" onclick="openCallDetail(${index})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openCallDetail(${index});}">
                     <td data-label="Aviso"><strong>${escapeHtml(row.aviso || 'Sin dato')}</strong></td>
-                    <td data-label="Ticket">${escapeHtml(row.ticket || 'Sin dato')}</td><td data-label="Suministro">${escapeHtml(row.suministro || 'Sin dato')}</td><td data-label="ODM"><strong>${escapeHtml(row.odm || 'Sin ODM')}</strong><span class="call-pressure call-pressure--${pressure.key}">${frequency} ${frequency === 1 ? 'llamada' : 'llamadas'} · ${pressure.label}</span></td><td data-label="Nombre">${escapeHtml(row.nombre || 'Sin dato')}</td><td data-label="Hora de registro">${escapeHtml(row.horaRegistro || 'Sin dato')}</td><td data-label="Distrito">${escapeHtml(row.distrito || 'Sin dato')}</td><td data-label="Dirección">${escapeHtml(row.direccion || 'Sin dato')}</td><td data-label="Estado del aviso"><span class="call-state">${escapeHtml(row.estado || 'Sin dato')}</span></td><td data-label="Nota específica">${escapeHtml(row.nota || 'Sin nota registrada')}</td></tr>`;
+                    <td data-label="Ticket">${row.ticket ? `<button type="button" class="ticket-map-link" onclick="event.stopPropagation(); navigateToTicketOnMap('${escapeHtml(row.ticket)}')" title="Localizar ticket #${escapeHtml(row.ticket)} en el mapa">🗺️ ${escapeHtml(row.ticket)}</button>` : 'Sin dato'}</td>
+                    <td data-label="Suministro">${escapeHtml(row.suministro || 'Sin dato')}</td>
+                    <td data-label="ODM"><strong>${escapeHtml(row.odm || 'Sin ODM')}</strong><span class="call-pressure call-pressure--${pressure.key}">${frequency} ${frequency === 1 ? 'llamada' : 'llamadas'} · ${pressure.label}</span></td>
+                    <td data-label="Nombre">${escapeHtml(row.nombre || 'Sin dato')}</td>
+                    <td data-label="Hora de registro">${escapeHtml(row.horaRegistro || 'Sin dato')}</td>
+                    <td data-label="Distrito">${escapeHtml(row.distrito || 'Sin dato')}</td>
+                    <td data-label="Dirección">${escapeHtml(row.direccion || 'Sin dato')}</td>
+                    <td data-label="Estado del aviso"><span class="call-state">${escapeHtml(row.estado || 'Sin dato')}</span></td>
+                    <td data-label="Nota específica">${escapeHtml(row.nota || 'Sin nota registrada')}</td>
+                </tr>`;
             }).join('');
         }
         function openCallDetail(index) {
@@ -126,20 +156,126 @@
             const body = document.getElementById('callDetailBody');
             const title = document.getElementById('callDetailTitle');
             if (!row || !overlay || !body) return;
-            const frequency = getCallCounts(llamadasRecords)[getCallGroupKey(row)] || 1;
-            const pressure = callPressure(frequency);
-            if (title) title.textContent = row.odm ? `ODM ${row.odm}` : (row.ticket ? `Ticket ${row.ticket}` : `Aviso ${row.aviso || 'sin dato'}`);
-            const fields = [['Aviso', row.aviso], ['Ticket', row.ticket], ['Suministro', row.suministro], ['ODM', row.odm], ['Cliente', row.nombre], ['Registro', row.horaRegistro], ['Distrito', row.distrito], ['Dirección', row.direccion], ['Estado', row.estado]];
-            body.innerHTML = `<div class="call-detail-summary"><span class="call-pressure call-pressure--${pressure.key}">${frequency} ${frequency === 1 ? 'llamada asociada' : 'llamadas asociadas'} · ${pressure.label}</span></div><dl class="call-detail-grid">${fields.map(([label, value]) => `<div><dt>${label}</dt><dd>${escapeHtml(value || 'Sin dato')}</dd></div>`).join('')}</dl><section class="call-detail-note"><h4>Nota específica</h4><p>${escapeHtml(row.nota || 'Sin nota registrada')}</p></section>`;
+
+            // 1. Agrupar y obtener TODAS las llamadas asociadas a esta ODM, Ticket o Aviso
+            const groupKey = getCallGroupKey(row);
+            const odmStr = String(row.odm || '').trim();
+            const ticketStr = String(row.ticket || '').trim();
+
+            const relatedCalls = (llamadasRecords || []).filter(r => {
+                if (groupKey && getCallGroupKey(r) === groupKey) return true;
+                if (odmStr && String(r.odm || '').trim() === odmStr) return true;
+                if (ticketStr && String(r.ticket || '').trim() === ticketStr) return true;
+                return false;
+            });
+
+            // Ordenar de más reciente a más antigua
+            relatedCalls.sort((a, b) => (parseLlamadaDate(b.horaRegistro) || 0) - (parseLlamadaDate(a.horaRegistro) || 0));
+
+            const totalCalls = relatedCalls.length || 1;
+            const pressure = callPressure(totalCalls);
+
+            if (title) {
+                title.textContent = odmStr ? `ODM ${odmStr}` : (ticketStr ? `Ticket ${ticketStr}` : `Aviso ${row.aviso || 'sin dato'}`);
+            }
+
+            // 2. Verificar si este caso existe activo en el mapa
+            const mapMatch = (mapLocations || []).find(l => 
+                (ticketStr && String(l.ticket || '').trim() === ticketStr) || 
+                (odmStr && String(l.odm || '').trim() === odmStr)
+            );
+
+            // Botón de acción hacia el mapa
+            let mapActionHtml = '';
+            if (mapMatch) {
+                mapActionHtml = `
+                    <div style="margin-top: 10px;">
+                        <button type="button" class="call-map-action-btn" onclick="navigateToTicketOnMap('${escapeHtml(ticketStr || odmStr)}')">
+                            📍 Localizar en Mapa en Vivo (SED ${escapeHtml(mapMatch.sed || 'N/A')})
+                        </button>
+                    </div>
+                `;
+            } else {
+                mapActionHtml = `
+                    <div style="margin-top: 10px;">
+                        <span class="call-map-status-pill">⏱️ Estado: ${escapeHtml(row.estado || 'Atendido')} (No activo en mapa actual)</span>
+                    </div>
+                `;
+            }
+
+            // Campos generales del caso
+            const generalFields = [
+                ['Aviso Principal', row.aviso],
+                ['Ticket OMS', row.ticket],
+                ['Suministro', row.suministro],
+                ['ODM', row.odm],
+                ['Distrito', row.distrito],
+                ['Dirección', row.direccion],
+                ['Estado Actual', row.estado]
+            ];
+
+            // Renderizado de las llamadas cronológicas individuales
+            const timelineHtml = relatedCalls.map((call, cIdx) => {
+                const isCrit = totalCalls >= 7;
+                const cardClass = isCrit ? 'call-timeline-card call-timeline-card--critical' : 'call-timeline-card';
+                return `
+                    <div class="${cardClass}">
+                        <div class="call-timeline-card-header">
+                            <span class="call-card-badge">Llamada #${totalCalls - cIdx} · Aviso ${escapeHtml(call.aviso || '--')}</span>
+                            <span class="call-card-time">🕒 ${escapeHtml(call.horaRegistro || '--')}</span>
+                        </div>
+                        <div class="call-card-client">👤 ${escapeHtml(call.nombre || 'Cliente sin registrar')}</div>
+                        <div class="call-card-subinfo">
+                            <span>⚡ <b>Suministro:</b> ${escapeHtml(call.suministro || 'Sin dato')}</span>
+                            <span>📋 <b>Estado:</b> ${escapeHtml(call.estado || 'Sin dato')}</span>
+                        </div>
+                        ${call.direccion ? `<div class="call-card-address">📍 ${escapeHtml(call.direccion)} ${call.distrito ? `(${escapeHtml(call.distrito)})` : ''}</div>` : ''}
+                        ${call.nota ? `<div class="call-card-note">📝 "${escapeHtml(call.nota)}"</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            body.innerHTML = `
+                <div class="call-detail-summary">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                        <span class="call-pressure call-pressure--${pressure.key}">${totalCalls} ${totalCalls === 1 ? 'llamada recibida' : 'llamadas recibidas'} · ${pressure.label}</span>
+                        ${ticketStr ? `<span style="font-size: 11px; font-weight: 700; color: #64748b;">Ticket: ${escapeHtml(ticketStr)}</span>` : ''}
+                    </div>
+                    ${mapActionHtml}
+                </div>
+                <dl class="call-detail-grid">
+                    ${generalFields.map(([label, value]) => `<div><dt>${label}</dt><dd>${escapeHtml(value || 'Sin dato')}</dd></div>`).join('')}
+                </dl>
+                <section class="call-timeline-section">
+                    <div class="call-timeline-title">
+                        <span>📞 Historial de Llamadas</span>
+                        <span class="call-timeline-count-badge">${totalCalls} ${totalCalls === 1 ? 'contacto' : 'contactos'}</span>
+                    </div>
+                    <div class="call-timeline-list">
+                        ${timelineHtml}
+                    </div>
+                </section>
+            `;
+
+            // Animación fluida de apertura del drawer
             overlay.style.display = 'flex';
             overlay.setAttribute('aria-hidden', 'false');
+            requestAnimationFrame(() => {
+                overlay.classList.add('open');
+            });
             document.getElementById('btnCloseCallDetail')?.focus();
         }
+
         function closeCallDetail() {
             const overlay = document.getElementById('callDetailOverlay');
             if (!overlay) return;
-            overlay.style.display = 'none';
+            overlay.classList.remove('open');
             overlay.setAttribute('aria-hidden', 'true');
+            setTimeout(() => {
+                if (!overlay.classList.contains('open')) {
+                    overlay.style.display = 'none';
+                }
+            }, 260);
         }
         function populateCallsStatusFilter() {
             const states = [...new Set(llamadasRecords.map(row => row.estado).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));

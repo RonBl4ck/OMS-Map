@@ -375,7 +375,8 @@
             const target = document.getElementById('techTimelineNote');
             const ticket = currentTechTimelineTickets[index] || currentActiveTechTickets[index];
             if (!target || !ticket) return;
-            target.innerHTML = `<strong>Ticket ${escapeHtml(ticket.ticket || '--')} · ODM ${escapeHtml(ticket.odm || '--')}</strong><br>${escapeHtml(techTicketNoteText(ticket))}`;
+            const mapBtn = ticket.ticket ? `<button type="button" class="ticket-map-link" style="margin-left: 8px; vertical-align: middle;" onclick="navigateToTicketOnMap('${escapeHtml(ticket.ticket)}')">🗺️ Ver en Mapa</button>` : '';
+            target.innerHTML = `<strong>Ticket ${escapeHtml(ticket.ticket || '--')} · ODM ${escapeHtml(ticket.odm || '--')}</strong> ${mapBtn}<br>${escapeHtml(techTicketNoteText(ticket))}`;
             target.style.display = 'block';
         }
 
@@ -405,10 +406,14 @@
                 return `
                     <tr style="background: ${bg};">
                         <td data-label="#" style="font-weight: 700; color: #64748b;">${idx + 1}</td>
-                        <td data-label="Ticket" style="font-weight: 700; color: var(--pluz-blue); white-space: nowrap;">${escapeHtml(item.ticket || '--')}</td>
+                        <td data-label="Ticket" style="white-space: nowrap;">
+                            <button type="button" class="ticket-map-link" onclick="navigateToTicketOnMap('${escapeHtml(item.ticket)}')" title="Localizar ticket #${escapeHtml(item.ticket)} en el mapa">🗺️ ${escapeHtml(item.ticket || '--')}</button>
+                        </td>
                         <td data-label="ODM" style="white-space: nowrap; font-weight: 600; color: #334155;">${escapeHtml(item.odm || '--')}</td>
                         <td data-label="Tipo de falla" style="white-space: nowrap;"><span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-weight: 600; font-size: 10px;">${escapeHtml(item.tipo || 'Sin tipo')}</span></td>
-                        <td data-label="SED" style="white-space: nowrap; font-weight: 600; color: #0f766e;">${escapeHtml(item.sed || '--')}</td>
+                        <td data-label="SED" style="white-space: nowrap; font-weight: 600; color: #0f766e;">
+                            ${item.sed && item.sed !== '--' ? `<span style="cursor: pointer; text-decoration: underline;" onclick="if(typeof openCriticalSedPanel==='function'&&isCurrentUserAdmin()) openCriticalSedPanel('${escapeHtml(item.sed)}')">${escapeHtml(item.sed)}</span>` : '--'}
+                        </td>
                         <td data-label="Distrito" style="white-space: nowrap;">${escapeHtml(item.distrito || '--')}</td>
                         <td data-label="Inicio" style="white-space: nowrap; font-size: 10.5px;">${escapeHtml(item.inicio || '--')}</td>
                         <td data-label="Restauración / fin" style="white-space: nowrap; font-size: 10.5px; font-weight: 600;">${escapeHtml(item.fin || '--')}</td>
@@ -454,7 +459,11 @@
                     const separator = GOOGLE_SHEET_TECNICOS_URL.includes('?') ? '&' : '?';
                     const response = await fetch(GOOGLE_SHEET_TECNICOS_URL + separator + '_nocache=' + Date.now());
                     if (!response.ok) throw new Error('No se pudo leer la hoja publicada.');
-                    tecnicosRecords = Papa.parse(await response.text(), {header:true, skipEmptyLines:true}).data || [];
+                    const parsedData = Papa.parse(await response.text(), {header:true, skipEmptyLines:true}).data || [];
+                    const contractor = sessionStorage.getItem('oms_assigned_contractor') || '*';
+                    tecnicosRecords = contractor === '*'
+                        ? parsedData
+                        : parsedData.filter(row => techKey(row.Empresa) === techKey(contractor));
                 } else {
                     throw new Error('No existe URL publicada para SEGUIMIENTO_TECNICOS.');
                 }

@@ -4,6 +4,10 @@
             const isAdmin = sessionStorage.getItem('oms_user_role') === 'admin';
             const tabLlamadas = document.getElementById('tabLlamadas');
             if (tabLlamadas) tabLlamadas.style.display = isAdmin ? '' : 'none';
+            const lblCriticaMap = document.getElementById("lblCriticaMap");
+            if (lblCriticaMap) lblCriticaMap.style.display = isAdmin ? 'inline-flex' : 'none';
+            const lblCriticaModal = document.getElementById("lblCriticaModal");
+            if (lblCriticaModal) lblCriticaModal.style.display = isAdmin ? 'inline-flex' : 'none';
             const navUserName = document.getElementById("navUserName");
             if (navUserName) {
                 navUserName.innerText = contractor === "*" ? `👤 ${userId} (Admin)` : `👤 ${userId} (${contractor})`;
@@ -35,11 +39,13 @@
         // Carga de Datos
         async function loadData() {
             setAppDataLoadState('loading');
+            const userRole = sessionStorage.getItem('oms_user_role') || 'contractor';
+            const isAdmin = userRole === 'admin';
             try {
-                // Intentamos consultar la API segura /api/config-data, con fallback a config.json
+                // Intentamos consultar la API segura /api/config-data enviando el rol, con fallback a config.json
                 let cfg = null;
                 try {
-                    const cfgResp = await fetch('/api/config-data');
+                    const cfgResp = await fetch(`/api/config-data?role=${encodeURIComponent(userRole)}`);
                     if (cfgResp.ok) {
                         cfg = await cfgResp.json();
                     }
@@ -53,9 +59,9 @@
                 if (cfg) {
                     if (cfg.sheets_url) GOOGLE_SHEET_CSV_URL = cfg.sheets_url;
                     if (cfg.sheets_url_ejecutados) GOOGLE_SHEET_EJECUTADOS_URL = cfg.sheets_url_ejecutados;
-                    if (cfg.sheets_url_llamadas) GOOGLE_SHEET_LLAMADAS_URL = cfg.sheets_url_llamadas;
+                    GOOGLE_SHEET_LLAMADAS_URL = (isAdmin && cfg.sheets_url_llamadas) ? cfg.sheets_url_llamadas : "";
                     if (cfg.sheets_url_tecnicos) GOOGLE_SHEET_TECNICOS_URL = cfg.sheets_url_tecnicos;
-                    if (cfg.sheets_url_sed_criticas) GOOGLE_SHEET_SED_CRITICAS_URL = cfg.sheets_url_sed_criticas;
+                    GOOGLE_SHEET_SED_CRITICAS_URL = (isAdmin && cfg.sheets_url_sed_criticas) ? cfg.sheets_url_sed_criticas : "";
                     if (cfg.carto_api_key) {
                         sessionStorage.setItem("oms_carto_key", cfg.carto_api_key);
                         applyBaseLayers(cfg.carto_api_key);
@@ -66,13 +72,13 @@
             }
 
             try {
-                // Carga previa de la lista de SEDs Críticas
-                if (GOOGLE_SHEET_SED_CRITICAS_URL) {
+                // Carga previa de la lista de SEDs Críticas (SOLO para perfil Admin / PLUZ)
+                if (isAdmin && GOOGLE_SHEET_SED_CRITICAS_URL) {
                     let critUrl = GOOGLE_SHEET_SED_CRITICAS_URL;
                     if (critUrl.includes('docs.google.com/spreadsheets') && !critUrl.includes('gviz/tq') && !critUrl.includes('/pub')) {
                         const match = critUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
                         if (match) {
-                            critUrl = `https://docs.google.com/spreadsheets/d/${match[1]}/gviz/tq?tqx=out:csv&sheet=SED_CRITICAS`;
+                            critUrl = `https://docs.google.com/spreadsheets/d/${match[1]}/gviz/tq?tqx=out:csv&sheet=SEDS_CRITICAS`;
                         }
                     }
                     if (critUrl.includes('docs.google.com')) {
@@ -103,6 +109,30 @@
                                 resolve();
                             }
                         });
+                    });
+                } else {
+                    sedCriticasSet.clear();
+                    sedCriticasMap.clear();
+                }
+
+                // Carga de Ejecutados (para alimentar el historial de 7 días y análisis, segmentado por contratista)
+                if (GOOGLE_SHEET_EJECUTADOS_URL) {
+                    let execUrl = GOOGLE_SHEET_EJECUTADOS_URL;
+                    if (execUrl.includes('docs.google.com')) {
+                        execUrl += (execUrl.includes('?') ? '&' : '?') + '_nocache=' + Date.now();
+                    }
+                    Papa.parse(execUrl, {
+                        download: true,
+                        header: true,
+                        skipEmptyLines: true,
+                        complete: function(results) {
+                            const assignedContractor = sessionStorage.getItem("oms_assigned_contractor") || "*";
+                            window.ejecutadosRecords = filterRecordsForAssignedContractor(results.data || [], assignedContractor);
+                            console.log(`📋 [Ejecutados 7D] ${window.ejecutadosRecords.length} registros cargados.`);
+                        },
+                        error: function(err) {
+                            console.warn("⚠️ No se pudo cargar BASE_EJECUTADOS en segundo plano:", err);
+                        }
                     });
                 }
 
@@ -226,11 +256,26 @@
                 }
             }
 
-            if (btnLogin) btnLogin.onclick = validateLogin;
+            const authForm = document.getElementById("authLoginForm");
+            if (authForm) {
+                authForm.onsubmit = (e) => {
+                    e.preventDefault();
+                    validateLogin();
+                };
+            }
+            if (btnLogin) {
+                btnLogin.onclick = (e) => {
+                    e.preventDefault();
+                    validateLogin();
+                };
+            }
             if (passInput) {
                 passInput.focus();
-                passInput.onkeyup = (e) => {
-                    if (e.key === "Enter") validateLogin();
+                passInput.onkeydown = (e) => {
+                    if (e.key === "Enter") {
+                        e.preventDefault();
+                        validateLogin();
+                    }
                 };
             }
         }

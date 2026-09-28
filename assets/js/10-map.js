@@ -68,7 +68,7 @@
         let sedPerimetersGroup = null;
         let sedCloudLayers = [];
         let activeSedCloudKey = '';
-        let showSedPerimeters = false;
+        let showSedPerimeters = true;
 
         // Inicializar Mapa Leaflet
         function initMap() {
@@ -76,7 +76,9 @@
 
             leafletMap = L.map('map', {
                 zoomControl: false,
-                preferCanvas: true
+                preferCanvas: true,
+                autoPanPaddingTopLeft: L.point(16, 120),
+                autoPanPaddingBottomRight: L.point(16, 70)
             }).setView([-12.046374, -77.042793], 11);
 
             applyBaseLayers(sessionStorage.getItem('oms_carto_key') || '');
@@ -238,18 +240,27 @@
                 const esCritica = isSedCritica(sed);
                 const prioridad = getProp(item, 'Prioridad', 'PRIORIDAD', 'prioridad');
                 const duracion = getProp(item, 'Duración', 'Duracion', 'Hora Transcurrida', 'hora_transcurrida', 'duracion');
+                const rawSlaMax = getProp(item, 'SLA_MAX_HORAS', 'sla_max_horas');
+                const slaMaxHoras = rawSlaMax !== 'N/A' && !isNaN(Number(rawSlaMax)) ? Number(rawSlaMax) : undefined;
+                const rawFechaLim = getProp(item, 'FECHA_LIMITE_SLA', 'fecha_limite_sla');
+                const fechaLimiteSla = rawFechaLim !== 'N/A' ? rawFechaLim : undefined;
+                const sedCanonica = getProp(item, 'SED_CANONICA', 'sed_canonica');
 
                 const sla = calculateTicketSla({
                     falla: fal,
                     prioridad: prioridad,
                     duracion: duracion,
-                    fecha_inicio: fechaIni
+                    fecha_inicio: fechaIni,
+                    sla_max_horas: slaMaxHoras,
+                    fecha_limite_sla: fechaLimiteSla
                 });
 
                 const record = {
                     lat, lon, ticket, odm, estado: est, empresa: emp, falla: fal, prioridad, duracion, sla,
+                    sla_max_horas: slaMaxHoras, fecha_limite_sla: fechaLimiteSla,
                     cadena, suministro, suministro_count: suministroCount, fecha_inicio: fechaIni, hora_inicio: fechaIni,
-                    direccion, distrito, intervalo, dia, sed, alimentador, sed_count: sedCount, sed_reincidente: sedReincidente, es_sed_critica: esCritica, afectacion, llamadas,
+                    direccion, distrito, intervalo, dia, sed: (sedCanonica !== 'N/A' && sedCanonica) ? sedCanonica : sed,
+                    alimentador, sed_count: sedCount, sed_reincidente: sedReincidente, es_sed_critica: esCritica, afectacion, llamadas,
                     latitud: latitudVal, longitud: longitudVal, emoji: getEmoji(fal)
                 };
 
@@ -280,12 +291,33 @@
             markersGroup.clearLayers();
             markerMap.clear();
 
+            const isAdmin = typeof isCurrentUserAdmin === 'function' ? isCurrentUserAdmin() : (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('oms_user_role') === 'admin');
+
+            if (isAdmin && typeof recalculateTopCriticalSeds === 'function') {
+                recalculateTopCriticalSeds();
+            } else if (!isAdmin) {
+                if (topCriticalSedsSet && typeof topCriticalSedsSet.clear === 'function') topCriticalSedsSet.clear();
+                topCriticalSedsList = [];
+            }
+
             mapLocations.forEach(loc => {
+                loc.es_sed_critica = isAdmin && isSedCritica(loc.sed);
+                loc.es_top_critica = isAdmin && isTopCriticalSed(loc.sed);
+
                 const stateClass = getOmsStatusClass(loc.estado);
                 const isExecution = stateClass === 'ejecucion';
 
                 const numLlamadas = parseInt(loc.llamadas || 0, 10) || 0;
                 const llamadasLabel = (loc.llamadas && loc.llamadas !== 'N/A') ? loc.llamadas : '0';
+
+                const isSedCrit = isAdmin && (loc.es_top_critica || loc.es_sed_critica || loc.sed_reincidente);
+                let sedBadgeHtml = '';
+                if (isSedCrit) {
+                    const countTxt = loc.sed_count > 0 ? ` (7D: ${loc.sed_count}${loc.sed_reincidente ? ' 🚨' : ''})` : '';
+                    sedBadgeHtml = `<span style="font-size:10px; font-weight:bold; color:#b91c1c; background:#fee2e2; border:1px solid #fca5a5; padding:1px 6px; border-radius:4px;">🚨 CRÍTICA${countTxt}</span>`;
+                } else if (loc.sed_count > 0) {
+                    sedBadgeHtml = `<span style="font-size:10px; font-weight:bold; color:#2b4791; background:#dbeafe; padding:1px 6px; border-radius:4px;">(7D: ${loc.sed_count} fallas)</span>`;
+                }
 
                 const popupHtml = `
                     <div style="font-family: Arial, sans-serif; font-size: 12px; min-width: 265px; line-height: 1.5;">
@@ -294,14 +326,13 @@
                             <span class="status-badge ${stateClass}">${escapeHtml(loc.estado)}</span>
                         </div>
                         <div class="popup-sla-banner ${loc.sla.statusClass}">
-                            <span>⏱️ <b>${loc.sla.elapsed}h / ${loc.sla.maxHours}h (${loc.sla.pct}%)</b></span>
+                            <span>⏱️ <b>${loc.sla.elapsed}h / ${loc.sla.maxHours}h</b></span>
                             <span>${escapeHtml(loc.sla.label)}</span>
                         </div>
                         <b>ODM:</b> ${escapeHtml(loc.odm)}<br>
-                        <b>Cadena:</b> ${escapeHtml(loc.cadena)}<br>
                         <b>Empresa:</b> ${escapeHtml(loc.empresa)}<br>
                         <b>Falla:</b> ${escapeHtml(loc.falla)}<br>
-                        <b>SED Llave:</b> ${escapeHtml(loc.sed)} ${loc.es_sed_critica ? `<span style="font-size:10px; font-weight:bold; color:#b45309; background:#fef3c7; border:1px solid #fcd34d; padding:1px 6px; border-radius:4px;">🚨 SED CRÍTICA</span>` : ''} ${loc.sed_count > 0 ? `<span style="font-size:10px; font-weight:bold; color:${loc.sed_reincidente ? '#dc2626' : '#2b4791'}; background:${loc.sed_reincidente ? '#fee2e2' : '#dbeafe'}; padding:1px 6px; border-radius:4px;">(7D: ${loc.sed_count}${loc.sed_reincidente ? ' 🚨 REINCIDENTE >2' : ' fallas'})</span>` : ''}<br>
+                        <b>SED Llave:</b> ${escapeHtml(loc.sed)} ${sedBadgeHtml}<br>
                         <b>Alimentador:</b> ${escapeHtml(loc.alimentador || 'N/A')}<br>
                         <b>Suministro:</b> ${escapeHtml(loc.suministro)} ${loc.suministro_count > 0 ? `<span style="font-size:10px; font-weight:bold; color:#0d9488; background:#ccfbf1; padding:1px 6px; border-radius:4px;">(7D: ${loc.suministro_count} fallas)</span>` : ''}<br>
                         <b>Llamadas:</b> ${escapeHtml(llamadasLabel)} ${numLlamadas >= 7 ? `<span style="font-size:10px; font-weight:bold; color:#be123c; background:#ffe4e6; border:1px solid #fecdd3; padding:1px 6px; border-radius:4px;">📞 ≥7 LLAMADAS</span>` : ''}<br>
@@ -309,6 +340,21 @@
                         <b>Dirección:</b> ${escapeHtml(loc.direccion)}<br>
                         <b>Distrito:</b> ${escapeHtml(loc.distrito)}
                         <div style="margin-top: 10px; display: flex; gap: 6px; justify-content: center; align-items: center; flex-wrap: wrap;">
+                            ${(isAdmin && (loc.es_sed_critica || loc.es_top_critica)) ? `
+                            <button type="button" onclick="openCriticalSedPanel('${escapeHtml(loc.sed)}')" style="
+                                display: inline-flex;
+                                align-items: center;
+                                gap: 4px;
+                                background-color: #dc2626;
+                                color: white;
+                                border: none;
+                                padding: 6px 12px;
+                                font-weight: 700;
+                                border-radius: 6px;
+                                font-size: 11px;
+                                cursor: pointer;
+                                box-shadow: 0 2px 5px rgba(220,38,38,0.4);
+                            ">🔥 Ver Historial & Análisis</button>` : ''}
                             <a href="https://www.google.com/maps?q=${loc.lat},${loc.lon}" target="_blank" title="Ver Punto en Google Maps" style="
                                 display: inline-block;
                                 background-color: #6cab5e;
@@ -336,7 +382,7 @@
                 `;
 
                 const iconHtml = `
-                    <div class="marker-sla-badge ${loc.sla.statusClass}${isExecution ? ' is-execution' : ''}" title="Ticket: ${escapeHtml(loc.ticket)} | ${escapeHtml(loc.falla)} | Plazo: ${escapeHtml(loc.sla.label)}">
+                    <div class="marker-sla-badge ${loc.sla.statusClass}${isExecution ? ' is-execution' : ''}${loc.es_top_critica ? ' is-sed-critica-pulse' : ''}" title="Ticket: ${escapeHtml(loc.ticket)} | ${escapeHtml(loc.falla)} | Plazo: ${escapeHtml(loc.sla.label)}">
                         ${isExecution ? '<span class="marker-vehicle-backdrop" aria-hidden="true">🚚</span>' : ''}
                         <span class="marker-fault-icon">${getFaultIconHtml(loc.falla)}</span>
                     </div>
@@ -350,11 +396,19 @@
                     popupAnchor: [0, -24]
                 });
 
-                const marker = L.marker([loc.lat, loc.lon], { icon: customIcon }).bindPopup(popupHtml);
+                const marker = L.marker([loc.lat, loc.lon], { icon: customIcon }).bindPopup(popupHtml, {
+                    autoPanPaddingTopLeft: L.point(16, 120),
+                    autoPanPaddingBottomRight: L.point(16, 70),
+                    maxWidth: 290
+                });
                 marker.on('popupopen', () => focusSedCloud(loc.sed));
                 marker.on('popupclose', () => focusSedCloud(null));
                 markerMap.set(loc.ticket.toLowerCase(), { marker, loc });
             });
+
+            if (typeof checkAndNotifyCriticalSedsOnLoad === 'function') {
+                checkAndNotifyCriticalSedsOnLoad();
+            }
         }
 
         let addressSearchMarker = null;
@@ -841,8 +895,9 @@
             const onlyReincSed = chkSed ? chkSed.checked : false;
             const chkSum = document.getElementById("chkReincSuminMap");
             const onlyReincSum = chkSum ? chkSum.checked : false;
+            const isAdmin = typeof isCurrentUserAdmin === 'function' ? isCurrentUserAdmin() : (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('oms_user_role') === 'admin');
             const chkCrit = document.getElementById("chkCriticaMap");
-            const onlyCritica = chkCrit ? chkCrit.checked : false;
+            const onlyCritica = isAdmin && chkCrit ? chkCrit.checked : false;
 
             markersGroup.clearLayers();
             let count = 0;
@@ -866,7 +921,7 @@
                 const matchLlamadas = !only7Llamadas || numLlamadas >= 7;
                 const matchSed = !onlyReincSed || (loc.sed_reincidente || loc.sed_count > 2);
                 const matchSum = !onlyReincSum || (loc.suministro_count >= 2);
-                const matchCrit = !onlyCritica || loc.es_sed_critica;
+                const matchCrit = !onlyCritica || loc.es_top_critica;
 
                 if (matchQuery && matchEst && matchEmp && matchFal && matchLlamadas && matchSed && matchSum && matchCrit) {
                     if (markerMap.has(loc.ticket.toLowerCase())) {

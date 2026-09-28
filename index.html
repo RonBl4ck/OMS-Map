@@ -60,61 +60,63 @@
             <h2 style="font-size: 18px; font-weight: 800; color: var(--pluz-dark); margin-bottom: 2px; font-family: 'Outfit', sans-serif;">Portal OMS Map</h2>
             <p style="font-size: 12px; color: #64748b; margin-bottom: 18px; font-weight: 500;">Autenticación y Control Operativo</p>
 
-            <div style="text-align: left; margin-bottom: 12px;">
-                <label style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 4px; display: block;">Perfil / Usuario</label>
-                <select id="authUserInput" style="
-                    width: 100%;
-                    padding: 9px 12px;
-                    border: 1px solid #cbd5e1;
-                    border-radius: 8px;
-                    font-size: 13px;
-                    font-weight: 600;
-                    color: #1e293b;
-                    outline: none;
-                    box-sizing: border-box;
-                    background: #f8fafc;
-                    cursor: pointer;
-                ">
-                    <option value="COBRA">COBRA (Contratista)</option>
-                    <option value="DOMINION">DOMINION (Contratista)</option>
-                    <option value="INMEL">INMEL (Contratista)</option>
-                    <option value="LARI">LARI (Contratista)</option>
-                    <option value="PA">PA (Contratista)</option>
-                    <option value="PLUZ" selected>PLUZ (Administrador General)</option>
-                </select>
-            </div>
+            <form id="authLoginForm" style="margin: 0;" onsubmit="event.preventDefault();">
+                <div style="text-align: left; margin-bottom: 12px;">
+                    <label for="authUserInput" style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 4px; display: block;">Perfil / Usuario</label>
+                    <select id="authUserInput" name="user" autocomplete="username" style="
+                        width: 100%;
+                        padding: 9px 12px;
+                        border: 1px solid #cbd5e1;
+                        border-radius: 8px;
+                        font-size: 13px;
+                        font-weight: 600;
+                        color: #1e293b;
+                        outline: none;
+                        box-sizing: border-box;
+                        background: #f8fafc;
+                        cursor: pointer;
+                    ">
+                        <option value="COBRA">COBRA (Contratista)</option>
+                        <option value="DOMINION">DOMINION (Contratista)</option>
+                        <option value="INMEL">INMEL (Contratista)</option>
+                        <option value="LARI">LARI (Contratista)</option>
+                        <option value="PA">PA (Contratista)</option>
+                        <option value="PLUZ" selected>PLUZ (Administrador General)</option>
+                    </select>
+                </div>
 
-            <div style="text-align: left; margin-bottom: 12px;">
-                <label style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 4px; display: block;">Contraseña</label>
-                <input type="password" id="authPasswordInput" placeholder="Ingresa la contraseña..." style="
+                <div style="text-align: left; margin-bottom: 12px;">
+                    <label for="authPasswordInput" style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 4px; display: block;">Contraseña</label>
+                    <input type="password" id="authPasswordInput" name="password" autocomplete="current-password" placeholder="Ingresa la contraseña..." style="
+                        width: 100%;
+                        padding: 10px 14px;
+                        border: 1px solid #cbd5e1;
+                        border-radius: 8px;
+                        font-size: 14px;
+                        margin-bottom: 4px;
+                        outline: none;
+                        box-sizing: border-box;
+                        text-align: center;
+                    ">
+                </div>
+                
+                <div id="authErrMsg" style="color: #ef4444; font-size: 12px; font-weight: 600; min-height: 20px; margin-bottom: 8px; display: none;">
+                    ❌ Contraseña incorrecta
+                </div>
+
+                <button id="btnAuthLogin" type="submit" style="
                     width: 100%;
-                    padding: 10px 14px;
-                    border: 1px solid #cbd5e1;
+                    background: var(--pluz-blue);
+                    color: white;
+                    border: 0;
+                    padding: 10px;
                     border-radius: 8px;
+                    font-weight: 700;
                     font-size: 14px;
-                    margin-bottom: 4px;
-                    outline: none;
-                    box-sizing: border-box;
-                    text-align: center;
-                ">
-            </div>
-            
-            <div id="authErrMsg" style="color: #ef4444; font-size: 12px; font-weight: 600; min-height: 20px; margin-bottom: 8px; display: none;">
-                ❌ Contraseña incorrecta
-            </div>
-
-            <button id="btnAuthLogin" style="
-                width: 100%;
-                background: var(--pluz-blue);
-                color: white;
-                border: 0;
-                padding: 10px;
-                border-radius: 8px;
-                font-weight: 700;
-                font-size: 14px;
-                cursor: pointer;
-                transition: background 0.2s;
-            ">Ingresar</button>
+                    cursor: pointer;
+                    transition: background 0.2s;
+                ">Ingresar</button>
+            </form>
         </div>
     </div>
 
@@ -179,9 +181,9 @@
         <!-- Buscador y Filtros Multi-Checkbox en el Mapa -->
         <div class="search-container-map" id="mapSearchToolbar">
             <button id="btnToggleMobileFilterBar" class="mobile-filter-toggle-btn" type="button">
-                <span>🔍 Filtros y Búsqueda</span> <span id="mobileFilterIcon">▼</span>
+                <span>🔍 Filtros y Búsqueda</span> <span id="mobileFilterIcon">▲</span>
             </button>
-            <div id="mapFilterContentWrapper" class="map-filter-content-wrapper" style="display: flex; gap: 8px; flex-wrap: wrap; width: 100%;">
+            <div id="mapFilterContentWrapper" class="map-filter-content-wrapper collapsed-mobile" style="display: flex; gap: 8px; flex-wrap: wrap; width: 100%;">
                 <select id="searchTypeMap" data-requires-primary-data style="padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; font-weight: 700; color: #1e293b; outline: none; background: #ffffff; cursor: pointer;">
                     <option value="ticket">Ticket / ODM</option>
                     <option value="sed">SED</option>
@@ -207,14 +209,10 @@
                     <input type="checkbox" id="chkReincSuminMap" data-requires-primary-data style="cursor: pointer; accent-color: #0d9488; width: 13px; height: 13px;">
                     <span>👤 Sum. ≥2</span>
                 </label>
-                <label class="checkbox-filter-label" style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; background: #fef3c7; border: 1px solid #fcd34d; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; color: #b45309; user-select: none;" title="Filtrar por SEDs Críticas (Compensación / Historial)">
+                <label id="lblCriticaMap" class="checkbox-filter-label" style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; background: #fef3c7; border: 1px solid #fcd34d; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; color: #b45309; user-select: none;" title="Filtrar por SEDs más críticas y reincidentes (Top de Severidad)">
                     <input type="checkbox" id="chkCriticaMap" data-requires-primary-data style="cursor: pointer; accent-color: #d97706; width: 13px; height: 13px;">
-                    <span>🚨 Crítica</span>
+                    <span>🚨 Top Críticas</span>
                 </label>
-                <button type="button" class="btn-layer-toggle" id="btnToggleSedLayer" data-requires-primary-data aria-pressed="false" title="Activar/Desactivar visualización de perímetros por SED" onclick="toggleSedPerimeters()">
-                    <span class="btn-layer-icon" aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><path d="M3 15.5 6.2 4.3l5.2 2.2L17 3.8v11.7l-5.6 2.2-5.2-2.2L3 17.2Z"/><path d="M6.2 4.3v11.2m5.2-9v11.2"/></svg></span>
-                    <span class="btn-layer-label">Perímetros SED</span>
-                </button>
                 <button class="btn-action-sm btn-reset" id="btnLimpiar" data-requires-primary-data>Limpiar</button>
             </div>
         </div>
@@ -331,7 +329,7 @@
                             <input type="checkbox" id="chkReincSuminModal" style="cursor: pointer; accent-color: #0d9488; width: 15px; height: 15px;">
                             <span>👤 Sum. ≥2 Fallas (7D)</span>
                         </label>
-                        <label class="checkbox-filter-label" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #fef3c7; border: 1px solid #fcd34d; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700; color: #b45309; user-select: none;" title="Filtrar por SEDs Críticas (Compensación / Historial)">
+                        <label id="lblCriticaModal" class="checkbox-filter-label" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #fef3c7; border: 1px solid #fcd34d; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700; color: #b45309; user-select: none;" title="Filtrar por SEDs Críticas (Compensación / Historial)">
                             <input type="checkbox" id="chkCriticaModal" style="cursor: pointer; accent-color: #d97706; width: 15px; height: 15px;">
                             <span>🚨 SED Crítica</span>
                         </label>
@@ -572,47 +570,50 @@
             <h3 style="font-size: 16px; font-weight: 700; color: var(--pluz-dark); margin: 0 0 4px;">Seguridad de Configuración</h3>
             <p style="font-size: 11px; color: #64748b; margin: 0 0 16px;">Ingresa la clave maestra o PIN de Administrador (PLUZ)</p>
 
-            <div style="text-align: left; margin-bottom: 12px;">
-                <input type="password" id="configPinInput" placeholder="Contraseña de Configuración..." style="
-                    width: 100%;
-                    padding: 10px 12px;
-                    border: 1px solid #cbd5e1;
-                    border-radius: 8px;
-                    font-size: 13px;
-                    outline: none;
-                    box-sizing: border-box;
-                    text-align: center;
-                ">
-            </div>
+            <form id="configPinForm" onsubmit="event.preventDefault();" style="margin: 0;">
+                <div style="text-align: left; margin-bottom: 12px;">
+                    <label for="configPinInput" style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 4px; display: block;">Contraseña o PIN</label>
+                    <input type="password" id="configPinInput" name="pin" autocomplete="current-password" placeholder="Contraseña de Configuración..." style="
+                        width: 100%;
+                        padding: 10px 12px;
+                        border: 1px solid #cbd5e1;
+                        border-radius: 8px;
+                        font-size: 13px;
+                        outline: none;
+                        box-sizing: border-box;
+                        text-align: center;
+                    ">
+                </div>
 
-            <div id="configPinErrMsg" style="color: #ef4444; font-size: 11.5px; font-weight: 600; margin-bottom: 10px; display: none;">
-                ❌ Clave incorrecta
-            </div>
+                <div id="configPinErrMsg" style="color: #ef4444; font-size: 11.5px; font-weight: 600; margin-bottom: 10px; display: none;">
+                    ❌ Clave incorrecta
+                </div>
 
-            <div style="display: flex; gap: 8px;">
-                <button id="btnCancelConfigPin" style="
-                    flex: 1;
-                    background: #f1f5f9;
-                    color: #475569;
-                    border: 1px solid #cbd5e1;
-                    padding: 8px;
-                    border-radius: 6px;
-                    font-size: 12px;
-                    font-weight: 600;
-                    cursor: pointer;
-                ">Cancelar</button>
-                <button id="btnSubmitConfigPin" style="
-                    flex: 2;
-                    background: var(--pluz-blue);
-                    color: white;
-                    border: 0;
-                    padding: 8px;
-                    border-radius: 6px;
-                    font-size: 12px;
-                    font-weight: 700;
-                    cursor: pointer;
-                ">Desbloquear</button>
-            </div>
+                <div style="display: flex; gap: 8px;">
+                    <button type="button" id="btnCancelConfigPin" style="
+                        flex: 1;
+                        background: #f1f5f9;
+                        color: #475569;
+                        border: 1px solid #cbd5e1;
+                        padding: 8px;
+                        border-radius: 6px;
+                        font-size: 12px;
+                        font-weight: 600;
+                        cursor: pointer;
+                    ">Cancelar</button>
+                    <button type="submit" id="btnSubmitConfigPin" style="
+                        flex: 2;
+                        background: var(--pluz-blue);
+                        color: white;
+                        border: 0;
+                        padding: 8px;
+                        border-radius: 6px;
+                        font-size: 12px;
+                        font-weight: 700;
+                        cursor: pointer;
+                    ">Desbloquear</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -672,6 +673,9 @@
         </div>
     </div>
 
+    <!-- Chart.js para Gráficos de Historial -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
@@ -681,6 +685,7 @@
     <script src="assets/js/10-map.js?v=20260918-status-map"></script>
     <script src="assets/js/20-dashboard.js?v=20260918-status-map"></script>
     <script src="assets/js/30-llamadas.js?v=20260912-facets"></script>
+    <script src="assets/js/35-critical-panel.js?v=20260924"></script>
     <script src="assets/js/40-tecnicos.js?v=20260912-facets"></script>
     <script src="assets/js/50-navigation.js?v=20260912-facets"></script>
     <script src="assets/js/60-auth.js?v=20260912-stage2"></script>

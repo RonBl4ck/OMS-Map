@@ -1,4 +1,6 @@
         // === 4 GRÁFICOS & KPIS TD OMS ESTILO PLUZ ===
+        let tdFilterDia = null;
+
         function getFilteredTdOms() {
             const selIntervalos = tdCtrlIntervalo ? tdCtrlIntervalo.getSelected() : [];
             const selEmps = tdCtrlEmpresa ? tdCtrlEmpresa.getSelected() : [];
@@ -10,8 +12,9 @@
             const onlyReincSed = chkSedModal ? chkSedModal.checked : false;
             const chkSumModal = document.getElementById("chkReincSuminModal");
             const onlyReincSum = chkSumModal ? chkSumModal.checked : false;
+            const isAdmin = typeof isCurrentUserAdmin === 'function' ? isCurrentUserAdmin() : (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('oms_user_role') === 'admin');
             const chkCritModal = document.getElementById("chkCriticaModal");
-            const onlyCritModal = chkCritModal ? chkCritModal.checked : false;
+            const onlyCritModal = isAdmin && chkCritModal ? chkCritModal.checked : false;
 
             return tdOmsRecords.filter(r => {
                 const numLlamadas = parseInt(r.llamadas || 0, 10) || 0;
@@ -19,6 +22,7 @@
                 const matchSed = !onlyReincSed || (r.sed_reincidente || r.sed_count > 2);
                 const matchSum = !onlyReincSum || (r.suministro_count >= 2);
                 const matchCrit = !onlyCritModal || r.es_sed_critica;
+                const matchDia = !tdFilterDia || r.dia === tdFilterDia;
                 return (
                     matchesMultiSelection(r.intervalo, selIntervalos) &&
                     matchesMultiSelection(r.empresa, selEmps) &&
@@ -27,9 +31,70 @@
                     matchLlamadas &&
                     matchSed &&
                     matchSum &&
-                    matchCrit
+                    matchCrit &&
+                    matchDia
                 );
             });
+        }
+
+        function handleChartBarClick(field, categoryValue, stateValue) {
+            const isCtrlEmpresa = (field === 'empresa');
+            const isCtrlFalla = (field === 'falla');
+            const isCtrlIntervalo = (field === 'intervalo');
+            const isDia = (field === 'dia');
+
+            // Verificar si esta combinación exacta ya está activa
+            const currStates = tdCtrlEstado ? tdCtrlEstado.getSelected() : [];
+            const isStateActive = currStates.length === 1 && currStates[0] === stateValue;
+
+            let isCategoryActive = false;
+            if (isCtrlEmpresa && tdCtrlEmpresa) {
+                const sel = tdCtrlEmpresa.getSelected();
+                isCategoryActive = sel.length === 1 && sel[0] === categoryValue;
+            } else if (isCtrlFalla && tdCtrlFalla) {
+                const sel = tdCtrlFalla.getSelected();
+                isCategoryActive = sel.length === 1 && sel[0] === categoryValue;
+            } else if (isCtrlIntervalo && tdCtrlIntervalo) {
+                const sel = tdCtrlIntervalo.getSelected();
+                isCategoryActive = sel.length === 1 && sel[0] === categoryValue;
+            } else if (isDia) {
+                isCategoryActive = (tdFilterDia === categoryValue);
+            }
+
+            if (isCategoryActive && isStateActive) {
+                // Toggle off: Si ya está seleccionado, limpiar filtros para restaurar todos los registros
+                if (tdCtrlIntervalo) tdCtrlIntervalo.reset();
+                if (tdCtrlEmpresa) tdCtrlEmpresa.reset();
+                if (tdCtrlFalla) tdCtrlFalla.reset();
+                if (tdCtrlEstado) tdCtrlEstado.reset();
+                tdFilterDia = null;
+            } else {
+                // Opción B: Aplicar filtro combinado de Categoría + Estado
+                if (tdCtrlIntervalo) tdCtrlIntervalo.reset();
+                if (tdCtrlEmpresa) tdCtrlEmpresa.reset();
+                if (tdCtrlFalla) tdCtrlFalla.reset();
+                tdFilterDia = null;
+
+                if (isCtrlEmpresa && tdCtrlEmpresa) {
+                    tdCtrlEmpresa.setSelected([categoryValue], false);
+                } else if (isCtrlFalla && tdCtrlFalla) {
+                    tdCtrlFalla.setSelected([categoryValue], false);
+                } else if (isCtrlIntervalo && tdCtrlIntervalo) {
+                    tdCtrlIntervalo.setSelected([categoryValue], false);
+                } else if (isDia) {
+                    tdFilterDia = categoryValue;
+                }
+
+                if (tdCtrlEstado && stateValue) {
+                    tdCtrlEstado.setSelected([stateValue], false);
+                }
+            }
+
+            if (typeof applyDashboardFilters === 'function') {
+                applyDashboardFilters();
+            } else {
+                refreshDashboard();
+            }
         }
 
         function summarizeDeadlineStatus(records) {
@@ -58,6 +123,7 @@
 
         function renderModernCharts(records) {
             const target = document.getElementById("tdOmsCharts");
+            if (!target) return;
 
             const chartDefs = [
                 ['Carga por contratista', 'empresa', true, 'Distribución de incidencias por empresa ejecutora'],
@@ -99,7 +165,7 @@
                             const color = getOmsStatusColor(s.name);
 
                             if (val > 0) {
-                                svgContent += `<rect x="${leftMargin}" y="${y}" width="${Math.max(2, barW)}" height="${barH - 1}" fill="${color}" rx="3" ry="3"><title>${escapeHtml(s.name)}: ${val}</title></rect>`;
+                                svgContent += `<rect class="chart-bar-interactive" data-field="${escapeHtml(field)}" data-value="${escapeHtml(String(cat))}" data-state="${escapeHtml(s.name)}" x="${leftMargin}" y="${y}" width="${Math.max(2, barW)}" height="${barH - 1}" fill="${color}" rx="3" ry="3" tabindex="0" role="button" aria-label="${escapeHtml(cat)}, ${escapeHtml(s.name)}: ${val} casos. Clic para filtrar."><title>${escapeHtml(cat)} - ${escapeHtml(s.name)}: ${val} casos (Clic para filtrar)</title></rect>`;
                                 svgContent += `<text x="${leftMargin + barW + 5}" y="${y + barH - 3}" font-size="9" font-weight="600" fill="#334155">${val}</text>`;
                             }
                         });
@@ -129,7 +195,7 @@
                             const color = getOmsStatusColor(s.name);
 
                             if (val > 0) {
-                                svgContent += `<rect x="${x}" y="${y}" width="${Math.max(2, barW - 1)}" height="${barH}" fill="${color}" rx="3" ry="3"><title>${escapeHtml(s.name)}: ${val}</title></rect>`;
+                                svgContent += `<rect class="chart-bar-interactive" data-field="${escapeHtml(field)}" data-value="${escapeHtml(String(cat))}" data-state="${escapeHtml(s.name)}" x="${x}" y="${y}" width="${Math.max(2, barW - 1)}" height="${barH}" fill="${color}" rx="3" ry="3" tabindex="0" role="button" aria-label="${escapeHtml(cat)}, ${escapeHtml(s.name)}: ${val} casos. Clic para filtrar."><title>${escapeHtml(cat)} - ${escapeHtml(s.name)}: ${val} casos (Clic para filtrar)</title></rect>`;
                                 svgContent += `<text x="${x + barW/2}" y="${Math.max(topMargin + 8, y - 3)}" text-anchor="middle" font-size="8" font-weight="700" fill="#334155">${val}</text>`;
                             }
                         });
@@ -289,13 +355,17 @@
 
                 return `
                     <tr style="background: ${bg}; border-bottom: 1px solid #e2e8f0;">
-                        <td data-label="Ticket" style="padding: 7px 10px; font-weight: 700; color: var(--pluz-blue, #375ab2); white-space: nowrap;">${escapeHtml(r.ticket)}</td>
+                        <td data-label="Ticket" style="padding: 7px 10px; white-space: nowrap;">
+                            <button type="button" class="ticket-map-link" onclick="navigateToTicketOnMap('${escapeHtml(r.ticket)}')" title="Localizar ticket #${escapeHtml(r.ticket)} en el mapa">🗺️ ${escapeHtml(r.ticket)}</button>
+                        </td>
                         <td data-label="Estado" style="padding: 7px 10px; white-space: nowrap;"><span class="status-badge ${stateClass}">${escapeHtml(r.estado)}</span></td>
                         <td data-label="Empresa" style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.empresa)}</td>
                         <td data-label="Falla" style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.falla)}</td>
                         <td data-label="Intervalo" style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.intervalo)}</td>
                         <td data-label="Día" style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.dia)}</td>
-                        <td data-label="SED" style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.sed)}${r.es_sed_critica ? ' <span style="font-size:9.5px; font-weight:700; color:#b45309; background:#fef3c7; border:1px solid #fcd34d; padding:1px 5px; border-radius:4px;" title="SED Crítica (Compensación)">CRÍTICA</span>' : ''}</td>
+                        <td data-label="SED" style="padding: 7px 10px; white-space: nowrap;">
+                            ${r.es_sed_critica ? `<button type="button" class="sed-critical-link" onclick="if(typeof openCriticalSedPanel==='function') openCriticalSedPanel('${escapeHtml(r.sed)}')" title="Ver historial y análisis de la SED Crítica ${escapeHtml(r.sed)}">${escapeHtml(r.sed)} 🚨 CRÍTICA</button>` : escapeHtml(r.sed)}
+                        </td>
                         <td data-label="Alimentador" style="padding: 7px 10px; font-weight: 600; color: #475569; white-space: nowrap;">${escapeHtml(r.alimentador || 'N/A')}</td>
                         <td data-label="Afectación" style="padding: 7px 10px; text-align: center; white-space: nowrap;">${escapeHtml(r.afectacion)}</td>
                         <td data-label="Llamadas" style="padding: 7px 10px; text-align: center; white-space: nowrap;">${escapeHtml(r.llamadas)}</td>
@@ -313,6 +383,34 @@
             updateKpiCards(records);
             renderModernCharts(records);
             renderTdOmsTable(records);
+        }
+
+        const chartsContainerEl = document.getElementById("tdOmsCharts");
+        if (chartsContainerEl) {
+            chartsContainerEl.addEventListener("click", (e) => {
+                const bar = e.target.closest(".chart-bar-interactive");
+                if (!bar) return;
+                const field = bar.getAttribute("data-field");
+                const val = bar.getAttribute("data-value");
+                const state = bar.getAttribute("data-state");
+                if (field && val && state) {
+                    handleChartBarClick(field, val, state);
+                }
+            });
+
+            chartsContainerEl.addEventListener("keydown", (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                    const bar = e.target.closest(".chart-bar-interactive");
+                    if (!bar) return;
+                    e.preventDefault();
+                    const field = bar.getAttribute("data-field");
+                    const val = bar.getAttribute("data-value");
+                    const state = bar.getAttribute("data-state");
+                    if (field && val && state) {
+                        handleChartBarClick(field, val, state);
+                    }
+                }
+            });
         }
 
         const tblFilterInput = document.getElementById("inputFilterTable");
@@ -333,6 +431,7 @@
         if (chkModalCrit) chkModalCrit.addEventListener("change", refreshDashboard);
 
         document.getElementById("btnResetFilters").addEventListener("click", () => {
+            tdFilterDia = null;
             const chk7Mod = document.getElementById("chk7LlamadasModal");
             if (chk7Mod) chk7Mod.checked = false;
             const chkSedMod = document.getElementById("chkReincSedModal");
@@ -346,7 +445,11 @@
             if (tdCtrlEmpresa) tdCtrlEmpresa.reset();
             if (tdCtrlFalla) tdCtrlFalla.reset();
             if (tdCtrlEstado) tdCtrlEstado.reset();
-            refreshDashboard();
+            if (typeof applyDashboardFilters === 'function') {
+                applyDashboardFilters();
+            } else {
+                refreshDashboard();
+            }
         });
 
         // SheetJS solo se carga cuando el usuario solicita una exportación Excel.
@@ -453,7 +556,13 @@
                                 if (text && text.trim().length > 0 && !text.includes('<!DOCTYPE html>')) {
                                     const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
                                     if (parsed.data && parsed.data.length > 0) {
-                                        downloadExcel(parsed.data, 'base_ejecutados');
+                                        const assignedContractor = sessionStorage.getItem("oms_assigned_contractor") || "*";
+                                        const filteredData = filterRecordsForAssignedContractor(parsed.data, assignedContractor);
+                                        if (filteredData.length === 0) {
+                                            alert('⚠️ No hay registros ejecutados para tu empresa en este período.');
+                                            return;
+                                        }
+                                        downloadExcel(filteredData, 'base_ejecutados');
                                         downloaded = true;
                                     }
                                 }

@@ -13,6 +13,8 @@
         let tecnicosRecords = [];
         let tecnicosLoaded = false;
         let techRefreshTimer = null;
+        let ejecutadosRecords = [];
+        if (typeof window !== 'undefined') window.ejecutadosRecords = ejecutadosRecords;
 
         let leafletMap = null;
         let markersGroup = null;
@@ -42,6 +44,11 @@
             return OMS_STATUS_COLORS[getOmsStatusClass(status)];
         }
 
+        function isCurrentUserAdmin() {
+            if (typeof sessionStorage === 'undefined') return false;
+            return sessionStorage.getItem('oms_user_role') === 'admin';
+        }
+
         function debounceUi(callback, wait = 120) {
             let timer = null;
             return function debounced(...args) {
@@ -58,11 +65,179 @@
             return s;
         }
 
+        function extractBaseSedCode(val) {
+            if (!val || val === 'N/A') return "";
+            let s = normalizeSedCode(val);
+            if (s.includes('-')) {
+                s = s.split('-')[0].trim();
+            }
+            return s;
+        }
+
+        function isExcludedFault(typeStr) {
+            if (!typeStr || typeStr === 'N/A') return false;
+            const s = String(typeStr).toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            return s.includes("SUMINISTRO") || 
+                   s.includes("DOMICILIO") || 
+                   s.includes("CNX") || 
+                   s.includes("CONEXION") || 
+                   s.includes("ACOMETIDA") ||
+                   s.includes("MEDIDOR") ||
+                   s.includes("BORNERA") ||
+                   s.includes("SIN SERVICIO");
+        }
+
+        function normalizeLlaveCode(val) {
+            if (!val || val === 'N/A' || val === 'None') return 'GENERAL';
+            let s = String(val).trim().toUpperCase();
+            if (s === 'MULTI_LLAVE' || s.includes('BARRA') || s.includes('GENERAL') || s.includes('TRAFO')) return 'MULTI_LLAVE';
+            if (s.includes('/')) s = s.split('/').pop();
+            if (s.includes(':')) s = s.split(':').pop();
+            s = s.replace(/^(LLAVE|LL|CIRC|CIRCUITO|ALIMENTADOR|FU)[\s\.\:\-_]*/i, '').trim();
+            s = s.replace(/\b0+([1-9][0-9]*[A-Z0-9]*)\b/g, '$1');
+            s = s.replace(/[\s\-_]+/g, '');
+            return s || 'GENERAL';
+        }
+
+        let topCriticalSedsSet = new Set();
+        let topCriticalSedsList = [];
+
         function isSedCritica(sedVal) {
             if (!sedVal || sedVal === 'N/A') return false;
             const raw = String(sedVal).trim().toUpperCase();
             const norm = normalizeSedCode(sedVal);
-            return (raw && sedCriticasSet.has(raw)) || (norm && sedCriticasSet.has(norm));
+            const base = extractBaseSedCode(sedVal);
+            return (raw && sedCriticasSet.has(raw)) || 
+                   (norm && sedCriticasSet.has(norm)) || 
+                   (base && sedCriticasSet.has(base));
+        }
+
+        function isTopCriticalSed(sedVal) {
+            if (!sedVal || sedVal === 'N/A') return false;
+            const raw = String(sedVal).trim().toUpperCase();
+            const norm = normalizeSedCode(sedVal);
+            const base = extractBaseSedCode(sedVal);
+            return (raw && topCriticalSedsSet.has(raw)) || 
+                   (norm && topCriticalSedsSet.has(norm)) || 
+                   (base && topCriticalSedsSet.has(base));
+        }
+
+        /**
+         * Calcula el Scoring Ponderado de Severidad y selecciona las Top 4 SEDs Críticas.
+         * Fórmula: Score = (Pendientes Activos * 50) + (Fallas 7D * 10) + (Fallas 30D * 3) + (Fallas 1A * 0.5) + (Barra General * 15)
+         */
+        function recalculateTopCriticalSeds() {
+            topCriticalSedsSet.clear();
+            topCriticalSedsList = [];
+
+            // 1. Vía Rápida: Si el backend (DuckDB / Python) ya precalculó ES_TOP_4_CRITICA, usarlo directamente
+            const precalculatedTop4 = [];
+            for (const [key, meta] of sedCriticasMap.entries()) {
+                const isTop4 = String(getProp(meta, 'ES_TOP_4_CRITICA', 'es_top_4_critica')).toUpperCase() === 'TRUE';
+                if (isTop4) {
+                    const norm = normalizeSedCode(key);
+                    const base = extractBaseSedCode(key);
+                    const score = parseFloat(getProp(meta, 'SCORE_SEVERIDAD', 'score_severidad')) || 0;
+                    precalculatedTop4.push({
+                        sed: norm || base || key,
+                        score: score,
+                        activeCount: parseInt(getProp(meta, 'ACTIVOS_COUNT', 'activos_count'), 10) || 0,
+                        fallas7d: parseInt(getProp(meta, 'FALLAS_7D', 'fallas_7d'), 10) || 0,
+                        fallas30d: parseInt(getProp(meta, 'FALLAS_30D', 'fallas_30d'), 10) || 0,
+                        fallas1a: parseInt(getProp(meta, 'FALLAS_1A', 'fallas_1a'), 10) || 0,
+                        meta: meta
+                    });
+                }
+            }
+
+            if (precalculatedTop4.length > 0) {
+                precalculatedTop4.sort((a, b) => b.score - a.score);
+                topCriticalSedsList = precalculatedTop4.slice(0, 4);
+                topCriticalSedsList.forEach(item => {
+                    const norm = normalizeSedCode(item.sed);
+                    const base = extractBaseSedCode(item.sed);
+                    if (norm) topCriticalSedsSet.add(norm);
+                    if (base) topCriticalSedsSet.add(base);
+                    topCriticalSedsSet.add(item.sed);
+                });
+                console.log(`🔥 [Top 4 SEDs Críticas (DuckDB Precalculado)]`, topCriticalSedsList.map((s, idx) => `#${idx+1}: ${s.sed} (Score: ${s.score}, Activos: ${s.activeCount}, 7D: ${s.fallas7d}, 30D: ${s.fallas30d})`));
+                return;
+            }
+
+            // 2. Fallback dinámico si no vino precalculado del backend
+            // Conteo de tickets pendientes activos por SED (SOLO fallas reales de RED, ignorando suministros/conexiones)
+            const activeTicketCounts = new Map();
+            (mapLocations || []).forEach(loc => {
+                if (isExcludedFault(loc.falla)) return;
+                const norm = normalizeSedCode(loc.sed);
+                const base = extractBaseSedCode(loc.sed);
+                const key = norm || base;
+                if (key) {
+                    activeTicketCounts.set(key, (activeTicketCounts.get(key) || 0) + 1);
+                }
+            });
+
+            // Unificar únicamente SEDs que pertenezcan a sedCriticasMap o cumplan isSedCritica
+            const candidateSeds = new Set();
+            for (const key of sedCriticasMap.keys()) {
+                candidateSeds.add(key);
+            }
+            for (const key of activeTicketCounts.keys()) {
+                if (isSedCritica(key)) {
+                    candidateSeds.add(key);
+                }
+            }
+
+            const scoredList = [];
+
+            candidateSeds.forEach(sedKey => {
+                const norm = normalizeSedCode(sedKey);
+                const base = extractBaseSedCode(sedKey);
+                const meta = sedCriticasMap.get(norm) || sedCriticasMap.get(base) || sedCriticasMap.get(sedKey) || {};
+
+                const activeCount = activeTicketCounts.get(norm) || activeTicketCounts.get(base) || activeTicketCounts.get(sedKey) || 0;
+                const fallas7d = parseInt(getProp(meta, 'FALLAS_7D', 'fallas_7d'), 10) || 0;
+                const fallas30d = parseInt(getProp(meta, 'FALLAS_30D', 'fallas_30d'), 10) || 0;
+                const fallas1a = parseInt(getProp(meta, 'FALLAS_1A', 'fallas_1a'), 10) || 0;
+                const barraCount = parseInt(getProp(meta, 'EVENTOS_BARRA', 'eventos_barra'), 10) || 0;
+                const isCritMeta = getProp(meta, 'ES_CRITICA', 'es_critica').toUpperCase() === 'TRUE';
+
+                // Solo calificar si es crítica o tiene reincidencia de red
+                if (!isCritMeta && fallas7d < 2 && fallas30d < 2) return;
+
+                // Fórmula de Scoring Ponderado
+                const score = (activeCount * 50) + (fallas7d * 10) + (fallas30d * 3) + (fallas1a * 0.5) + (barraCount > 0 ? 15 : 0);
+
+                scoredList.push({
+                    sed: norm || base || sedKey,
+                    score: score,
+                    activeCount: activeCount,
+                    fallas7d: fallas7d,
+                    fallas30d: fallas30d,
+                    fallas1a: fallas1a,
+                    meta: meta
+                });
+            });
+
+            // Ordenar de mayor a menor score (desempate por 7D, 30D, 1A)
+            scoredList.sort((a, b) => {
+                if (b.score !== a.score) return b.score - a.score;
+                if (b.activeCount !== a.activeCount) return b.activeCount - a.activeCount;
+                if (b.fallas7d !== a.fallas7d) return b.fallas7d - a.fallas7d;
+                return b.fallas30d - a.fallas30d;
+            });
+
+            // Seleccionar estrictamente las Top 4
+            topCriticalSedsList = scoredList.slice(0, 4);
+            topCriticalSedsList.forEach(item => {
+                const norm = normalizeSedCode(item.sed);
+                const base = extractBaseSedCode(item.sed);
+                if (norm) topCriticalSedsSet.add(norm);
+                if (base) topCriticalSedsSet.add(base);
+                topCriticalSedsSet.add(item.sed);
+            });
+
+            console.log(`🔥 [Top 4 SEDs Críticas]`, topCriticalSedsList.map((s, idx) => `#${idx+1}: ${s.sed} (Score: ${s.score}, Activos: ${s.activeCount}, 7D: ${s.fallas7d}, 30D: ${s.fallas30d})`));
         }
 
         function getProp(obj, ...keys) {
@@ -186,32 +361,45 @@
         }
 
         function calculateTicketSla(record) {
-            const falla = String(record.falla || '').toUpperCase();
-            const prioridad = String(record.prioridad || '').toUpperCase();
+            // 1. Determinar SLA máximo en horas (usar precalculado si viene de Python o resolver)
+            let maxHours = 0;
+            if (record.sla_max_horas !== undefined && record.sla_max_horas !== null && !isNaN(Number(record.sla_max_horas))) {
+                maxHours = Number(record.sla_max_horas);
+            } else {
+                const falla = String(record.falla || '').toUpperCase();
+                const prioridad = String(record.prioridad || '').toUpperCase();
 
-            // 1. Determinar SLA máximo en horas
-            let maxHours = SLA_CONFIG_HORAS.DEFAULT;
-            if (prioridad.includes("RIESGO") || prioridad.includes("VIDA") || prioridad.includes("PELIGRO")) {
-                maxHours = SLA_CONFIG_HORAS["RIESGO DE VIDA"];
-            } else if (falla.includes("RED SUBTERRANEA") || falla.includes("RED SUBTERRÁNEA")) {
-                maxHours = SLA_CONFIG_HORAS["RED SUBTERRANEA"];
-            } else if (falla.includes("CNX SUBTERRANEA") || falla.includes("CNX SUBTERRÁNEA")) {
-                maxHours = SLA_CONFIG_HORAS["CNX SUBTERRANEA"];
-            } else if (falla.includes("RED AEREA") || falla.includes("RED AÉREA") || falla.includes("LÍNEA AÉREA BT") || falla.includes("LINEA AEREA BT")) {
-                maxHours = SLA_CONFIG_HORAS["RED AEREA"];
-            } else if (falla.includes("CNX AEREA") || falla.includes("CNX AÉREA")) {
-                maxHours = SLA_CONFIG_HORAS["CNX AEREA"];
-            } else if (falla.includes("SUMINISTRO")) {
-                maxHours = SLA_CONFIG_HORAS["SUMINISTRO"];
-            } else if (falla.includes("FUSIBLE")) {
-                maxHours = SLA_CONFIG_HORAS["FUSIBLE"];
-            } else if (falla.includes("POSTE")) {
-                maxHours = SLA_CONFIG_HORAS["POSTE"];
+                if (prioridad.includes("RIESGO") || prioridad.includes("VIDA") || prioridad.includes("PELIGRO")) {
+                    maxHours = SLA_CONFIG_HORAS["RIESGO DE VIDA"];
+                } else if (falla.includes("RED SUBTERRANEA") || falla.includes("RED SUBTERRÁNEA")) {
+                    maxHours = SLA_CONFIG_HORAS["RED SUBTERRANEA"];
+                } else if (falla.includes("CNX SUBTERRANEA") || falla.includes("CNX SUBTERRÁNEA")) {
+                    maxHours = SLA_CONFIG_HORAS["CNX SUBTERRANEA"];
+                } else if (falla.includes("RED AEREA") || falla.includes("RED AÉREA") || falla.includes("LÍNEA AÉREA BT") || falla.includes("LINEA AEREA BT")) {
+                    maxHours = SLA_CONFIG_HORAS["RED AEREA"];
+                } else if (falla.includes("CNX AEREA") || falla.includes("CNX AÉREA")) {
+                    maxHours = SLA_CONFIG_HORAS["CNX AEREA"];
+                } else if (falla.includes("SUMINISTRO")) {
+                    maxHours = SLA_CONFIG_HORAS["SUMINISTRO"];
+                } else if (falla.includes("FUSIBLE")) {
+                    maxHours = SLA_CONFIG_HORAS["FUSIBLE"];
+                } else if (falla.includes("POSTE")) {
+                    maxHours = SLA_CONFIG_HORAS["POSTE"];
+                } else {
+                    maxHours = SLA_CONFIG_HORAS.DEFAULT;
+                }
             }
+            if (maxHours <= 0) maxHours = SLA_CONFIG_HORAS.DEFAULT;
 
-            // 2. Determinar duración transcurrida (en horas)
+            // 2. Determinar duración transcurrida (en horas) comparando en vivo contra Date.now()
             let elapsed = 0;
-            if (record.duracion !== undefined && record.duracion !== null && record.duracion !== 'N/A' && record.duracion !== '') {
+            if (record.fecha_limite_sla && record.fecha_limite_sla !== 'N/A') {
+                const limitDate = new Date(String(record.fecha_limite_sla).replace(' ', 'T'));
+                if (!isNaN(limitDate.getTime())) {
+                    const remainingHours = (limitDate.getTime() - Date.now()) / (1000 * 60 * 60);
+                    elapsed = Math.max(0, maxHours - remainingHours);
+                }
+            } else if (record.duracion !== undefined && record.duracion !== null && record.duracion !== 'N/A' && record.duracion !== '') {
                 const dStr = String(record.duracion).replace(',', '.').trim();
                 const dNum = parseFloat(dStr);
                 if (!isNaN(dNum)) elapsed = dNum;
@@ -400,6 +588,18 @@
                     optionCbs.forEach(cb => cb.checked = true);
                     updateBtnLabel();
                 },
+                setSelected: (newSelectedVals, triggerChange = true) => {
+                    const list = Array.isArray(newSelectedVals) ? newSelectedVals : [newSelectedVals];
+                    selectedVals = new Set(list.filter(v => options.includes(v)));
+                    allCb.checked = options.length > 0 && selectedVals.size === options.length;
+                    optionCbs.forEach(cb => {
+                        cb.checked = selectedVals.has(cb.value);
+                    });
+                    updateBtnLabel();
+                    if (triggerChange && typeof onChangeCallback === 'function') {
+                        onChangeCallback(Array.from(selectedVals));
+                    }
+                },
                 setOptions: nextValues => {
                     const wasAllSelected = selectedVals.size === options.length;
                     options = [...new Set(nextValues || [])].filter(Boolean).sort(sortFn);
@@ -417,3 +617,78 @@
                 document.querySelector(`[aria-controls="${m.id}"]`)?.setAttribute("aria-expanded", "false");
             });
         });
+
+        // Notificaciones Flotantes y Navegación Inteligente al Mapa
+        function showAppNotification(message, type = 'info', duration = 4000) {
+            let toast = document.getElementById('appNotificationToast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'appNotificationToast';
+                toast.className = 'app-notification-toast';
+                document.body.appendChild(toast);
+            }
+            const icon = type === 'warning' ? '⚠️' : (type === 'success' ? '✅' : 'ℹ️');
+            toast.innerHTML = `
+                <span class="app-toast-icon">${icon}</span>
+                <div class="app-toast-message">${escapeHtml(message)}</div>
+                <button type="button" class="app-toast-close" onclick="this.parentElement.classList.remove('open')">✕</button>
+            `;
+            toast.classList.remove('open');
+            requestAnimationFrame(() => {
+                toast.classList.add('open');
+            });
+            if (window._appNotificationTimer) clearTimeout(window._appNotificationTimer);
+            window._appNotificationTimer = setTimeout(() => {
+                toast.classList.remove('open');
+            }, duration);
+        }
+
+        function navigateToTicketOnMap(ticketOrOdm) {
+            if (!ticketOrOdm) return;
+            const query = String(ticketOrOdm).trim().toLowerCase();
+
+            // Buscar coincidencia en los puntos cargados del mapa
+            const match = (mapLocations || []).find(l => {
+                const t = String(l.ticket || '').toLowerCase();
+                const o = String(l.odm || '').toLowerCase();
+                return t === query || o === query;
+            });
+
+            if (!match || typeof match.lat !== 'number' || typeof match.lon !== 'number') {
+                showAppNotification(`El ticket #${ticketOrOdm} ya no está pendiente en el mapa en vivo (puede haber sido atendido o cerrado).`, 'warning');
+                return;
+            }
+
+            // 1. Cerrar otros modales o paneles abiertos
+            if (typeof closeTechDetailModal === 'function') closeTechDetailModal();
+            if (typeof closeCallDetail === 'function') closeCallDetail();
+            if (typeof closeCriticalSedPanel === 'function') closeCriticalSedPanel();
+
+            // 2. Cambiar a la vista del mapa
+            if (typeof showMapView === 'function') {
+                showMapView();
+            }
+
+            // 3. Resetear temporalmente el buscador superior del mapa para asegurar visibilidad
+            const inputTicket = document.getElementById("inputTicket");
+            if (inputTicket) inputTicket.value = "";
+            if (typeof filterMapMarkers === 'function') filterMapMarkers();
+
+            // 4. Volar suavemente al punto en el mapa y abrir su popup
+            if (leafletMap) {
+                leafletMap.flyTo([match.lat, match.lon], 17, { animate: true, duration: 0.8 });
+                setTimeout(() => {
+                    const target = markerMap.get(String(match.ticket).toLowerCase()) ||
+                                   markerMap.get(String(match.odm).toLowerCase()) ||
+                                   markerMap.get(query);
+                    if (target && target.marker) {
+                        target.marker.openPopup();
+                        if (target.marker._icon) {
+                            target.marker._icon.classList.add('marker-highlight-pulse');
+                            setTimeout(() => target.marker._icon?.classList.remove('marker-highlight-pulse'), 3000);
+                        }
+                    }
+                }, 850);
+            }
+        }
+

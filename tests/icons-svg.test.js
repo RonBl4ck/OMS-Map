@@ -67,10 +67,13 @@ test('los recursos de la leyenda invalidan el cache antiguo en cada despliegue',
     }
 });
 
-test('el botón de perímetros usa un icono vectorial estable y estado accesible', () => {
+test('los perímetros SED están activos de forma permanente y el filtro muestra Top Críticas', () => {
     const page = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    const js = fs.readFileSync(path.join(__dirname, '..', 'assets', 'js', '10-map.js'), 'utf8');
 
-    assert.match(page, /id="btnToggleSedLayer"[^>]+aria-pressed="false"/);
-    assert.match(page, /class="btn-layer-icon"[^>]+aria-hidden="true"[^>]*>\s*<svg/);
-    assert.doesNotMatch(page, /📐\s*Perímetros SED/);
+    assert.match(page, /id="chkCriticaMap"/);
+    assert.match(page, />\s*🚨 Top Críticas\s*</);
+    assert.match(js, /showSedPerimeters = true/);
+    assert.match(js, /loc\.es_top_critica/);
 });
+

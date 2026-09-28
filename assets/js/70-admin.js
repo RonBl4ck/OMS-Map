@@ -65,10 +65,25 @@
                 }
             }
 
-            if (btnSubmit) btnSubmit.onclick = submitPin;
+            const pinForm = document.getElementById("configPinForm");
+            if (pinForm) {
+                pinForm.onsubmit = (e) => {
+                    e.preventDefault();
+                    submitPin();
+                };
+            }
+            if (btnSubmit) {
+                btnSubmit.onclick = (e) => {
+                    e.preventDefault();
+                    submitPin();
+                };
+            }
             if (pinInput) {
-                pinInput.onkeyup = (e) => {
-                    if (e.key === "Enter") submitPin();
+                pinInput.onkeydown = (e) => {
+                    if (e.key === "Enter") {
+                        e.preventDefault();
+                        submitPin();
+                    }
                 };
             }
 
