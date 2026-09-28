@@ -360,6 +360,25 @@
             return `<span class="fault-icon-emoji">${getEmoji(falla)}</span>`;
         }
 
+        function parseDateFlexible(val) {
+            if (!val || val === 'N/A') return null;
+            const s = String(val).trim();
+            const dmy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[\sT]+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+            if (dmy) {
+                const day = parseInt(dmy[1], 10);
+                const month = parseInt(dmy[2], 10) - 1;
+                const year = parseInt(dmy[3], 10);
+                const hour = parseInt(dmy[4] || 0, 10);
+                const min = parseInt(dmy[5] || 0, 10);
+                const sec = parseInt(dmy[6] || 0, 10);
+                const dt = new Date(year, month, day, hour, min, sec);
+                return isNaN(dt.getTime()) ? null : dt;
+            }
+            const dtIso = new Date(s.replace(' ', 'T'));
+            if (!isNaN(dtIso.getTime())) return dtIso;
+            return null;
+        }
+
         function calculateTicketSla(record) {
             // 1. Determinar SLA máximo en horas (usar precalculado si viene de Python o resolver)
             let maxHours = 0;
@@ -393,20 +412,30 @@
 
             // 2. Determinar duración transcurrida (en horas) comparando en vivo contra Date.now()
             let elapsed = 0;
+            let dateResolved = false;
+
             if (record.fecha_limite_sla && record.fecha_limite_sla !== 'N/A') {
-                const limitDate = new Date(String(record.fecha_limite_sla).replace(' ', 'T'));
-                if (!isNaN(limitDate.getTime())) {
+                const limitDate = parseDateFlexible(record.fecha_limite_sla);
+                if (limitDate) {
                     const remainingHours = (limitDate.getTime() - Date.now()) / (1000 * 60 * 60);
                     elapsed = Math.max(0, maxHours - remainingHours);
+                    dateResolved = true;
                 }
-            } else if (record.duracion !== undefined && record.duracion !== null && record.duracion !== 'N/A' && record.duracion !== '') {
+            }
+
+            if (!dateResolved && record.fecha_inicio && record.fecha_inicio !== 'N/A') {
+                const start = parseDateFlexible(record.fecha_inicio);
+                if (start) {
+                    elapsed = Math.max(0, (Date.now() - start.getTime()) / (1000 * 60 * 60));
+                    dateResolved = true;
+                }
+            }
+
+            if (!dateResolved && record.duracion !== undefined && record.duracion !== null && record.duracion !== 'N/A' && record.duracion !== '') {
                 const dStr = String(record.duracion).replace(',', '.').trim();
                 const dNum = parseFloat(dStr);
-                if (!isNaN(dNum)) elapsed = dNum;
-            } else if (record.fecha_inicio && record.fecha_inicio !== 'N/A') {
-                const start = new Date(record.fecha_inicio);
-                if (!isNaN(start.getTime())) {
-                    elapsed = Math.max(0, (Date.now() - start.getTime()) / (1000 * 60 * 60));
+                if (!isNaN(dNum)) {
+                    elapsed = Math.max(0, dNum);
                 }
             }
 
