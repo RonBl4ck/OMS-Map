@@ -35,6 +35,52 @@ test('la búsqueda local del mapa no conserva un botón Buscar redundante', () =
   assert.match(mapSource, /debounceUi\(filterMapMarkers/);
 });
 
+test('initMultiSelect conserva las opciones base y reset restaura el universo completo', () => {
+  const fakeDoc = {
+    addEventListener() {},
+    getElementById(id) {
+      return {
+        id,
+        innerHTML: '',
+        className: '',
+        appendChild() {},
+      };
+    },
+    querySelectorAll() { return []; },
+    createElement(tag) {
+      const el = {
+        tagName: tag,
+        children: [],
+        style: {},
+        setAttribute() {},
+        appendChild(child) { el.children.push(child); return child; },
+        addEventListener() {},
+      };
+      return el;
+    },
+    createTextNode(text) { return { text }; },
+  };
+  const context = {
+    console, Date, Map, Set, setTimeout, clearTimeout,
+    document: fakeDoc,
+  };
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(root, 'assets/js/00-core.js'), 'utf8'), context);
+
+  const ctrl = context.initMultiSelect('testContainer', 'Empresa', ['COBRA', 'CAM', 'LARI'], () => {});
+  assert.equal(ctrl.isAllSelected(), true);
+  assert.deepEqual([...ctrl.getSelected()].sort(), ['CAM', 'COBRA', 'LARI']);
+
+  // Reducir opciones por filtrado facetado
+  ctrl.setOptions(['COBRA']);
+  assert.deepEqual([...ctrl.getSelected()], ['COBRA']);
+
+  // Resetear debe restaurar las opciones base iniciales
+  ctrl.reset();
+  assert.equal(ctrl.isAllSelected(), true);
+  assert.deepEqual([...ctrl.getSelected()].sort(), ['CAM', 'COBRA', 'LARI']);
+});
+
 test('seguimiento ofrece jerarquía automática y acceso directo por técnicos', () => {
   const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   const source = fs.readFileSync(path.join(root, 'assets/js/40-tecnicos.js'), 'utf8');
@@ -44,3 +90,4 @@ test('seguimiento ofrece jerarquía automática y acceso directo por técnicos',
   assert.match(source, /field:'Skill'/);
   assert.match(source, /field:'Tecnico visible'/);
 });
+

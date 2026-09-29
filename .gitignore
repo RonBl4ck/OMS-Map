@@ -61,3 +61,6 @@ __pycache__/
 .venv/
 venv/
 .pytest_cache/
+
+
+iniciar_servideor.bat

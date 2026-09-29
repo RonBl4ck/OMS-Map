@@ -16,6 +16,13 @@
             const fallback = new Date(str);
             return Number.isNaN(fallback.getTime()) ? null : fallback;
         };
+        const isSameTechDay = (value, targetDate = new Date()) => {
+            const date = techDateValue(value);
+            if (!date) return false;
+            return date.getFullYear() === targetDate.getFullYear() &&
+                   date.getMonth() === targetDate.getMonth() &&
+                   date.getDate() === targetDate.getDate();
+        };
         const techDurationLabel = seconds => { const safe = Math.max(0, Math.floor(seconds || 0)); return `${Math.floor(safe / 3600)}h ${String(Math.floor((safe % 3600) / 60)).padStart(2, '0')}m`; };
         const techSecondsSinceLast = row => {
             const seconds = Number(row['Segundos desde último trabajo']);
@@ -37,7 +44,10 @@
             return tecnicosRecords.filter(row => contractor === '*' || techKey(row.Empresa) === techKey(contractor));
         }
         function techFilterValues() {
-            return Object.fromEntries(Object.values(TECH_FILTER_FIELDS).map(id => [id, techFilterControls[id]?.getSelected() || []]));
+            return Object.fromEntries(Object.values(TECH_FILTER_FIELDS).map(id => {
+                const ctrl = techFilterControls[id];
+                return [id, ctrl?.isAllSelected() ? [] : (ctrl?.getSelected() || [])];
+            }));
         }
         function techMatchesFilters(row, values, excludedId = '') {
             return Object.entries(TECH_FILTER_FIELDS).every(([field, id]) => {
@@ -62,6 +72,19 @@
             Object.entries(TECH_FILTER_FIELDS).forEach(([field, id]) => {
                 techFilterControls[id] = initMultiSelect(id, TECH_FILTER_LABELS[id], allowed.map(row => String(row[field] || '')).filter(Boolean), applyTechFilters);
             });
+            // Por defecto filtrar por el día actual (o el día más reciente si hoy no tiene registros)
+            const dateOptions = techFilterControls.techDate ? [...new Set(allowed.map(row => String(row['día'] || '')).filter(Boolean))] : [];
+            const today = new Date();
+            const todayOptions = dateOptions.filter(opt => isSameTechDay(opt, today));
+            if (todayOptions.length > 0) {
+                techFilterControls.techDate.setSelected(todayOptions, false);
+            } else if (dateOptions.length > 0) {
+                const sortedDates = [...dateOptions].sort((a, b) => (techDateValue(b)?.getTime() || 0) - (techDateValue(a)?.getTime() || 0));
+                if (sortedDates[0]) {
+                    techFilterControls.techDate.setSelected([sortedDates[0]], false);
+                }
+            }
+            refreshTechFilterOptions();
         }
 
         function toggleTechChartMode() {
@@ -98,8 +121,8 @@
         }
         function techChartScope() {
             const filters = techFilterValues();
-            const companies = techFilterControls.techCompany?.isAllSelected() ? [] : (filters.techCompany || []);
-            const skills = techFilterControls.techSkill?.isAllSelected() ? [] : (filters.techSkill || []);
+            const companies = filters.techCompany || [];
+            const skills = filters.techSkill || [];
             if (techChartMode === 'technicians' || skills.length) return { field:'Tecnico visible', label:'técnico', title:'Cierres por técnico', subtitle:skills.length ? `Skill: ${skills.join(', ')}` : 'Comparación general de técnicos' };
             if (companies.length) return { field:'Skill', label:'skill', title:'Cierres por skill', subtitle:companies.join(', ') };
             return { field:'Empresa', label:'empresa', title:'Cierres por contratista', subtitle:'Vista general' };

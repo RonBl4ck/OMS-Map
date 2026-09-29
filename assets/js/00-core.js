@@ -501,8 +501,10 @@
             container.className = "custom-multiselect";
 
             const sortFn = (titlePrefix === "Intervalo") ? sortIntervals : (a, b) => String(a).localeCompare(String(b), 'es');
-            let options = [...new Set(valuesList)].filter(Boolean).sort(sortFn);
+            let initialOptions = [...new Set(valuesList)].filter(Boolean).sort(sortFn);
+            let options = [...initialOptions];
             let selectedVals = new Set(options);
+            let isAllSelectedState = true;
 
             const btn = document.createElement("button");
             btn.className = "multiselect-btn";
@@ -523,10 +525,12 @@
             });
 
             function updateBtnLabel() {
-                if (selectedVals.size === options.length) {
+                if (options.length === 0) {
+                    btn.innerText = `${titlePrefix}: (Sin datos)`;
+                } else if (isAllSelectedState || selectedVals.size === options.length) {
                     btn.innerText = `${titlePrefix}: Todos (${options.length})`;
                 } else if (selectedVals.size === 0) {
-                    btn.innerText = `${titlePrefix}: Todos (${options.length})`;
+                    btn.innerText = `${titlePrefix}: 0 selec.`;
                 } else if (selectedVals.size === 1) {
                     btn.innerText = `${titlePrefix}: ${labelFormatter(Array.from(selectedVals)[0])}`;
                 } else {
@@ -562,9 +566,13 @@
                     cb.value = val;
                     cb.checked = selectedVals.has(val);
                     cb.addEventListener("change", () => {
-                        if (cb.checked) selectedVals.add(val);
-                        else selectedVals.delete(val);
-                        allCb.checked = options.length > 0 && selectedVals.size === options.length;
+                        if (cb.checked) {
+                            selectedVals.add(val);
+                        } else {
+                            selectedVals.delete(val);
+                        }
+                        isAllSelectedState = options.length > 0 && selectedVals.size === options.length;
+                        allCb.checked = isAllSelectedState;
                         updateBtnLabel();
                         onChangeCallback(Array.from(selectedVals));
                     });
@@ -573,13 +581,14 @@
                     optionList.appendChild(item);
                     return cb;
                 });
-                allCb.checked = options.length > 0 && selectedVals.size === options.length;
+                allCb.checked = isAllSelectedState || (options.length > 0 && selectedVals.size === options.length);
                 updateBtnLabel();
             }
 
             allCb.addEventListener("change", () => {
                 const checkAll = allCb.checked;
                 selectedVals.clear();
+                isAllSelectedState = checkAll;
                 optionCbs.forEach(cb => {
                     cb.checked = checkAll;
                     if (checkAll) selectedVals.add(cb.value);
@@ -610,17 +619,19 @@
 
             return {
                 getSelected: () => Array.from(selectedVals),
-                isAllSelected: () => selectedVals.size === 0 || selectedVals.size === options.length,
+                isAllSelected: () => isAllSelectedState || (options.length > 0 && selectedVals.size === options.length),
                 reset: () => {
+                    options = [...initialOptions];
                     selectedVals = new Set(options);
+                    isAllSelectedState = true;
                     allCb.checked = true;
-                    optionCbs.forEach(cb => cb.checked = true);
-                    updateBtnLabel();
+                    renderOptions();
                 },
                 setSelected: (newSelectedVals, triggerChange = true) => {
                     const list = Array.isArray(newSelectedVals) ? newSelectedVals : [newSelectedVals];
                     selectedVals = new Set(list.filter(v => options.includes(v)));
-                    allCb.checked = options.length > 0 && selectedVals.size === options.length;
+                    isAllSelectedState = options.length > 0 && selectedVals.size === options.length;
+                    allCb.checked = isAllSelectedState;
                     optionCbs.forEach(cb => {
                         cb.checked = selectedVals.has(cb.value);
                     });
@@ -630,12 +641,17 @@
                     }
                 },
                 setOptions: nextValues => {
-                    const wasAllSelected = selectedVals.size === options.length;
-                    options = [...new Set(nextValues || [])].filter(Boolean).sort(sortFn);
-                    selectedVals = wasAllSelected
-                        ? new Set(options)
-                        : new Set([...selectedVals].filter(value => options.includes(value)));
+                    const nextList = [...new Set(nextValues || [])].filter(Boolean).sort(sortFn);
+                    options = nextList;
+                    if (isAllSelectedState) {
+                        selectedVals = new Set(options);
+                    } else {
+                        selectedVals = new Set([...selectedVals].filter(value => options.includes(value)));
+                    }
                     renderOptions();
+                },
+                setBaseOptions: baseValues => {
+                    initialOptions = [...new Set(baseValues || [])].filter(Boolean).sort(sortFn);
                 }
             };
         }

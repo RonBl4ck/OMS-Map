@@ -137,8 +137,15 @@
             if (event.key === 'Escape') document.getElementById('techGlobalSearchResults')?.classList.remove('show');
         });
         document.getElementById('btnResetTechFilters')?.addEventListener('click', () => {
-            document.getElementById('inputFilterTecnicos').value = '';
+            const input = document.getElementById('inputFilterTecnicos');
+            if (input) input.value = '';
+            const searchResults = document.getElementById('techGlobalSearchResults');
+            if (searchResults) {
+                searchResults.classList.remove('show');
+                searchResults.innerHTML = '';
+            }
             Object.values(techFilterControls).forEach(control => control?.reset());
+            if (typeof refreshTechFilterOptions === 'function') refreshTechFilterOptions();
             renderTecnicos();
         });
         document.getElementById('btnTechChartMode')?.addEventListener('click', toggleTechChartMode);

@@ -118,7 +118,7 @@
         const TD_FILTER_FIELDS = { intervalo: 'tdMultiIntervalo', empresa: 'tdMultiEmpresa', falla: 'tdMultiFalla', estado: 'tdMultiEstado' };
 
         function filterSelections(controls) {
-            return Object.fromEntries(Object.entries(controls).map(([id, control]) => [id, control?.getSelected() || []]));
+            return Object.fromEntries(Object.entries(controls).map(([id, control]) => [id, control?.isAllSelected() ? [] : (control?.getSelected() || [])]));
         }
 
         function refreshFacetedControls(records, fields, controls) {

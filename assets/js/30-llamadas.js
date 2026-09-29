@@ -287,8 +287,8 @@
             const counts = getCallCounts(llamadasRecords);
             const rows = llamadasRecords.map(row => ({ ...row, frequency: callPressure(counts[getCallGroupKey(row)] || 1).key }));
             const selections = {
-                callsRepeatFilter: callsRepeatCtrl?.getSelected() || [],
-                callsStatusFilter: callsStatusCtrl?.getSelected() || []
+                callsRepeatFilter: callsRepeatCtrl?.isAllSelected() ? [] : (callsRepeatCtrl?.getSelected() || []),
+                callsStatusFilter: callsStatusCtrl?.isAllSelected() ? [] : (callsStatusCtrl?.getSelected() || [])
             };
             callsRepeatCtrl?.setOptions(getFacetedFilterValues(rows, 'frequency', CALL_FILTER_FIELDS, selections, 'callsRepeatFilter'));
             callsStatusCtrl?.setOptions(getFacetedFilterValues(rows, 'estado', CALL_FILTER_FIELDS, selections, 'callsStatusFilter'));

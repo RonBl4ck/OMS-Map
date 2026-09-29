@@ -71,3 +71,59 @@ test('prepara la nota completa para el detalle mediante clic', () => {
     );
     assert.equal(context.techTicketNoteText({ nota: '   ' }), 'Sin nota específica registrada.');
 });
+
+test('filtra automáticamente por el día actual al inicializar seguimiento técnico', () => {
+    const coreSource = fs.readFileSync(path.join(__dirname, '..', 'assets', 'js', '00-core.js'), 'utf8');
+    const techSource = fs.readFileSync(path.join(__dirname, '..', 'assets', 'js', '40-tecnicos.js'), 'utf8');
+
+    const fakeDoc = {
+        addEventListener() {},
+        getElementById() {
+            return {
+                innerHTML: '',
+                className: '',
+                appendChild() {},
+            };
+        },
+        querySelectorAll() { return []; },
+        createElement(tag) {
+            const el = {
+                tagName: tag,
+                children: [],
+                style: {},
+                setAttribute() {},
+                appendChild(child) { el.children.push(child); return child; },
+                addEventListener() {},
+            };
+            return el;
+        },
+        createTextNode(text) { return { text }; },
+    };
+
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const yesterdayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(Math.max(1, now.getDate() - 1)).padStart(2, '0')}`;
+
+    const context = {
+        console, Date, Map, Set, setTimeout, clearTimeout, setInterval: () => 0, clearInterval: () => {},
+        document: fakeDoc,
+        sessionStorage: { getItem: () => '*' },
+        escapeHtml: v => String(v ?? ''),
+    };
+
+    vm.createContext(context);
+    vm.runInContext(coreSource, context);
+    vm.runInContext(`tecnicosRecords = [
+        { 'día': '${todayStr}', Empresa: 'COBRA', 'Tecnico visible': 'Juan P.', Skill: 'BT', 'Zona / SET': 'NORTE', 'Estado de orden': 'Cerrado', 'Cantidad de trabajos': 3 },
+        { 'día': '${yesterdayStr}', Empresa: 'COBRA', 'Tecnico visible': 'Pedro G.', Skill: 'BT', 'Zona / SET': 'SUR', 'Estado de orden': 'Cerrado', 'Cantidad de trabajos': 5 }
+    ];`, context);
+    vm.runInContext(techSource, context);
+
+    context.initializeTechFilters();
+
+    const visibleRecords = context.getVisibleTechRecords();
+    assert.equal(visibleRecords.length, 1);
+    assert.equal(visibleRecords[0]['Tecnico visible'], 'Juan P.');
+    assert.equal(visibleRecords[0]['día'], todayStr);
+});
+
