@@ -21,7 +21,7 @@
                 const matchLlamadas = !only7Llamadas || numLlamadas >= 7;
                 const matchSed = !onlyReincSed || (r.sed_reincidente || r.sed_count > 2);
                 const matchSum = !onlyReincSum || (r.suministro_count >= 2);
-                const matchCrit = !onlyCritModal || r.es_sed_critica;
+                const matchCrit = !onlyCritModal || r.es_top_critica;
                 const matchDia = !tdFilterDia || r.dia === tdFilterDia;
                 return (
                     matchesMultiSelection(r.intervalo, selIntervalos) &&
