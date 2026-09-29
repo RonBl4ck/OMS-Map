@@ -67,7 +67,7 @@ module.exports = async (req, res) => {
         }
 
         if (!sheetsUrlSedCriticas) {
-            sheetsUrlSedCriticas = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRzHH9n7otRwazt1x3iWe9qDNVHeHBo0oMGM4i9LiO-Y3VM504bgNx7GihLR0Yb81DtqoiLt3QIRrmY/pub?output=csv&single=true&gid=921101383";
+            sheetsUrlSedCriticas = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRzHH9n7otRwazt1x3iWe9qDNVHeHBo0oMGM4i9LiO-Y3VM504bgNx7GihLR0Yb81DtqoiLt3QIRrmY/pub?output=csv&single=true&gid=1398943131";
         }
 
         if (!cartoApiKey) {
