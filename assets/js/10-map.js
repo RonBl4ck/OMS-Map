@@ -588,11 +588,94 @@
             addressSearchLayer = null;
         }
 
+        function focusTicketInMap(rawQuery, notifyIfNotFound = false) {
+            if (!rawQuery) {
+                if (notifyIfNotFound && typeof showAppNotification === 'function') {
+                    showAppNotification('⚠️ Escribe un número de Ticket o ODM.', 'warning');
+                }
+                return false;
+            }
+            const query = String(rawQuery).trim().toLowerCase();
+            if (!query) return false;
+
+            // 1. Buscar coincidencia exacta por Ticket
+            let match = (mapLocations || []).find(l => String(l.ticket || '').trim().toLowerCase() === query);
+
+            // 2. Si no, buscar coincidencia exacta por ODM
+            if (!match) {
+                match = (mapLocations || []).find(l => String(l.odm || '').trim().toLowerCase() === query);
+            }
+
+            // 3. Si no hay coincidencia exacta y query tiene al menos 4 caracteres, buscar coincidencias parciales
+            if (!match && query.length >= 4) {
+                const partialMatches = (mapLocations || []).filter(l => {
+                    const t = String(l.ticket || '').toLowerCase();
+                    const o = String(l.odm || '').toLowerCase();
+                    return t.includes(query) || o.includes(query);
+                });
+                if (partialMatches.length === 1) {
+                    match = partialMatches[0];
+                } else if (partialMatches.length > 1) {
+                    const prefixMatch = partialMatches.find(l => 
+                        String(l.ticket || '').toLowerCase().startsWith(query) || 
+                        String(l.odm || '').toLowerCase().startsWith(query)
+                    );
+                    match = prefixMatch || partialMatches[0];
+                    if (notifyIfNotFound && typeof showAppNotification === 'function') {
+                        showAppNotification(`Se encontraron ${partialMatches.length} coincidencias. Enfocando Ticket #${match.ticket}`, 'info');
+                    }
+                }
+            }
+
+            if (!match) {
+                if (notifyIfNotFound && typeof showAppNotification === 'function') {
+                    showAppNotification(`Ticket u ODM "${rawQuery}" no encontrado en el mapa en vivo.`, 'warning');
+                }
+                return false;
+            }
+
+            const targetKey = String(match.ticket || '').toLowerCase();
+            const target = markerMap.get(targetKey);
+
+            if (!target || !target.marker) {
+                if (notifyIfNotFound && typeof showAppNotification === 'function') {
+                    showAppNotification(`El marcador del ticket #${match.ticket} no está disponible en el mapa.`, 'warning');
+                }
+                return false;
+            }
+
+            // Asegurar que el marcador esté en el grupo del mapa si algún filtro lo había ocultado
+            if (markersGroup && !markersGroup.hasLayer(target.marker)) {
+                markersGroup.addLayer(target.marker);
+            }
+
+            const executeFocus = () => {
+                if (leafletMap) {
+                    leafletMap.flyTo([match.lat, match.lon], 17, { animate: true, duration: 0.8 });
+                    setTimeout(() => {
+                        target.marker.openPopup();
+                        if (target.marker._icon) {
+                            target.marker._icon.classList.add('marker-highlight-pulse');
+                            setTimeout(() => {
+                                target.marker._icon?.classList.remove('marker-highlight-pulse');
+                            }, 3500);
+                        }
+                    }, 850);
+                }
+            };
+
+            if (markersGroup && typeof markersGroup.zoomToShowLayer === 'function') {
+                markersGroup.zoomToShowLayer(target.marker, executeFocus);
+            } else {
+                executeFocus();
+            }
+
+            return true;
+        }
+        window.focusTicketInMap = focusTicketInMap;
+
         function focusAddressTicket(ticketKey) {
-            const target = markerMap.get(String(ticketKey || '').toLowerCase());
-            if (!target) return;
-            leafletMap.flyTo([target.loc.lat, target.loc.lon], 17, { animate: true, duration: 0.8 });
-            setTimeout(() => target.marker.openPopup(), 850);
+            focusTicketInMap(ticketKey, false);
         }
 
         function getGeocoderDistrict(result) {
@@ -907,7 +990,9 @@
             mapLocations.forEach(loc => {
                 let matchQuery = true;
                 if (query && searchType === "ticket") {
-                    matchQuery = loc.ticket.toLowerCase().includes(query) || loc.odm.toLowerCase().includes(query);
+                    // Para búsqueda de ticket/ODM: NO se ocultan los demás marcadores.
+                    // Todos permanecen al 100% de opacidad en el mapa.
+                    matchQuery = true;
                 } else if (query && searchType === "sed") {
                     matchQuery = String(loc.sed || '').toLowerCase().includes(query);
                 } else if (query && searchType === "alimentador") {
@@ -933,7 +1018,7 @@
                 }
             });
 
-            if (bounds.length > 0) {
+            if (bounds.length > 0 && (!query || searchType !== "ticket")) {
                 leafletMap.fitBounds(L.latLngBounds(bounds).pad(0.1));
             }
             document.getElementById("topNavCount").innerText = `🚨 ${count}`;
@@ -1132,6 +1217,20 @@
 
         if (searchTypeMapEl && inputTicketEl) {
             const deferredMapTextFilter = debounceUi(filterMapMarkers, 120);
+            const deferredExactTicketFocus = debounceUi(() => {
+                if (searchTypeMapEl.value !== "ticket") return;
+                const val = inputTicketEl.value.trim().toLowerCase();
+                if (val.length >= 4) {
+                    const exactMatch = (mapLocations || []).some(l => 
+                        String(l.ticket || '').toLowerCase() === val || 
+                        String(l.odm || '').toLowerCase() === val
+                    );
+                    if (exactMatch) {
+                        focusTicketInMap(val, false);
+                    }
+                }
+            }, 300);
+
             searchTypeMapEl.addEventListener("change", () => {
                 const mode = searchTypeMapEl.value;
                 addressSearchTicketKeys = null;
@@ -1153,8 +1252,10 @@
             });
 
             inputTicketEl.addEventListener("input", () => {
-                if (searchTypeMapEl.value !== "address") {
+                if (searchTypeMapEl.value === "sed" || searchTypeMapEl.value === "alimentador") {
                     deferredMapTextFilter();
+                } else if (searchTypeMapEl.value === "ticket") {
+                    deferredExactTicketFocus();
                 } else {
                     addressSearchTicketKeys = null;
                     addressPendingCandidates = [];
@@ -1168,12 +1269,9 @@
                     if (searchTypeMapEl.value === "address") {
                         if (inputTicketEl.value.trim().length >= 3) buscarDireccionEnMapa();
                     } else if (searchTypeMapEl.value === "ticket") {
-                        const query = inputTicketEl.value.trim().toLowerCase();
-                        if (markerMap.has(query)) {
-                            const target = markerMap.get(query);
-                            leafletMap.flyTo([target.loc.lat, target.loc.lon], 17, { animate: true, duration: 1.2 });
-                            setTimeout(() => target.marker.openPopup(), 1200);
-                        }
+                        focusTicketInMap(inputTicketEl.value.trim(), true);
+                    } else if (searchTypeMapEl.value === "sed" || searchTypeMapEl.value === "alimentador") {
+                        filterMapMarkers();
                     }
                 }
             });

@@ -714,13 +714,16 @@
                 showMapView();
             }
 
-            // 3. Resetear temporalmente el buscador superior del mapa para asegurar visibilidad
+            // 3. Colocar el ticket en el buscador y fijar modo ticket
             const inputTicket = document.getElementById("inputTicket");
-            if (inputTicket) inputTicket.value = "";
-            if (typeof filterMapMarkers === 'function') filterMapMarkers();
+            if (inputTicket) inputTicket.value = match.ticket || ticketOrOdm;
+            const searchTypeMap = document.getElementById("searchTypeMap");
+            if (searchTypeMap) searchTypeMap.value = "ticket";
 
-            // 4. Volar suavemente al punto en el mapa y abrir su popup
-            if (leafletMap) {
+            // 4. Enfocar el ticket directamente (sin ocultar los demás marcadores)
+            if (typeof focusTicketInMap === 'function') {
+                focusTicketInMap(match.ticket || ticketOrOdm, false);
+            } else if (leafletMap) {
                 leafletMap.flyTo([match.lat, match.lon], 17, { animate: true, duration: 0.8 });
                 setTimeout(() => {
                     const target = markerMap.get(String(match.ticket).toLowerCase()) ||
