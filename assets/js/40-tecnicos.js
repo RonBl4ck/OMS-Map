@@ -435,7 +435,11 @@
                         <td data-label="ODM" style="white-space: nowrap; font-weight: 600; color: #334155;">${escapeHtml(item.odm || '--')}</td>
                         <td data-label="Tipo de falla" style="white-space: nowrap;"><span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-weight: 600; font-size: 10px;">${escapeHtml(item.tipo || 'Sin tipo')}</span></td>
                         <td data-label="SED" style="white-space: nowrap; font-weight: 600; color: #0f766e;">
-                            ${item.sed && item.sed !== '--' ? `<span style="cursor: pointer; text-decoration: underline;" onclick="if(typeof openCriticalSedPanel==='function'&&isCurrentUserAdmin()) openCriticalSedPanel('${escapeHtml(item.sed)}')">${escapeHtml(item.sed)}</span>` : '--'}
+                            ${item.sed && item.sed !== '--' ? (
+                                (typeof isTopCriticalSed === 'function' && isTopCriticalSed(item.sed))
+                                    ? `<button type="button" class="sed-critical-link" onclick="if(typeof openCriticalSedPanel==='function'&&isCurrentUserAdmin()) openCriticalSedPanel('${escapeHtml(item.sed)}')" title="SED Crítica Top 4 (Click para ver análisis)">${escapeHtml(item.sed)} 🚨</button>`
+                                    : escapeHtml(item.sed)
+                            ) : '--'}
                         </td>
                         <td data-label="Distrito" style="white-space: nowrap;">${escapeHtml(item.distrito || '--')}</td>
                         <td data-label="Inicio" style="white-space: nowrap; font-size: 10.5px;">${escapeHtml(item.inicio || '--')}</td>

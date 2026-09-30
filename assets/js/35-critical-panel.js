@@ -7,6 +7,9 @@ let criticalSedChartInstance = null;
 let currentCriticalSedData = null;
 let currentActiveRange = '1Y'; // '1Y', '6M', '3M', '1M', '7D'
 let currentActiveFaultType = 'ALL_RED'; // 'ALL_RED', 'RED-SUBTERRANEA', 'RED-AEREA', 'FUSIBLE', 'LLAVE', etc.
+let currentActiveKey = 'ALL'; // 'ALL', '1SP', '2SP', 'MULTI_LLAVE', etc.
+let currentSearchQuery = '';
+let isCriticalPanelExpanded = false;
 
 /**
  * Parsea fechas de múltiples formatos (ISO, DD/MM/YYYY, etc.)
@@ -77,79 +80,107 @@ function ensureCriticalPanelDom() {
                     <h2 id="criticalSedTitle" class="critical-drawer-title">SED-00000</h2>
                     <p id="criticalSedSubtitle" class="critical-drawer-subtitle">Alimentador: N/A | Total Fallas: 0</p>
                 </div>
-                <button class="critical-drawer-close" onclick="closeCriticalSedPanel()" title="Cerrar panel (Esc)">✕</button>
+                <div class="critical-header-actions">
+                    <button id="criticalLocateMapBtn" class="critical-header-btn" onclick="focusCriticalSedOnMap()" title="Ubicar y centrar en el Mapa">📍 Ver en Mapa</button>
+                    <button id="criticalExpandBtn" class="critical-drawer-expand-btn" onclick="toggleCriticalPanelExpand()" title="Expandir vista amplia (F)">
+                        <svg class="icon-expand-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                    </button>
+                    <button class="critical-drawer-close" onclick="closeCriticalSedPanel()" title="Cerrar panel (Esc)">✕</button>
+                </div>
             </div>
 
             <!-- Body -->
             <div class="critical-drawer-body">
-                <!-- Filtros Interactivos -->
-                <div class="critical-filters-container">
-                    <div class="critical-range-selector">
-                        <label class="critical-filter-label">Rango Temporal:</label>
-                        <div class="critical-range-pills" id="criticalRangePills">
-                            <button class="range-pill active" data-range="1Y" onclick="setCriticalRange('1Y')">1 Año</button>
-                            <button class="range-pill" data-range="6M" onclick="setCriticalRange('6M')">6 Meses</button>
-                            <button class="range-pill" data-range="3M" onclick="setCriticalRange('3M')">3 Meses</button>
-                            <button class="range-pill" data-range="1M" onclick="setCriticalRange('1M')">1 Mes</button>
-                            <button class="range-pill" data-range="7D" onclick="setCriticalRange('7D')">7 Días</button>
+                <!-- Bloque Superior Adaptativo (2 columnas en modo expandido) -->
+                <div class="critical-drawer-grid-top">
+                    <!-- Columna Izquierda: Filtros y Gráfico -->
+                    <div class="critical-col-chart">
+                        <!-- Filtros Interactivos -->
+                        <div class="critical-filters-container">
+                            <div class="critical-range-selector">
+                                <label class="critical-filter-label">Rango Temporal:</label>
+                                <div class="critical-range-pills" id="criticalRangePills">
+                                    <button class="range-pill active" data-range="1Y" onclick="setCriticalRange('1Y')">1 Año</button>
+                                    <button class="range-pill" data-range="6M" onclick="setCriticalRange('6M')">6 Meses</button>
+                                    <button class="range-pill" data-range="3M" onclick="setCriticalRange('3M')">3 Meses</button>
+                                    <button class="range-pill" data-range="1M" onclick="setCriticalRange('1M')">1 Mes</button>
+                                    <button class="range-pill" data-range="7D" onclick="setCriticalRange('7D')">7 Días</button>
+                                </div>
+                            </div>
+
+                            <div class="critical-type-selector">
+                                <label class="critical-filter-label" for="criticalFaultTypeSelect">Tipo de Falla:</label>
+                                <select id="criticalFaultTypeSelect" class="critical-select" onchange="onCriticalFaultTypeChange(this.value)">
+                                    <option value="ALL_RED">⚡ Todas las fallas de Red/SED</option>
+                                    <option value="RED-SUBTERRANEA">🕳️ RED-SUBTERRANEA</option>
+                                    <option value="RED-AEREA">⚡ RED-AEREA</option>
+                                    <option value="FUSIBLE">🔌 FUSIBLE</option>
+                                    <option value="LLAVE">🔒 LLAVE / INTERRUPTOR</option>
+                                    <option value="DAM">⚠️ DAM</option>
+                                    <option value="POSTE">🪵 POSTE</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Gráfico Chart.js -->
+                        <div class="critical-chart-section" style="margin-top: 14px;">
+                            <div class="critical-chart-header">
+                                <h4 class="critical-section-title">📊 Historial de Eventos por Llave</h4>
+                                <span id="criticalChartSummaryBadge" class="critical-count-badge">0 eventos</span>
+                            </div>
+                            <div class="critical-chart-wrapper">
+                                <canvas id="criticalSedChartCanvas"></canvas>
+                            </div>
+                            <div class="critical-chart-legend-custom" id="criticalChartLegendCustom">
+                                <!-- Generado dinámicamente según las llaves -->
+                            </div>
                         </div>
                     </div>
 
-                    <div class="critical-type-selector">
-                        <label class="critical-filter-label" for="criticalFaultTypeSelect">Tipo de Falla:</label>
-                        <select id="criticalFaultTypeSelect" class="critical-select" onchange="onCriticalFaultTypeChange(this.value)">
-                            <option value="ALL_RED">⚡ Todas las fallas de Red/SED</option>
-                            <option value="RED-SUBTERRANEA">🕳️ RED-SUBTERRANEA</option>
-                            <option value="RED-AEREA">⚡ RED-AEREA</option>
-                            <option value="FUSIBLE">🔌 FUSIBLE</option>
-                            <option value="LLAVE">🔒 LLAVE / INTERRUPTOR</option>
-                            <option value="DAM">⚠️ DAM</option>
-                            <option value="POSTE">🪵 POSTE</option>
-                        </select>
+                    <!-- Columna Derecha: Diagnóstico y Llaves -->
+                    <div class="critical-col-keys">
+                        <!-- Tarjeta de Análisis Inteligente -->
+                        <div class="critical-insights-section">
+                            <h4 class="critical-section-title">🧠 Diagnóstico & Análisis Inteligente</h4>
+                            <div class="critical-insights-grid" id="criticalInsightsGrid">
+                                <!-- Generado dinámicamente -->
+                            </div>
+                        </div>
+
+                        <!-- Detalle de Llaves Interactivo -->
+                        <div class="critical-keys-section" style="margin-top: 14px;">
+                            <div class="critical-keys-header">
+                                <h4 class="critical-section-title">🔑 Desglose por Llaves / Circuitos</h4>
+                                <button id="criticalKeysResetBtn" class="critical-keys-reset-btn" onclick="setCriticalKeyFilter('ALL')" style="display:none;" title="Restablecer y ver todas las llaves">⚡ Ver Todas</button>
+                            </div>
+                            <div id="criticalKeysList" class="critical-keys-list">
+                                <!-- Generado dinámicamente -->
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Gráfico Chart.js -->
-                <div class="critical-chart-section">
-                    <div class="critical-chart-header">
-                        <h4 class="critical-section-title">📊 Historial de Eventos</h4>
-                        <span id="criticalChartSummaryBadge" class="critical-count-badge">0 eventos</span>
-                    </div>
-                    <div class="critical-chart-wrapper">
-                        <canvas id="criticalSedChartCanvas"></canvas>
-                    </div>
-                    <div class="critical-chart-legend-custom">
-                        <span><i class="legend-dot dot-duckdb"></i> Base Maestra DuckDB</span>
-                        <span><i class="legend-dot dot-7d"></i> Ejecutados Recientes (7D)</span>
-                        <span><i class="legend-dot dot-pend"></i> Pendiente Activo OMS</span>
-                    </div>
-                </div>
-
-                <!-- Tarjeta de Análisis Inteligente -->
-                <div class="critical-insights-section">
-                    <h4 class="critical-section-title">🧠 Diagnóstico & Análisis Inteligente</h4>
-                    <div class="critical-insights-grid" id="criticalInsightsGrid">
-                        <!-- Generado dinámicamente -->
-                    </div>
-                </div>
-
-                <!-- Detalle de Llaves -->
-                <div class="critical-keys-section">
-                    <h4 class="critical-section-title">🔑 Desglose por Llaves / Circuitos</h4>
-                    <div id="criticalKeysList" class="critical-keys-list">
-                        <!-- Generado dinámicamente -->
-                    </div>
-                </div>
-
-                <!-- Tabla de Últimos Eventos -->
+                <!-- Tabla de Historial Completo a Ancho Completo -->
                 <div class="critical-events-section">
-                    <h4 class="critical-section-title">🕒 Últimas Intervenciones Reales</h4>
+                    <div class="critical-events-header">
+                        <div class="critical-events-title-box">
+                            <h4 class="critical-section-title">🕒 Historial de Intervenciones</h4>
+                            <div id="criticalKeyFilterTag" class="critical-filter-tag" style="display: none;" onclick="setCriticalKeyFilter('ALL')" title="Clic para quitar este filtro">
+                                <span>Filtro Llave: <strong id="criticalActiveKeyName">ALL</strong></span>
+                                <span class="filter-tag-close">✕</span>
+                            </div>
+                        </div>
+                        <div class="critical-table-search-box">
+                            <span class="critical-search-icon">🔍</span>
+                            <input type="text" id="criticalTableSearchInput" class="critical-table-search" placeholder="Buscar ticket, cuadrilla o falla..." oninput="onCriticalTableSearch(this.value)">
+                        </div>
+                    </div>
                     <div class="critical-table-wrapper">
                         <table class="critical-table">
                             <thead>
                                 <tr>
                                     <th>Fecha</th>
-                                    <th>Fuente</th>
+                                    <th>Ticket / ODM</th>
                                     <th>Llave</th>
                                     <th>Falla Real</th>
                                     <th>Detalle / Cuadrilla</th>
@@ -180,9 +211,26 @@ function ensureCriticalPanelDom() {
 
     document.body.insertAdjacentHTML('beforeend', drawerHtml);
 
-    // Cerrar con Escape
+    // Atajos de teclado: Escape y F
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeCriticalSedPanel();
+        const drawer = document.getElementById('criticalSedDrawer');
+        if (!drawer || !drawer.classList.contains('open')) return;
+
+        // Si el usuario escribe en un campo de texto, ignorar 'f'
+        if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA')) {
+            if (e.key === 'Escape') e.target.blur();
+            return;
+        }
+
+        if (e.key === 'Escape') {
+            if (drawer.classList.contains('is-expanded')) {
+                toggleCriticalPanelExpand();
+            } else {
+                closeCriticalSedPanel();
+            }
+        } else if (e.key === 'f' || e.key === 'F') {
+            toggleCriticalPanelExpand();
+        }
     });
 }
 
@@ -396,6 +444,16 @@ function openCriticalSedPanel(sedCode) {
     // Resetear filtros
     currentActiveRange = '1Y';
     currentActiveFaultType = 'ALL_RED';
+    currentActiveKey = 'ALL';
+    currentSearchQuery = '';
+
+    const searchInput = document.getElementById('criticalTableSearchInput');
+    if (searchInput) searchInput.value = '';
+    const resetKeyBtn = document.getElementById('criticalKeysResetBtn');
+    if (resetKeyBtn) resetKeyBtn.style.display = 'none';
+    const tag = document.getElementById('criticalKeyFilterTag');
+    if (tag) tag.style.display = 'none';
+
     document.querySelectorAll('#criticalRangePills .range-pill').forEach(p => {
         p.classList.toggle('active', p.dataset.range === '1Y');
     });
@@ -414,14 +472,21 @@ function openCriticalSedPanel(sedCode) {
 }
 
 /**
- * Cierra el panel lateral.
+ * Cierra el panel lateral y restablece el modo expandido.
  */
 function closeCriticalSedPanel() {
     const drawer = document.getElementById('criticalSedDrawer');
     const overlay = document.getElementById('criticalSedDrawerOverlay');
     if (drawer) {
         drawer.classList.remove('open');
+        drawer.classList.remove('is-expanded');
         drawer.setAttribute('aria-hidden', 'true');
+        isCriticalPanelExpanded = false;
+        const btn = document.getElementById('criticalExpandBtn');
+        if (btn) {
+            btn.innerHTML = `<svg class="icon-expand-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>`;
+            btn.setAttribute('title', 'Expandir vista amplia (F)');
+        }
     }
     if (overlay) {
         overlay.classList.remove('open');
@@ -452,8 +517,55 @@ function onCriticalFaultTypeChange(val) {
 }
 
 /**
- * Filtra los eventos según el rango de fechas y tipo de falla activos.
+ * Alterna el filtro por Llave al hacer clic en una fila de llave.
  */
+function toggleCriticalKeyFilter(key) {
+    if (currentActiveKey === key) {
+        currentActiveKey = 'ALL';
+    } else {
+        currentActiveKey = key;
+    }
+    updateCriticalKeyFilterUi();
+    refreshCriticalPanelViews();
+}
+
+/**
+ * Establece el filtro de Llave explícitamente (ej. 'ALL' para limpiar).
+ */
+function setCriticalKeyFilter(key) {
+    currentActiveKey = key || 'ALL';
+    updateCriticalKeyFilterUi();
+    refreshCriticalPanelViews();
+}
+
+/**
+ * Actualiza los indicadores visuales del filtro de Llave activo.
+ */
+function updateCriticalKeyFilterUi() {
+    const tag = document.getElementById('criticalKeyFilterTag');
+    const nameEl = document.getElementById('criticalActiveKeyName');
+    const resetBtn = document.getElementById('criticalKeysResetBtn');
+
+    if (currentActiveKey && currentActiveKey !== 'ALL') {
+        const displayName = currentActiveKey === 'MULTI_LLAVE' ? 'Multi-Llave / Barra' : `Llave ${currentActiveKey}`;
+        if (nameEl) nameEl.innerText = displayName;
+        if (tag) tag.style.display = 'inline-flex';
+        if (resetBtn) resetBtn.style.display = 'inline-block';
+    } else {
+        if (tag) tag.style.display = 'none';
+        if (resetBtn) resetBtn.style.display = 'none';
+    }
+}
+
+/**
+ * Maneja la búsqueda en tiempo real dentro de la tabla.
+ */
+function onCriticalTableSearch(val) {
+    currentSearchQuery = String(val || '').trim();
+    const filteredEvents = getFilteredCriticalEvents();
+    renderCriticalEventsTable(filteredEvents);
+}
+
 /**
  * Calcula la fecha de corte exacta desde las 00:00:00 para el rango activo.
  */
@@ -481,9 +593,9 @@ function getCriticalCutoffDate() {
 }
 
 /**
- * Filtra los eventos según el rango de fechas y tipo de falla activos.
+ * Obtiene los eventos para el contexto global de llaves en el rango y tipo seleccionados.
  */
-function getFilteredCriticalEvents() {
+function getEventsForKeysContext() {
     if (!currentCriticalSedData || !Array.isArray(currentCriticalSedData.events)) return [];
 
     const cutoffDate = getCriticalCutoffDate();
@@ -505,6 +617,38 @@ function getFilteredCriticalEvents() {
 }
 
 /**
+ * Filtra los eventos según el rango, tipo de falla, llave seleccionada y búsqueda.
+ */
+function getFilteredCriticalEvents() {
+    const baseEvents = getEventsForKeysContext();
+
+    return baseEvents.filter(e => {
+        // Filtro por Llave activa
+        if (currentActiveKey && currentActiveKey !== 'ALL') {
+            if (currentActiveKey === 'MULTI_LLAVE') {
+                if (!e.m && e.l !== 'MULTI_LLAVE') return false;
+            } else {
+                if (e.l !== currentActiveKey) return false;
+            }
+        }
+
+        // Búsqueda en texto libre
+        if (currentSearchQuery) {
+            const q = currentSearchQuery.toLowerCase();
+            const idStr = String(e.id || '').toLowerCase();
+            const tStr = String(e.t || '').toLowerCase();
+            const lStr = String(e.l || '').toLowerCase();
+            const obsStr = String(e.obs || '').toLowerCase();
+            if (!idStr.includes(q) && !tStr.includes(q) && !lStr.includes(q) && !obsStr.includes(q)) {
+                return false;
+            }
+        }
+
+        return true;
+    });
+}
+
+/**
  * Refresca todo el panel lateral: Gráfico, Insights, Llaves y Tabla.
  */
 function refreshCriticalPanelViews() {
@@ -512,7 +656,10 @@ function refreshCriticalPanelViews() {
 
     // Actualizar badge de conteo
     const badge = document.getElementById('criticalChartSummaryBadge');
-    if (badge) badge.innerText = `${filteredEvents.length} eventos en este rango`;
+    if (badge) {
+        const keySuffix = (currentActiveKey && currentActiveKey !== 'ALL') ? ` (Llave: ${currentActiveKey})` : '';
+        badge.innerText = `${filteredEvents.length} eventos en este rango${keySuffix}`;
+    }
 
     renderCriticalChart(filteredEvents);
     renderCriticalInsights(filteredEvents);
@@ -549,7 +696,7 @@ function renderCriticalChart(events) {
             d.setDate(now.getDate() - i);
             const dateKey = toDateKeyYmd(d);
             const displayLabel = `${weekdayNames[d.getDay()]}, ${d.getDate()} ${monthNames[d.getMonth()]}`;
-            bucketsMap.set(dateKey, { label: displayLabel, duckdb: 0, ejecutado: 0, pendiente: 0 });
+            bucketsMap.set(dateKey, { label: displayLabel, ejecutados: 0, pendientes: 0 });
         }
     } else if (currentActiveRange === '1M') {
         // 1 Mes: por Días
@@ -559,7 +706,7 @@ function renderCriticalChart(events) {
             d.setDate(now.getDate() - i);
             const dateKey = toDateKeyYmd(d);
             const displayLabel = `${d.getDate()} ${monthNames[d.getMonth()]}`;
-            bucketsMap.set(dateKey, { label: displayLabel, duckdb: 0, ejecutado: 0, pendiente: 0 });
+            bucketsMap.set(dateKey, { label: displayLabel, ejecutados: 0, pendientes: 0 });
         }
     } else if (currentActiveRange === '3M' || currentActiveRange === '6M') {
         // Semanas
@@ -569,7 +716,7 @@ function renderCriticalChart(events) {
             d.setDate(now.getDate() - (i * 7));
             const dateKey = toDateKeyYmd(d);
             const displayLabel = `Sem ${d.getDate()}/${d.getMonth() + 1}`;
-            bucketsMap.set(dateKey, { label: displayLabel, targetDate: d, duckdb: 0, ejecutado: 0, pendiente: 0 });
+            bucketsMap.set(dateKey, { label: displayLabel, targetDate: d, ejecutados: 0, pendientes: 0 });
         }
     } else {
         // 1 Año: por Meses
@@ -578,11 +725,14 @@ function renderCriticalChart(events) {
             const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
             const dateKey = toDateKeyYm(d);
             const displayLabel = `${monthNames[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
-            bucketsMap.set(dateKey, { label: displayLabel, duckdb: 0, ejecutado: 0, pendiente: 0 });
+            bucketsMap.set(dateKey, { label: displayLabel, ejecutados: 0, pendientes: 0 });
         }
     }
 
-    // Llenar eventos en los buckets
+    // Clasificar eventos en los 2 estados operativos: Ejecutados vs Pendientes
+    let totalEjecutados = 0;
+    let totalPendientes = 0;
+
     events.forEach(e => {
         const evDate = parseJsDateSafe(e.f);
         if (!evDate) return;
@@ -608,45 +758,50 @@ function renderCriticalChart(events) {
             matchKey = closestKey;
         }
 
+        const isPend = String(e.src || '').toUpperCase().includes('PENDIENTE');
+        if (isPend) totalPendientes++;
+        else totalEjecutados++;
+
         if (bucketsMap.has(matchKey)) {
             const bucket = bucketsMap.get(matchKey);
-            const src = String(e.src || 'DUCKDB').toUpperCase();
-            if (src.includes('PENDIENTE')) bucket.pendiente++;
-            else if (src.includes('EJECUTADO')) bucket.ejecutado++;
-            else bucket.duckdb++;
+            if (isPend) bucket.pendientes++;
+            else bucket.ejecutados++;
         }
     });
 
     const labels = Array.from(bucketsMap.values()).map(b => b.label);
-    const dataDuckDb = Array.from(bucketsMap.values()).map(b => b.duckdb);
-    const dataEjecutado = Array.from(bucketsMap.values()).map(b => b.ejecutado);
-    const dataPendiente = Array.from(bucketsMap.values()).map(b => b.pendiente);
+    const dataEjecutados = Array.from(bucketsMap.values()).map(b => b.ejecutados);
+    const dataPendientes = Array.from(bucketsMap.values()).map(b => b.pendientes);
 
     const ctx = canvas.getContext('2d');
+
     criticalSedChartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: labels,
             datasets: [
                 {
-                    label: 'Base Maestra DuckDB',
-                    data: dataDuckDb,
-                    backgroundColor: '#3b82f6',
-                    borderRadius: 4,
+                    label: 'Resuelto / Ejecutado',
+                    data: dataEjecutados,
+                    backgroundColor: '#0284c7',
+                    hoverBackgroundColor: '#0369a1',
+                    borderRadius: 6,
+                    borderSkipped: false,
+                    maxBarThickness: 14,
+                    barPercentage: 0.55,
+                    categoryPercentage: 0.7,
                     stack: 'stack0'
                 },
                 {
-                    label: 'Ejecutados Recientes (7D)',
-                    data: dataEjecutado,
-                    backgroundColor: '#10b981',
-                    borderRadius: 4,
-                    stack: 'stack0'
-                },
-                {
-                    label: 'Pendiente OMS (Hoy)',
-                    data: dataPendiente,
+                    label: 'Pendiente Actual OMS',
+                    data: dataPendientes,
                     backgroundColor: '#ef4444',
-                    borderRadius: 4,
+                    hoverBackgroundColor: '#dc2626',
+                    borderRadius: 6,
+                    borderSkipped: false,
+                    maxBarThickness: 14,
+                    barPercentage: 0.55,
+                    categoryPercentage: 0.7,
                     stack: 'stack0'
                 }
             ]
@@ -654,16 +809,23 @@ function renderCriticalChart(events) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    mode: 'index',
-                    intersect: false,
+                    backgroundColor: '#0f172a',
+                    titleColor: '#f8fafc',
+                    bodyColor: '#f8fafc',
+                    padding: 10,
+                    cornerRadius: 8,
                     callbacks: {
                         footer: (tooltipItems) => {
                             let total = 0;
                             tooltipItems.forEach(item => { total += item.raw; });
-                            return `Total: ${total} fallas`;
+                            return `Total en período: ${total} eventos`;
                         }
                     }
                 }
@@ -677,12 +839,21 @@ function renderCriticalChart(events) {
                 y: {
                     stacked: true,
                     beginAtZero: true,
-                    ticks: { stepSize: 1, font: { size: 10 }, color: '#64748b' },
-                    grid: { color: '#f1f5f9' }
+                    ticks: { stepSize: 1, font: { size: 10 }, color: '#64748b', precision: 0 },
+                    grid: { color: 'rgba(241, 245, 249, 0.8)' }
                 }
             }
         }
     });
+
+    // Actualizar Leyenda de los 2 colores
+    const legendEl = document.getElementById('criticalChartLegendCustom');
+    if (legendEl) {
+        legendEl.innerHTML = `
+            <span><i class="legend-dot" style="background:#0284c7;"></i> Resuelto / Ejecutado (${totalEjecutados})</span>
+            <span><i class="legend-dot dot-pend" style="background:#ef4444;"></i> Pendiente Actual OMS (${totalPendientes})</span>
+        `;
+    }
 }
 
 /**
@@ -818,41 +989,50 @@ function renderCriticalInsights(events) {
 }
 
 /**
- * Renderiza el listado con barras de progreso de llaves.
+ * Renderiza el listado interactivo con barras de progreso de llaves.
  */
 function renderCriticalKeys(events) {
     const container = document.getElementById('criticalKeysList');
     if (!container) return;
 
-    const total = events.length;
+    // Usar el contexto de todas las llaves en este rango para mostrar totales y porcentajes reales
+    const contextEvents = getEventsForKeysContext();
+    const total = contextEvents.length;
+
     if (total === 0) {
-        container.innerHTML = `<div style="font-size:12px; color:#94a3b8; padding:8px;">Sin datos de llaves.</div>`;
+        container.innerHTML = `<div style="font-size:12px; color:#94a3b8; padding:8px;">Sin datos de llaves en este rango.</div>`;
         return;
     }
 
     const keyMap = {};
     let multiCount = 0;
-    events.forEach(e => {
+    contextEvents.forEach(e => {
         if (e.m || e.l === 'MULTI_LLAVE') multiCount++;
         else keyMap[e.l] = (keyMap[e.l] || 0) + 1;
     });
 
     const items = [];
     if (multiCount > 0) {
-        items.push({ name: '⚡ Multi-Llave / Barra General', count: multiCount, isMulti: true });
+        items.push({ key: 'MULTI_LLAVE', name: '⚡ Multi-Llave / Barra General', count: multiCount, isMulti: true });
     }
     Object.entries(keyMap).forEach(([k, cnt]) => {
-        items.push({ name: `Llave ${k}`, count: cnt, isMulti: false });
+        items.push({ key: k, name: `Llave ${k}`, count: cnt, isMulti: false });
     });
 
     items.sort((a, b) => b.count - a.count);
 
+    const isFilterActive = currentActiveKey && currentActiveKey !== 'ALL';
+
     container.innerHTML = items.map(item => {
         const pct = Math.round((item.count / total) * 100);
+        const isSelected = isFilterActive && currentActiveKey === item.key;
+        const isDimmed = isFilterActive && currentActiveKey !== item.key;
+        const rowClass = `critical-key-row ${isSelected ? 'is-selected' : ''} ${isDimmed ? 'is-dimmed' : ''}`;
+
         return `
-            <div class="critical-key-row">
+            <div class="${rowClass}" onclick="toggleCriticalKeyFilter('${item.key}')" role="button" tabindex="0" title="Clic para filtrar por ${escapeHtml(item.name)}">
                 <div class="key-info">
-                    <span class="key-name">${item.name}</span>
+                    <span class="key-name">${item.name} ${isSelected ? '✓' : ''}</span>
                     <span class="key-count">${item.count} fallas (${pct}%)</span>
                 </div>
                 <div class="key-progress-bar">
@@ -864,36 +1044,215 @@ function renderCriticalKeys(events) {
 }
 
 /**
- * Renderiza la tabla de últimos eventos.
+ * Renderiza la tabla de auditoría con Ticket copiable y dot de origen.
  */
 function renderCriticalEventsTable(events) {
     const tbody = document.getElementById('criticalEventsTableBody');
     if (!tbody) return;
 
     if (events.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:16px; color:#94a3b8;">No hay intervenciones que coincidan con los filtros.</td></tr>`;
+        const filterHint = (currentActiveKey !== 'ALL' || currentSearchQuery) 
+            ? 'No hay intervenciones que coincidan con la llave o búsqueda activa.' 
+            : 'No hay intervenciones que coincidan con los filtros.';
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:18px; color:#94a3b8; font-size:12px;">${escapeHtml(filterHint)}</td></tr>`;
         return;
     }
 
-    const rowsHtml = events.slice(0, 20).map(e => {
-        let badgeSrc = '<span class="table-src-badge src-duckdb">DUCKDB</span>';
-        if (String(e.src).includes('PENDIENTE')) badgeSrc = '<span class="table-src-badge src-pend">PENDIENTE</span>';
-        else if (String(e.src).includes('EJECUTADO')) badgeSrc = '<span class="table-src-badge src-7d">7 DÍAS</span>';
+    const rowsHtml = events.slice(0, 50).map(e => {
+        let dotClass = 'dot-duckdb';
+        let srcTitle = 'Base Histórica Maestra (DuckDB)';
+        if (String(e.src).includes('PENDIENTE')) {
+            dotClass = 'dot-pend';
+            srcTitle = 'Pendiente Activo en Curso (Hoy)';
+        } else if (String(e.src).includes('EJECUTADO')) {
+            dotClass = 'dot-7d';
+            srcTitle = 'Ejecutado Reciente (Últimos 7 Días)';
+        }
 
-        const llStr = e.m || e.l === 'MULTI_LLAVE' ? '<span style="color:#b45309; font-weight:700;">MULTI-LLAVE</span>' : escapeHtml(e.l);
+        const ticketVal = String(e.id || '').trim();
+        const displayTicket = ticketVal && ticketVal !== 'None' ? ticketVal : 'S/N';
+        const llStr = e.m || e.l === 'MULTI_LLAVE' 
+            ? '<span style="color:#b45309; font-weight:700;">MULTI-LLAVE</span>' 
+            : `<span style="font-weight:600;">${escapeHtml(e.l)}</span>`;
 
         return `
             <tr>
-                <td style="font-weight:600; white-space:nowrap;">${escapeHtml(e.f)}</td>
-                <td>${badgeSrc}</td>
+                <td style="font-weight:600; white-space:nowrap; color:#334155;">${escapeHtml(e.f)}</td>
+                <td>
+                    <div class="ticket-cell">
+                        <span class="source-dot ${dotClass}" title="${srcTitle}"></span>
+                        <button class="ticket-copy-btn" onclick="copyCriticalTicket('${escapeHtml(displayTicket)}', this)" title="Copiar número de ticket">
+                            <span>${escapeHtml(displayTicket)}</span>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                        </button>
+                    </div>
+                </td>
                 <td>${llStr}</td>
                 <td><span class="falla-pill">${escapeHtml(e.t)}</span></td>
-                <td style="font-size:11px; color:#475569;" title="${escapeHtml(e.obs)}">${escapeHtml(e.obs || 'Sin observaciones')}</td>
+                <td style="font-size:11.5px; color:#475569;" title="${escapeHtml(e.obs)}">${escapeHtml(e.obs || 'Sin observaciones')}</td>
             </tr>
         `;
     }).join('');
 
     tbody.innerHTML = rowsHtml;
+}
+
+/**
+ * Copia el número de ticket al portapapeles y da feedback visual instantáneo.
+ */
+function copyCriticalTicket(ticket, btnEl) {
+    if (!ticket || ticket === 'S/N') return;
+    if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(ticket).then(() => {
+            if (btnEl) {
+                btnEl.classList.add('copied');
+                const origHtml = btnEl.innerHTML;
+                btnEl.innerHTML = `<span>✓ Copiado</span>`;
+                setTimeout(() => {
+                    btnEl.classList.remove('copied');
+                    btnEl.innerHTML = origHtml;
+                }, 1400);
+            }
+        }).catch(err => {
+            console.warn("No se pudo copiar ticket:", err);
+        });
+    }
+}
+
+/**
+ * Conmuta entre la vista lateral compacta (580px) y el Dashboard Studio Expandido (96vw).
+ */
+function toggleCriticalPanelExpand() {
+    const drawer = document.getElementById('criticalSedDrawer');
+    if (!drawer) return;
+    drawer.classList.toggle('is-expanded');
+    isCriticalPanelExpanded = drawer.classList.contains('is-expanded');
+
+    const btn = document.getElementById('criticalExpandBtn');
+    if (btn) {
+        btn.innerHTML = isCriticalPanelExpanded 
+            ? `<svg class="icon-expand-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M10 14L3 21"/></svg>`
+            : `<svg class="icon-expand-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>`;
+        btn.setAttribute('title', isCriticalPanelExpanded ? 'Restaurar vista lateral (F)' : 'Expandir vista amplia (F)');
+    }
+
+    setTimeout(() => {
+        if (criticalSedChartInstance) {
+            criticalSedChartInstance.resize();
+        }
+    }, 280);
+}
+
+/**
+ * Centra y hace zoom a la SED crítica en el mapa principal.
+ */
+function focusCriticalSedOnMap() {
+    if (!currentCriticalSedData || !currentCriticalSedData.sedCode) return;
+    const sedCode = currentCriticalSedData.sedCode;
+    const normSed = typeof normalizeSedCode === 'function' ? normalizeSedCode(sedCode) : sedCode;
+    const baseSed = typeof extractBaseSedCode === 'function' ? extractBaseSedCode(sedCode) : sedCode;
+
+    // 1. Cerrar el panel lateral para despejar la vista completa del mapa
+    closeCriticalSedPanel();
+
+    // 2. Conmutar a la vista Mapa si estamos en Indicadores, Seguimiento o Llamadas
+    if (typeof showMapView === 'function') {
+        showMapView();
+    } else if (typeof selectPrimaryView === 'function') {
+        selectPrimaryView('map');
+    }
+
+    const targetMap = (typeof leafletMap !== 'undefined' && leafletMap) ? leafletMap : (window.leafletMap || null);
+    if (!targetMap) {
+        console.warn("Instancia de leafletMap no disponible.");
+        return;
+    }
+
+    // 3. Buscar si hay una ubicación activa en mapLocations
+    const loc = (mapLocations || []).find(l => {
+        const lNorm = typeof normalizeSedCode === 'function' ? normalizeSedCode(l.sed) : '';
+        const lBase = typeof extractBaseSedCode === 'function' ? extractBaseSedCode(l.sed) : '';
+        return lNorm === normSed || lBase === baseSed || lNorm === baseSed || lBase === normSed;
+    });
+
+    if (loc && (loc.lat || loc.lon || loc.marker)) {
+        const lat = loc.lat || (loc.marker && loc.marker.getLatLng().lat);
+        const lon = loc.lon || (loc.marker && loc.marker.getLatLng().lng);
+
+        if (lat && lon) {
+            targetMap.flyTo([lat, lon], 17, { animate: true, duration: 1.0 });
+
+            // Si el marcador está en un cluster, hacer zoom para revelarlo
+            if (loc.marker) {
+                if (typeof markersGroup !== 'undefined' && markersGroup && typeof markersGroup.zoomToShowLayer === 'function') {
+                    markersGroup.zoomToShowLayer(loc.marker, () => {
+                        setTimeout(() => loc.marker.openPopup(), 250);
+                    });
+                } else {
+                    setTimeout(() => loc.marker.openPopup(), 750);
+                }
+            }
+        }
+
+        // Resaltar la nube/perímetro de la SED si existe
+        if (typeof focusSedCloud === 'function') {
+            focusSedCloud(normSed || baseSed);
+        }
+        return;
+    }
+
+    // 3. Si no tiene falla activa hoy, buscar coordenadas en el histórico de ejecutados o en la metadata de SEDs críticas
+    let histLat = null, histLon = null;
+    const allEjecutados = window.ejecutadosRecords || (typeof ejecutadosRecords !== 'undefined' ? ejecutadosRecords : []);
+    for (const r of allEjecutados) {
+        const rSed = getProp(r, 'SED', 'sed', 'Sed', 'COD_SED', 'CODIGO_SED');
+        const rNorm = typeof normalizeSedCode === 'function' ? normalizeSedCode(rSed) : '';
+        const rBase = typeof extractBaseSedCode === 'function' ? extractBaseSedCode(rSed) : '';
+        if (rNorm === normSed || rBase === baseSed || rNorm === baseSed || rBase === normSed) {
+            const latVal = parseFloat(getProp(r, 'Latitud', 'latitud', 'Lat', 'lat'));
+            const lonVal = parseFloat(getProp(r, 'Longitud', 'longitud', 'Lon', 'lon', 'lng'));
+            if (!isNaN(latVal) && !isNaN(lonVal)) {
+                histLat = latVal;
+                histLon = lonVal;
+                break;
+            }
+        }
+    }
+
+    if (!histLat && currentCriticalSedData) {
+        const sedMeta = (typeof sedCriticasMap !== 'undefined' && sedCriticasMap) ? (sedCriticasMap.get(normSed) || sedCriticasMap.get(baseSed) || {}) : {};
+        const latVal = parseFloat(getProp(sedMeta, 'LATITUD', 'latitud', 'lat'));
+        const lonVal = parseFloat(getProp(sedMeta, 'LONGITUD', 'longitud', 'lon', 'lng'));
+        if (!isNaN(latVal) && !isNaN(lonVal)) {
+            histLat = latVal;
+            histLon = lonVal;
+        }
+    }
+
+    if (histLat && histLon) {
+        targetMap.flyTo([histLat, histLon], 17, { animate: true, duration: 1.0 });
+        L.popup()
+            .setLatLng([histLat, histLon])
+            .setContent(`
+                <div style="font-family:'Inter',sans-serif; padding:4px;">
+                    <b style="color:#0f172a; font-size:13px;">SED ${sedCode}</b>
+                    <p style="margin:4px 0; font-size:11px; color:#64748b;">Subestación Reincidente Crítica</p>
+                    <span style="display:inline-block; font-size:10px; font-weight:700; background:#f1f5f9; color:#475569; padding:2px 6px; border-radius:4px;">Sin falla activa en curso</span>
+                </div>
+            `)
+            .openOn(targetMap);
+
+        if (typeof focusSedCloud === 'function') {
+            focusSedCloud(normSed || baseSed);
+        }
+    } else {
+        // Fallback: aplicar filtro de búsqueda en el input del mapa
+        const inputTicket = document.getElementById("inputTicket");
+        if (inputTicket) {
+            inputTicket.value = baseSed || sedCode;
+            if (typeof filterMapMarkers === 'function') filterMapMarkers();
+        }
+    }
 }
 
 /**

@@ -96,12 +96,15 @@
                                 (results.data || []).forEach(row => {
                                     const sedVal = getProp(row, 'SED', 'sed', 'Sed', 'CODIGO_SED', 'Codigo_SED', 'COD_SED');
                                     const norm = normalizeSedCode(sedVal);
+                                    const isTop4 = String(getProp(row, 'ES_TOP_4_CRITICA', 'es_top_4_critica')).trim().toUpperCase() === 'TRUE';
                                     if (norm) {
-                                        sedCriticasSet.add(norm);
                                         sedCriticasMap.set(norm, row);
+                                        if (isTop4) {
+                                            sedCriticasSet.add(norm);
+                                        }
                                     }
                                 });
-                                console.log(`🚨 [SEDs Críticas] ${sedCriticasSet.size} SEDs críticas cargadas.`);
+                                console.log(`🚨 [SEDs Críticas Top 4] ${sedCriticasSet.size} SEDs Top 4 Críticas cargadas de ${sedCriticasMap.size} registradas.`);
                                 resolve();
                             },
                             error: function(err) {
