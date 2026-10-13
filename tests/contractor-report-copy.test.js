@@ -85,3 +85,12 @@ test('HTML y Dashboard integran los 3 botones pequeños de reporte por contratis
     assert.match(reportJs, /onlyCharts/);
     assert.match(reportJs, /mode === 'charts'/);
 });
+
+test('los botones de reporte por contratista se muestran y operan exclusivamente para el perfil PLUZ (admin)', () => {
+    const authJs = fs.readFileSync(path.resolve(__dirname, '..', 'assets', 'js', '60-auth.js'), 'utf8');
+    const dashboardJs = fs.readFileSync(path.resolve(__dirname, '..', 'assets', 'js', '20-dashboard.js'), 'utf8');
+
+    assert.match(authJs, /contractorReportBtnsContainer[\s\S]*?isAdmin\s*\?\s*'inline-flex'\s*:\s*'none'/);
+    assert.match(dashboardJs, /contractorReportBtnsContainer/);
+    assert.match(dashboardJs, /if\s*\(!isPluz\)\s*return/);
+});

@@ -8,6 +8,8 @@
             if (lblCriticaMap) lblCriticaMap.style.display = isAdmin ? 'inline-flex' : 'none';
             const lblCriticaModal = document.getElementById("lblCriticaModal");
             if (lblCriticaModal) lblCriticaModal.style.display = isAdmin ? 'inline-flex' : 'none';
+            const reportBtns = document.getElementById("contractorReportBtnsContainer");
+            if (reportBtns) reportBtns.style.display = isAdmin ? 'inline-flex' : 'none';
             const navUserName = document.getElementById("navUserName");
             if (navUserName) {
                 navUserName.innerText = contractor === "*" ? `👤 ${userId} (Admin)` : `👤 ${userId} (${contractor})`;

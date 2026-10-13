@@ -391,6 +391,14 @@
         }
 
         function updateCopyContractorButtonState() {
+            const container = document.getElementById("contractorReportBtnsContainer");
+            const isPluz = typeof isCurrentUserAdmin === 'function' ? isCurrentUserAdmin() : (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('oms_user_role') === 'admin');
+
+            if (container) {
+                container.style.display = isPluz ? 'inline-flex' : 'none';
+            }
+            if (!isPluz) return;
+
             const btnFull = document.getElementById("btnCopyContractorReport");
             const lblFull = document.getElementById("lblCopyContractorReport");
             const btnCharts = document.getElementById("btnCopyContractorCharts");
