@@ -138,7 +138,7 @@
                 const pressure = callPressure(frequency);
                 return `<tr class="calls-row calls-row--${pressure.key}" tabindex="0" role="button" aria-label="Ver detalle de llamadas de la ODM ${escapeHtml(row.odm || 'sin dato')}" onclick="openCallDetail(${index})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openCallDetail(${index});}">
                     <td data-label="Aviso"><strong>${escapeHtml(row.aviso || 'Sin dato')}</strong></td>
-                    <td data-label="Ticket">${row.ticket ? `<button type="button" class="ticket-map-link" onclick="event.stopPropagation(); navigateToTicketOnMap('${escapeHtml(row.ticket)}')" title="Localizar ticket #${escapeHtml(row.ticket)} en el mapa">🗺️ ${escapeHtml(row.ticket)}</button>` : 'Sin dato'}</td>
+                    <td data-label="Ticket">${row.ticket ? `<div class="ticket-cell"><span class="ticket-number">${escapeHtml(row.ticket)}</span><button type="button" class="btn-ticket-pin" onclick="event.stopPropagation(); navigateToTicketOnMap('${escapeHtml(row.ticket)}')" title="Localizar ticket #${escapeHtml(row.ticket)} en el mapa" aria-label="Localizar ticket #${escapeHtml(row.ticket)} en el mapa">📍</button></div>` : 'Sin dato'}</td>
                     <td data-label="Suministro">${escapeHtml(row.suministro || 'Sin dato')}</td>
                     <td data-label="ODM"><strong>${escapeHtml(row.odm || 'Sin ODM')}</strong><span class="call-pressure call-pressure--${pressure.key}">${frequency} ${frequency === 1 ? 'llamada' : 'llamadas'} · ${pressure.label}</span></td>
                     <td data-label="Nombre">${escapeHtml(row.nombre || 'Sin dato')}</td>

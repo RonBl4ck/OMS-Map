@@ -146,15 +146,18 @@
                 }));
 
                 const maxVal = Math.max(1, ...series.flatMap(s => s.values));
-                const W = 500, H = 260;
+                const isIntervalo = (field === 'intervalo');
+                const isVerticalMany = !isHorizontal && (isIntervalo || categories.length > 6);
+                const W = isVerticalMany ? 580 : 500;
+                const H = 260;
                 let svgContent = '';
 
                 if (isHorizontal) {
-                    const leftMargin = 120, topMargin = 20, bottomMargin = 30, rightMargin = 20;
+                    const leftMargin = 110, topMargin = 14, bottomMargin = 16, rightMargin = 26;
                     const plotW = W - leftMargin - rightMargin;
                     const plotH = H - topMargin - bottomMargin;
                     const groupH = plotH / Math.max(categories.length, 1);
-                    const barH = Math.max(3, Math.min(18, (groupH * 0.75) / Math.max(series.length, 1)));
+                    const barH = Math.max(4, Math.min(20, (groupH * 0.8) / Math.max(series.length, 1)));
 
                     categories.forEach((cat, cIdx) => {
                         const y0 = topMargin + cIdx * groupH + (groupH - barH * series.length) / 2;
@@ -166,23 +169,26 @@
 
                             if (val > 0) {
                                 svgContent += `<rect class="chart-bar-interactive" data-field="${escapeHtml(field)}" data-value="${escapeHtml(String(cat))}" data-state="${escapeHtml(s.name)}" x="${leftMargin}" y="${y}" width="${Math.max(2, barW)}" height="${barH - 1}" fill="${color}" rx="3" ry="3" tabindex="0" role="button" aria-label="${escapeHtml(cat)}, ${escapeHtml(s.name)}: ${val} casos. Clic para filtrar."><title>${escapeHtml(cat)} - ${escapeHtml(s.name)}: ${val} casos (Clic para filtrar)</title></rect>`;
-                                svgContent += `<text x="${leftMargin + barW + 5}" y="${y + barH - 3}" font-size="9" font-weight="600" fill="#334155">${val}</text>`;
+                                svgContent += `<text x="${leftMargin + barW + 5}" y="${y + barH - 2}" font-size="12" font-weight="800" fill="#0f172a">${val}</text>`;
                             }
                         });
                         const label = escapeHtml(String(cat));
-                        svgContent += `<text x="${leftMargin - 8}" y="${y0 + (groupH*0.4)}" text-anchor="end" font-size="10" font-weight="600" fill="#475569">${label.length > 16 ? label.substring(0,14)+'…' : label}</text>`;
+                        svgContent += `<text x="${leftMargin - 6}" y="${y0 + (groupH*0.45)}" text-anchor="end" font-size="13" font-weight="800" fill="#1e293b">${label.length > 15 ? label.substring(0,13)+'…' : label}</text>`;
                     });
                 } else {
-                    const leftMargin = 40, topMargin = 20, bottomMargin = 50, rightMargin = 15;
+                    const leftMargin = isIntervalo ? 20 : 26;
+                    const rightMargin = isIntervalo ? 4 : 8;
+                    const topMargin = 14, bottomMargin = 38;
                     const plotW = W - leftMargin - rightMargin;
                     const plotH = H - topMargin - bottomMargin;
                     const groupW = plotW / Math.max(categories.length, 1);
-                    const barW = Math.max(3, Math.min(22, (groupW * 0.75) / Math.max(series.length, 1)));
+                    const barW = Math.max(4, Math.min(24, (groupW * 0.8) / Math.max(series.length, 1)));
+                    const catFontSize = (categories.length > 6 || isIntervalo) ? 11 : 13;
 
                     for (let tick = 0; tick <= 4; tick++) {
                         const val = Math.round(maxVal * tick / 4);
                         const y = topMargin + plotH - (plotH * tick / 4);
-                        svgContent += `<line x1="${leftMargin}" y1="${y}" x2="${W - rightMargin}" y2="${y}" stroke="#e2e8f0" stroke-dasharray="3 3"/><text x="${leftMargin - 6}" y="${y + 3}" text-anchor="end" font-size="9" fill="#94a3b8">${val}</text>`;
+                        svgContent += `<line x1="${leftMargin}" y1="${y}" x2="${W - rightMargin}" y2="${y}" stroke="#e2e8f0" stroke-dasharray="3 3"/><text x="${leftMargin - 4}" y="${y + 4}" text-anchor="end" font-size="11" font-weight="700" fill="#64748b">${val}</text>`;
                     }
 
                     categories.forEach((cat, cIdx) => {
@@ -196,11 +202,11 @@
 
                             if (val > 0) {
                                 svgContent += `<rect class="chart-bar-interactive" data-field="${escapeHtml(field)}" data-value="${escapeHtml(String(cat))}" data-state="${escapeHtml(s.name)}" x="${x}" y="${y}" width="${Math.max(2, barW - 1)}" height="${barH}" fill="${color}" rx="3" ry="3" tabindex="0" role="button" aria-label="${escapeHtml(cat)}, ${escapeHtml(s.name)}: ${val} casos. Clic para filtrar."><title>${escapeHtml(cat)} - ${escapeHtml(s.name)}: ${val} casos (Clic para filtrar)</title></rect>`;
-                                svgContent += `<text x="${x + barW/2}" y="${Math.max(topMargin + 8, y - 3)}" text-anchor="middle" font-size="8" font-weight="700" fill="#334155">${val}</text>`;
+                                svgContent += `<text x="${x + barW/2}" y="${Math.max(topMargin + 11, y - 4)}" text-anchor="middle" font-size="12" font-weight="800" fill="#0f172a">${val}</text>`;
                             }
                         });
                         const label = escapeHtml(String(cat));
-                        svgContent += `<text x="${leftMargin + cIdx * groupW + groupW/2}" y="${topMargin + plotH + 15}" text-anchor="middle" font-size="10" font-weight="600" fill="#475569">${label}</text>`;
+                        svgContent += `<text x="${leftMargin + cIdx * groupW + groupW/2}" y="${topMargin + plotH + 19}" text-anchor="middle" font-size="${catFontSize}" font-weight="800" fill="#1e293b">${label}</text>`;
                     });
                 }
 
@@ -216,7 +222,7 @@
                         <div class="chart-card__header">
                             <div><h3>${escapeHtml(title)}</h3><p>${escapeHtml(description)}</p></div>
                         </div>
-                        <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Gráfico: ${escapeHtml(title)}, ${records.length} casos" style="width:100%; height:230px; overflow:visible;">${svgContent}</svg>
+                        <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Gráfico: ${escapeHtml(title)}, ${records.length} casos" style="width:100%; height:250px; overflow:visible;">${svgContent}</svg>
                         <div class="chart-legend">${legendHtml}</div>
                     </section>
                 `;
@@ -356,7 +362,10 @@
                 return `
                     <tr style="background: ${bg}; border-bottom: 1px solid #e2e8f0;">
                         <td data-label="Ticket" style="padding: 7px 10px; white-space: nowrap;">
-                            <button type="button" class="ticket-map-link" onclick="navigateToTicketOnMap('${escapeHtml(r.ticket)}')" title="Localizar ticket #${escapeHtml(r.ticket)} en el mapa">🗺️ ${escapeHtml(r.ticket)}</button>
+                            <div class="ticket-cell">
+                                <span class="ticket-number">${escapeHtml(r.ticket)}</span>
+                                <button type="button" class="btn-ticket-pin" onclick="navigateToTicketOnMap('${escapeHtml(r.ticket)}')" title="Localizar ticket #${escapeHtml(r.ticket)} en el mapa" aria-label="Localizar ticket #${escapeHtml(r.ticket)} en el mapa">📍</button>
+                            </div>
                         </td>
                         <td data-label="Estado" style="padding: 7px 10px; white-space: nowrap;"><span class="status-badge ${stateClass}">${escapeHtml(r.estado)}</span></td>
                         <td data-label="Empresa" style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.empresa)}</td>

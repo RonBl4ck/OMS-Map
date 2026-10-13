@@ -131,9 +131,10 @@
             display: flex;
             flex-wrap: wrap;
             gap: 12px;
-            margin-top: 10px;
-            font-size: 11px;
-            color: #475569;
+            margin-top: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #334155;
             justify-content: center;
         }
         .chart-legend-item {

@@ -172,24 +172,24 @@
         ctx.lineWidth = 1;
         ctx.strokeRect(x, y, width, height);
 
-        // Título del gráfico
-        ctx.fillStyle = '#1e293b';
-        ctx.font = 'bold 13px system-ui, -apple-system, sans-serif';
+        // Título del gráfico en Azul Corporativo Pluz
+        ctx.fillStyle = '#1d4ed8';
+        ctx.font = 'bold 15px system-ui, -apple-system, sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText(title, x + 12, y + 20);
+        ctx.fillText(title, x + 12, y + 22);
 
         // Leyenda (pequeña en esquina superior derecha)
-        const legendX = x + width - 140;
+        const legendX = x + width - 146;
         ctx.fillStyle = COLOR_EJECUCION;
-        ctx.fillRect(legendX, y + 10, 8, 8);
+        ctx.fillRect(legendX, y + 12, 9, 9);
         ctx.fillStyle = '#475569';
-        ctx.font = '9px system-ui, sans-serif';
-        ctx.fillText('En Ejecución', legendX + 12, y + 17);
+        ctx.font = 'bold 10px system-ui, sans-serif';
+        ctx.fillText('En Ejecución', legendX + 13, y + 20);
 
         ctx.fillStyle = COLOR_PENDIENTE;
-        ctx.fillRect(legendX + 68, y + 10, 8, 8);
+        ctx.fillRect(legendX + 76, y + 12, 9, 9);
         ctx.fillStyle = '#475569';
-        ctx.fillText('Pendiente', legendX + 80, y + 17);
+        ctx.fillText('Pendiente', legendX + 89, y + 20);
 
         if (!categories || categories.length === 0) {
             ctx.fillStyle = COLOR_TEXTO_MUTED;
@@ -199,10 +199,10 @@
             return;
         }
 
-        const plotX = x + 35;
-        const plotY = y + 35;
-        const plotW = width - 45;
-        const plotH = height - 70;
+        const plotX = x + 24;
+        const plotY = y + 36;
+        const plotW = width - 30;
+        const plotH = height - 68;
 
         // Determinar valor máximo para la escala Y
         let maxVal = 1;
@@ -225,16 +225,16 @@
             ctx.lineTo(plotX + plotW, gy);
             ctx.stroke();
 
-            ctx.fillStyle = '#94a3b8';
-            ctx.font = '9px system-ui, sans-serif';
+            ctx.fillStyle = '#64748b';
+            ctx.font = 'bold 10px system-ui, sans-serif';
             ctx.textAlign = 'right';
-            ctx.fillText(String(val), plotX - 5, gy + 3);
+            ctx.fillText(String(val), plotX - 4, gy + 3);
         }
 
         // Dibujar barras agrupadas por categoría
         const numCats = categories.length;
         const catWidth = plotW / numCats;
-        const barWidth = Math.max(3, Math.min(16, (catWidth * 0.7) / 2));
+        const barWidth = Math.max(4, Math.min(22, (catWidth * 0.74) / 2));
 
         categories.forEach((cat, idx) => {
             const centerX = plotX + idx * catWidth + catWidth / 2;
@@ -251,29 +251,34 @@
             if (ejecVal > 0) {
                 ctx.fillStyle = COLOR_EJECUCION;
                 ctx.fillRect(xEjec, plotY + plotH - hEjec, barWidth - 1, hEjec);
-                ctx.fillStyle = '#1e293b';
-                ctx.font = 'bold 8px system-ui, sans-serif';
+                ctx.fillStyle = '#0f172a';
+                ctx.font = 'bold 14px system-ui, sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText(String(ejecVal), xEjec + barWidth / 2, Math.max(plotY + 8, plotY + plotH - hEjec - 2));
+                ctx.fillText(String(ejecVal), xEjec + barWidth / 2, Math.max(plotY + 13, plotY + plotH - hEjec - 4));
             }
 
             // Barra Pendiente
             if (pendVal > 0) {
                 ctx.fillStyle = COLOR_PENDIENTE;
                 ctx.fillRect(xPend, plotY + plotH - hPend, barWidth - 1, hPend);
-                ctx.fillStyle = '#1e293b';
-                ctx.font = 'bold 8px system-ui, sans-serif';
+                ctx.fillStyle = '#0f172a';
+                ctx.font = 'bold 14px system-ui, sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText(String(pendVal), xPend + barWidth / 2, Math.max(plotY + 8, plotY + plotH - hPend - 2));
+                ctx.fillText(String(pendVal), xPend + barWidth / 2, Math.max(plotY + 13, plotY + plotH - hPend - 4));
             }
 
             // Etiqueta del eje X
             ctx.save();
-            ctx.fillStyle = '#475569';
-            ctx.font = '9px system-ui, sans-serif';
+            ctx.fillStyle = '#1e293b';
+            ctx.font = 'bold 11px system-ui, sans-serif';
             ctx.textAlign = 'center';
             let label = String(cat);
-            if (label.length > 12) label = label.substring(0, 11) + '…';
+            if (label === 'CNX SUBTERRANEA') label = 'CNX SUBT';
+            else if (label === 'RED SUBTERRANEA') label = 'RED SUBT';
+            else if (label === 'CNX AEREA') label = 'CNX AÉR';
+            else if (label === 'RED AEREA') label = 'RED AÉR';
+            else if (label === 'SUMINISTRO') label = 'SUMIN';
+            else if (label.length > 11) label = label.substring(0, 10) + '…';
             ctx.fillText(label, centerX, plotY + plotH + 18);
             ctx.restore();
         });
@@ -291,8 +296,8 @@
 
         const onlyCharts = !!(options && options.onlyCharts);
         const W = 760;
-        // Altura 920 para el reporte completo (evita recorte de la última línea en 852px) o 490 para solo gráficos
-        const H = onlyCharts ? 490 : 920;
+        // Altura 836 para el reporte completo equilibrado o 618 para solo gráficos
+        const H = onlyCharts ? 618 : 836;
         const scale = 2; // HiDPI Retina scale factor
 
         const canvas = document.createElement('canvas');
@@ -350,12 +355,12 @@
             return String(r.empresa || '').trim().toUpperCase() === String(summaryData.contractor).trim().toUpperCase();
         });
 
-        const chartW = 345;
-        const chartH = 200;
-        const col1X = 24;
-        const col2X = 390;
-        const row1Y = 62;
-        const row2Y = 274;
+        const chartW = 356;
+        const chartH = 265;
+        const col1X = 16;
+        const col2X = 388;
+        const row1Y = 60;
+        const row2Y = 337;
 
         // Preparar Datos Gráfico 1: Evolución Diaria
         const days = [...new Set(contractorRecords.map(r => r.dia || 'N/A'))].filter(Boolean).slice(-6);
@@ -425,57 +430,57 @@
         }
 
         // 3. SEPARADOR ELEGANTE
-        const sepY = 492;
+        const sepY = 616;
         ctx.strokeStyle = COLOR_LINEA;
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(24, sepY);
-        ctx.lineTo(W - 24, sepY);
+        ctx.moveTo(16, sepY);
+        ctx.lineTo(W - 16, sepY);
         ctx.stroke();
 
-        // 4. BLOQUE INFERIOR DE TEXTO RESUMEN (TIPOGRAFÍA NITIDA)
-        const textStartY = 530;
+        // 4. BLOQUE INFERIOR DE TEXTO RESUMEN (COMPACTO Y EJECUTIVO)
+        const textStartY = 642;
         ctx.textAlign = 'left';
 
         // Línea 1: Estimados Buenas tardes [CONTRATISTA]
         ctx.fillStyle = '#0f172a';
-        ctx.font = '700 24px system-ui, -apple-system, sans-serif';
-        ctx.fillText(`Estimados   ${summaryData.saludo}`, 28, textStartY);
-        ctx.fillText(summaryData.contractor, W / 2 + 60, textStartY);
+        ctx.font = '700 16px system-ui, -apple-system, sans-serif';
+        ctx.fillText(`Estimados   ${summaryData.saludo}`, 20, textStartY);
+        ctx.fillText(summaryData.contractor, W / 2 + 50, textStartY);
 
         // Línea 2: Reporte de Pendientes [FECHA HORA]
-        ctx.font = '600 22px system-ui, -apple-system, sans-serif';
+        ctx.font = '600 13px system-ui, -apple-system, sans-serif';
         ctx.fillStyle = '#1e293b';
-        ctx.fillText('Reporte de Pendientes', 28, textStartY + 38);
-        ctx.font = '500 22px system-ui, -apple-system, sans-serif';
-        ctx.fillText(summaryData.fechaStr, W / 2 + 60, textStartY + 38);
+        ctx.fillText('Reporte de Pendientes', 20, textStartY + 24);
+        ctx.font = '500 13px system-ui, -apple-system, sans-serif';
+        ctx.fillText(summaryData.fechaStr, W / 2 + 50, textStartY + 24);
 
         // Línea 3: Reparaciones
-        ctx.font = '500 21px system-ui, -apple-system, sans-serif';
+        ctx.font = '500 12px system-ui, -apple-system, sans-serif';
         ctx.fillStyle = '#1e293b';
-        ctx.fillText(`·  Reparaciones: ${summaryData.reparaciones}`, 50, textStartY + 84);
+        ctx.fillText(`·  Reparaciones: ${summaryData.reparaciones}`, 36, textStartY + 50);
 
         // Línea 4: Reclamos
-        ctx.fillText(`·  Reclamos: ${summaryData.reclamos}`, 50, textStartY + 124);
+        ctx.fillText(`·  Reclamos: ${summaryData.reclamos}`, 36, textStartY + 68);
 
         // Línea 5: TICKETS +24 HRS
-        ctx.font = '700 21px system-ui, -apple-system, sans-serif';
-        ctx.fillText('TICKETS +24 HRS:', 28, textStartY + 172);
-        ctx.fillText(String(summaryData.mas24h), 280, textStartY + 172);
+        ctx.font = '700 13px system-ui, -apple-system, sans-serif';
+        ctx.fillText('TICKETS +24 HRS:', 20, textStartY + 96);
+        ctx.fillText(String(summaryData.mas24h), 220, textStartY + 96);
 
         // Línea 6: TICKETS EN RIESGO
-        ctx.fillText('TICKETS EN RIESGO:', 28, textStartY + 212);
-        ctx.fillText(String(summaryData.enRiesgo), 280, textStartY + 212);
+        ctx.fillText('TICKETS EN RIESGO:', 20, textStartY + 116);
+        ctx.fillText(String(summaryData.enRiesgo), 220, textStartY + 116);
 
         // Línea 7: OA FUERA DE PLAZO
-        ctx.font = '600 19px system-ui, -apple-system, sans-serif';
-        ctx.fillText(`·  OA FUERA DE PLAZO (>12 hrs): ${summaryData.oaFueraPlazo}`, 50, textStartY + 254);
+        ctx.font = '600 12px system-ui, -apple-system, sans-serif';
+        ctx.fillText(`·  OA FUERA DE PLAZO (>12 hrs): ${summaryData.oaFueraPlazo}`, 36, textStartY + 138);
 
         // Línea 8: CNX FUERA DE PLAZO
-        ctx.fillText(`·  CNX FUERA DE PLAZO (>8 hrs): ${summaryData.cnxFueraPlazo}`, 50, textStartY + 288);
+        ctx.fillText(`·  CNX FUERA DE PLAZO (>8 hrs): ${summaryData.cnxFueraPlazo}`, 36, textStartY + 156);
 
         // Línea 9: RECLAMOS FUERA DE PLAZO
-        ctx.fillText(`·  RECLAMOS FUERA DE PLAZO (>4 hrs): ${summaryData.reclamosFueraPlazo}`, 50, textStartY + 322);
+        ctx.fillText(`·  RECLAMOS FUERA DE PLAZO (>4 hrs): ${summaryData.reclamosFueraPlazo}`, 36, textStartY + 174);
 
         return canvas;
     }

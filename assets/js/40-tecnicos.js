@@ -430,7 +430,10 @@
                     <tr style="background: ${bg};">
                         <td data-label="#" style="font-weight: 700; color: #64748b;">${idx + 1}</td>
                         <td data-label="Ticket" style="white-space: nowrap;">
-                            <button type="button" class="ticket-map-link" onclick="navigateToTicketOnMap('${escapeHtml(item.ticket)}')" title="Localizar ticket #${escapeHtml(item.ticket)} en el mapa">🗺️ ${escapeHtml(item.ticket || '--')}</button>
+                            <div class="ticket-cell">
+                                <span class="ticket-number">${escapeHtml(item.ticket || '--')}</span>
+                                ${item.ticket ? `<button type="button" class="btn-ticket-pin" onclick="navigateToTicketOnMap('${escapeHtml(item.ticket)}')" title="Localizar ticket #${escapeHtml(item.ticket)} en el mapa" aria-label="Localizar ticket #${escapeHtml(item.ticket)} en el mapa">📍</button>` : ''}
+                            </div>
                         </td>
                         <td data-label="ODM" style="white-space: nowrap; font-weight: 600; color: #334155;">${escapeHtml(item.odm || '--')}</td>
                         <td data-label="Tipo de falla" style="white-space: nowrap;"><span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-weight: 600; font-size: 10px;">${escapeHtml(item.tipo || 'Sin tipo')}</span></td>
