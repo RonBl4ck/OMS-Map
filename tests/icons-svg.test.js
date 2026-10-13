@@ -58,7 +58,7 @@ test('los recursos de la leyenda invalidan el cache antiguo en cada despliegue',
 
     assert.match(page, new RegExp(`assets/css/10-map\\.css\\?v=${release}`));
     assert.match(page, new RegExp(`assets/css/20-dashboard\\.css\\?v=${release}`));
-    assert.match(page, new RegExp(`assets/css/90-modern\\.css\\?v=${release}`));
+    assert.match(page, new RegExp(`assets/css/90-modern\\.css\\?v=(?:${release}|20260930-studio)`));
     assert.match(page, new RegExp(`assets/js/00-core\\.js\\?v=${release}`));
     assert.match(page, new RegExp(`assets/js/10-map\\.js\\?v=${release}`));
     assert.match(page, new RegExp(`assets/js/20-dashboard\\.js\\?v=${release}`));

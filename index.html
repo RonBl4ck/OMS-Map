@@ -334,8 +334,22 @@
                             <span>🚨 Top Críticas</span>
                         </label>
                     </div>
-                    <div style="display: flex; align-items: flex-end;">
+                    <div style="display: flex; align-items: flex-end; gap: 6px; flex-wrap: wrap;">
                         <button class="btn-action-sm btn-reset" id="btnResetFilters">Limpiar Filtros</button>
+                        <div class="contractor-report-btns" style="display: inline-flex; gap: 4px; align-items: center; flex-wrap: wrap;">
+                            <button type="button" class="btn-action-sm btn-copy-contractor disabled" id="btnCopyContractorReport" disabled title="Copiar reporte completo (imagen con gráficos y texto integrado)">
+                                <span>📸</span>
+                                <span id="lblCopyContractorReport">Reporte Completo</span>
+                            </button>
+                            <button type="button" class="btn-action-sm btn-copy-charts disabled" id="btnCopyContractorCharts" disabled title="Copiar solo imagen de gráficos">
+                                <span>📊</span>
+                                <span>Solo Gráficos</span>
+                            </button>
+                            <button type="button" class="btn-action-sm btn-copy-text disabled" id="btnCopyContractorText" disabled title="Copiar solo texto resumen para WhatsApp">
+                                <span>📝</span>
+                                <span>Solo Texto</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -684,6 +698,7 @@
     <script src="assets/js/sed-geometry.js"></script>
     <script src="assets/js/10-map.js?v=20260918-status-map"></script>
     <script src="assets/js/20-dashboard.js?v=20260918-status-map"></script>
+    <script src="assets/js/25-contractor-report.js?v=20261013-1"></script>
     <script src="assets/js/30-llamadas.js?v=20260912-facets"></script>
     <script src="assets/js/35-critical-panel.js?v=20260930-pillbars"></script>
     <script src="assets/js/40-tecnicos.js?v=20260930-v3"></script>

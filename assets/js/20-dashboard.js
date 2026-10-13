@@ -378,11 +378,166 @@
             }).join("");
         }
 
+        function getSelectedContractorForReport() {
+            const selEmps = tdCtrlEmpresa ? tdCtrlEmpresa.getSelected() : [];
+            if (selEmps && selEmps.length === 1 && selEmps[0] && selEmps[0] !== 'TODOS') {
+                return selEmps[0];
+            }
+            const assigned = (typeof sessionStorage !== 'undefined') ? sessionStorage.getItem("oms_assigned_contractor") : null;
+            if (assigned && assigned !== '*' && assigned !== 'TODOS') {
+                return assigned;
+            }
+            return null;
+        }
+
+        function updateCopyContractorButtonState() {
+            const btnFull = document.getElementById("btnCopyContractorReport");
+            const lblFull = document.getElementById("lblCopyContractorReport");
+            const btnCharts = document.getElementById("btnCopyContractorCharts");
+            const btnTxt = document.getElementById("btnCopyContractorText");
+            if (!btnFull) return;
+
+            const contractor = getSelectedContractorForReport();
+            if (contractor) {
+                btnFull.disabled = false;
+                btnFull.classList.remove("disabled");
+                btnFull.classList.add("active");
+                btnFull.title = `Copiar reporte completo (imagen con gráficos y texto) para ${contractor}`;
+                if (lblFull) lblFull.textContent = `Reporte Completo [${contractor}]`;
+
+                if (btnCharts) {
+                    btnCharts.disabled = false;
+                    btnCharts.classList.remove("disabled");
+                    btnCharts.classList.add("active");
+                    btnCharts.title = `Copiar solo imagen de gráficos para ${contractor}`;
+                }
+
+                if (btnTxt) {
+                    btnTxt.disabled = false;
+                    btnTxt.classList.remove("disabled");
+                    btnTxt.classList.add("active");
+                    btnTxt.title = `Copiar únicamente el texto para WhatsApp (${contractor})`;
+                }
+            } else {
+                btnFull.disabled = true;
+                btnFull.classList.add("disabled");
+                btnFull.classList.remove("active");
+                btnFull.title = "Selecciona una empresa contratista en el filtro para habilitar el reporte";
+                if (lblFull) lblFull.textContent = "Reporte Completo";
+
+                if (btnCharts) {
+                    btnCharts.disabled = true;
+                    btnCharts.classList.add("disabled");
+                    btnCharts.classList.remove("active");
+                    btnCharts.title = "Selecciona una empresa contratista en el filtro para habilitar el reporte";
+                }
+
+                if (btnTxt) {
+                    btnTxt.disabled = true;
+                    btnTxt.classList.add("disabled");
+                    btnTxt.classList.remove("active");
+                    btnTxt.title = "Selecciona una empresa contratista en el filtro para habilitar el reporte";
+                }
+            }
+        }
+
         function refreshDashboard() {
             const records = getFilteredTdOms();
             updateKpiCards(records);
             renderModernCharts(records);
             renderTdOmsTable(records);
+            updateCopyContractorButtonState();
+        }
+
+        const btnCopyReportEl = document.getElementById("btnCopyContractorReport");
+        if (btnCopyReportEl) {
+            btnCopyReportEl.addEventListener("click", async () => {
+                const contractor = getSelectedContractorForReport();
+                if (!contractor) {
+                    alert("⚠️ Selecciona una empresa contratista para copiar su reporte.");
+                    return;
+                }
+                const filteredRecords = getFilteredTdOms();
+                const origText = btnCopyReportEl.innerHTML;
+                try {
+                    btnCopyReportEl.classList.add("loading");
+                    btnCopyReportEl.innerHTML = `<span>⏳</span><span>Generando...</span>`;
+
+                    if (window.ContractorReport && typeof window.ContractorReport.copyContractorReportToClipboard === 'function') {
+                        await window.ContractorReport.copyContractorReportToClipboard(contractor, filteredRecords, 'full');
+                        if (typeof showNotificationToast === 'function') {
+                            showNotificationToast(`✅ Reporte completo de ${contractor} copiado al portapapeles`, '📸');
+                        } else {
+                            alert(`✅ Reporte completo de ${contractor} copiado al portapapeles.`);
+                        }
+                    } else {
+                        throw new Error("Módulo ContractorReport no inicializado.");
+                    }
+                } catch (err) {
+                    console.error("Error al copiar reporte:", err);
+                    alert("❌ Error al copiar reporte: " + (err.message || err));
+                } finally {
+                    btnCopyReportEl.classList.remove("loading");
+                    btnCopyReportEl.innerHTML = origText;
+                    updateCopyContractorButtonState();
+                }
+            });
+        }
+
+        const btnCopyChartsEl = document.getElementById("btnCopyContractorCharts");
+        if (btnCopyChartsEl) {
+            btnCopyChartsEl.addEventListener("click", async () => {
+                const contractor = getSelectedContractorForReport();
+                if (!contractor) {
+                    alert("⚠️ Selecciona una empresa contratista para copiar los gráficos.");
+                    return;
+                }
+                const filteredRecords = getFilteredTdOms();
+                const origText = btnCopyChartsEl.innerHTML;
+                try {
+                    btnCopyChartsEl.classList.add("loading");
+                    btnCopyChartsEl.innerHTML = `<span>⏳</span><span>Generando...</span>`;
+
+                    if (window.ContractorReport && typeof window.ContractorReport.copyContractorReportToClipboard === 'function') {
+                        await window.ContractorReport.copyContractorReportToClipboard(contractor, filteredRecords, 'charts');
+                        if (typeof showNotificationToast === 'function') {
+                            showNotificationToast(`✅ Gráficos de ${contractor} copiados al portapapeles`, '📊');
+                        } else {
+                            alert(`✅ Gráficos de ${contractor} copiados al portapapeles.`);
+                        }
+                    } else {
+                        throw new Error("Módulo ContractorReport no inicializado.");
+                    }
+                } catch (err) {
+                    console.error("Error al copiar gráficos:", err);
+                    alert("❌ Error al copiar gráficos: " + (err.message || err));
+                } finally {
+                    btnCopyChartsEl.classList.remove("loading");
+                    btnCopyChartsEl.innerHTML = origText;
+                    updateCopyContractorButtonState();
+                }
+            });
+        }
+
+        const btnCopyTxtEl = document.getElementById("btnCopyContractorText");
+        if (btnCopyTxtEl) {
+            btnCopyTxtEl.addEventListener("click", async () => {
+                const contractor = getSelectedContractorForReport();
+                if (!contractor) return;
+                const filteredRecords = getFilteredTdOms();
+                try {
+                    if (window.ContractorReport && typeof window.ContractorReport.copyContractorReportToClipboard === 'function') {
+                        await window.ContractorReport.copyContractorReportToClipboard(contractor, filteredRecords, 'text');
+                        if (typeof showNotificationToast === 'function') {
+                            showNotificationToast(`📝 Texto de ${contractor} copiado al portapapeles`, '📝');
+                        } else {
+                            alert(`📝 Texto de ${contractor} copiado al portapapeles.`);
+                        }
+                    }
+                } catch (err) {
+                    alert("❌ Error al copiar texto: " + (err.message || err));
+                }
+            });
         }
 
         const chartsContainerEl = document.getElementById("tdOmsCharts");
