@@ -46,6 +46,93 @@
     }
 
     /**
+     * Parsea una fecha en texto a un objeto Date válido
+     */
+    function parseReportDate(value) {
+        if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+        const text = String(value || '').trim();
+        if (!text) return null;
+
+        // Caso 1: DD/MM/AAAA HH:MM o DD/MM HH:MM o con segundos
+        let match = text.match(/^(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+        if (match) {
+            const now = new Date();
+            const rawYear = match[3];
+            const year = rawYear ? Number(rawYear.length === 2 ? `20${rawYear}` : rawYear) : now.getFullYear();
+            const d = new Date(year, Number(match[2]) - 1, Number(match[1]), Number(match[4]), Number(match[5]), Number(match[6] || 0));
+            if (!Number.isNaN(d.getTime())) return d;
+        }
+
+        // Caso 2: AAAA-MM-DD HH:MM
+        match = text.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})(?:[T\s]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+        if (match) {
+            const d = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), Number(match[4] || 0), Number(match[5] || 0), Number(match[6] || 0));
+            if (!Number.isNaN(d.getTime())) return d;
+        }
+
+        const fallback = new Date(text);
+        return Number.isNaN(fallback.getTime()) ? null : fallback;
+    }
+
+    /**
+     * Resuelve la fecha y hora de la última actualización del sistema/datos.
+     * Si referenceDate se pasa explícitamente como Date válido (como en tests unitarios), se respeta.
+     */
+    function resolveLastUpdateDate(records, referenceDate) {
+        if (referenceDate instanceof Date && !Number.isNaN(referenceDate.getTime())) {
+            return referenceDate;
+        }
+
+        // 1. Variable global de 10-map.js si está disponible
+        if (typeof window !== 'undefined') {
+            if (window.lastUploadTimeRaw) {
+                const parsed = parseReportDate(window.lastUploadTimeRaw);
+                if (parsed) return parsed;
+            }
+            if (window.lastUploadTime) {
+                const parsed = parseReportDate(window.lastUploadTime);
+                if (parsed) return parsed;
+            }
+        }
+
+        // 2. Propiedad fecha_actualizacion en los registros
+        if (Array.isArray(records) && records.length > 0) {
+            for (let i = 0; i < Math.min(records.length, 10); i++) {
+                const r = records[i];
+                if (!r) continue;
+                const raw = r.fecha_actualizacion || r.FECHA_ACTUALIZACION_SISTEMA || r.FECHA_ACTUALIZACION || r.fecha_actualizacion_sistema;
+                if (raw) {
+                    const parsed = parseReportDate(raw);
+                    if (parsed) return parsed;
+                }
+            }
+        }
+
+        // 3. rawData global si existe
+        if (typeof rawData !== 'undefined' && Array.isArray(rawData) && rawData.length > 0) {
+            const raw = rawData[0].FECHA_ACTUALIZACION_SISTEMA || rawData[0].fecha_actualizacion || rawData[0].FECHA_ACTUALIZACION;
+            if (raw) {
+                const parsed = parseReportDate(raw);
+                if (parsed) return parsed;
+            }
+        }
+
+        // 4. Texto en topNavTime del DOM
+        if (typeof document !== 'undefined') {
+            const timeEl = document.getElementById('topNavTime');
+            if (timeEl && timeEl.innerText) {
+                const clean = timeEl.innerText.replace(/[^\d\/\:\-\s]/g, '').trim();
+                if (clean) {
+                    const parsed = parseReportDate(clean);
+                    if (parsed) return parsed;
+                }
+            }
+        }
+
+        return new Date();
+    }
+
+    /**
      * Extrae horas de duración de forma numérica robusta
      */
     function extractHours(record) {
@@ -64,7 +151,7 @@
      * Construye las métricas operativas para el contratista especificado.
      */
     function buildContractorSummaryData(contractorName, records, referenceDate) {
-        const refDate = referenceDate instanceof Date ? referenceDate : new Date();
+        const refDate = resolveLastUpdateDate(records, referenceDate);
         const contractorRecords = (records || []).filter(r => {
             if (!contractorName || contractorName === 'TODOS' || contractorName === '*') return true;
             return String(r.empresa || '').trim().toUpperCase() === String(contractorName).trim().toUpperCase();
@@ -635,6 +722,8 @@
         buildContractorSummaryText,
         renderContractorReportCanvas,
         copyContractorReportToClipboard,
+        resolveLastUpdateDate,
+        parseReportDate,
         isReclamo,
         extractHours
     };

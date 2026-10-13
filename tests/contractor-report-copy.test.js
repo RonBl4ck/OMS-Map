@@ -94,3 +94,19 @@ test('los botones de reporte por contratista se muestran y operan exclusivamente
     assert.match(dashboardJs, /contractorReportBtnsContainer/);
     assert.match(dashboardJs, /if\s*\(!isPluz\)\s*return/);
 });
+
+test('buildContractorSummaryData utiliza la hora de la última actualización del dataset cuando no se especifica referenceDate', () => {
+    const mockRecords = [
+        { ticket: '5001', empresa: 'COBRA', falla: 'SUMINISTRO', duracion: 1, estado: 'Pendiente', fecha_actualizacion: '13/10/2026 15:57' }
+    ];
+
+    // Sin pasar referenceDate (comportamiento en vivo de la app)
+    const summary = ContractorReport.buildContractorSummaryData('COBRA', mockRecords);
+
+    assert.equal(summary.fechaStr, '13/10/2026 15:57');
+    assert.equal(summary.saludo, 'Buenas tardes');
+
+    const text = ContractorReport.buildContractorSummaryText(summary);
+    assert.match(text, /Reporte de Pendientes\s+13\/10\/2026 15:57/);
+    assert.match(text, /Estimados\s+Buenas tardes\s+COBRA/);
+});

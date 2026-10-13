@@ -178,6 +178,10 @@
             }
             const timeEl = document.getElementById("topNavTime");
             if (timeEl) timeEl.innerText = `🕒 ${lastUploadTime}`;
+            if (typeof window !== 'undefined') {
+                window.lastUploadTime = lastUploadTime;
+                window.lastUploadTimeRaw = (data && data.length > 0) ? (data[0].FECHA_ACTUALIZACION_SISTEMA || data[0].fecha_actualizacion || data[0].FECHA_ACTUALIZACION || "") : "";
+            }
 
             data.forEach(item => {
                 let lat = NaN;
@@ -261,7 +265,8 @@
                     cadena, suministro, suministro_count: suministroCount, fecha_inicio: fechaIni, hora_inicio: fechaIni,
                     direccion, distrito, intervalo, dia, sed: (sedCanonica !== 'N/A' && sedCanonica) ? sedCanonica : sed,
                     alimentador, sed_count: sedCount, sed_reincidente: sedReincidente, es_sed_critica: esCritica, afectacion, llamadas,
-                    latitud: latitudVal, longitud: longitudVal, emoji: getEmoji(fal)
+                    latitud: latitudVal, longitud: longitudVal, emoji: getEmoji(fal),
+                    fecha_actualizacion: lastUploadTime
                 };
 
                 if (!isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180 && !isZeroZero(lat, lon)) {
