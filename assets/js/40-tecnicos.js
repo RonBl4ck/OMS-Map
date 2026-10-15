@@ -41,7 +41,8 @@
         let currentTechSortDir = 'desc';
         function techAllowedRecords() {
             const contractor = sessionStorage.getItem('oms_assigned_contractor') || '*';
-            return tecnicosRecords.filter(row => contractor === '*' || techKey(row.Empresa) === techKey(contractor));
+            const allowed = contractor.split(',').map(s => techKey(s.trim())).filter(Boolean);
+            return tecnicosRecords.filter(row => contractor === '*' || allowed.includes(techKey(row.Empresa)));
         }
         function techFilterValues() {
             return Object.fromEntries(Object.values(TECH_FILTER_FIELDS).map(id => {
@@ -491,9 +492,10 @@
                     if (!response.ok) throw new Error('No se pudo leer la hoja publicada.');
                     const parsedData = Papa.parse(await response.text(), {header:true, skipEmptyLines:true}).data || [];
                     const contractor = sessionStorage.getItem('oms_assigned_contractor') || '*';
+                    const allowed = contractor.split(',').map(s => techKey(s.trim())).filter(Boolean);
                     tecnicosRecords = contractor === '*'
                         ? parsedData
-                        : parsedData.filter(row => techKey(row.Empresa) === techKey(contractor));
+                        : parsedData.filter(row => allowed.includes(techKey(row.Empresa)));
                 } else {
                     throw new Error('No existe URL publicada para SEGUIMIENTO_TECNICOS.');
                 }

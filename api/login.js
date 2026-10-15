@@ -92,12 +92,18 @@ module.exports = async (req, res) => {
         // Fallback para desarrollo local si la hoja de Google Sheets no está en entorno local
         if (!users || users.length === 0) {
             const cleanUser = String(user).trim().toUpperCase();
-            const devProfiles = ['PLUZ', 'COBRA', 'DOMINION', 'INMEL', 'LARI', 'PA'];
+            const devProfiles = ['PLUZ', 'COBRA', 'DOMINION', 'INMEL', 'LARI', 'PA', 'ALFACO'];
             if (devProfiles.includes(cleanUser)) {
+                if (cleanUser === 'ALFACO' && String(password).trim() !== 'alfaco-2026') {
+                    const payload = JSON.stringify({ success: false, message: 'Usuario o contraseña incorrectos' });
+                    if (typeof res.status === 'function') return res.status(401).send(payload);
+                    res.writeHead(401, { 'Content-Type': 'application/json; charset=utf-8' });
+                    return res.end(payload);
+                }
                 const resObj = {
                     success: true,
                     user: cleanUser,
-                    contractor: cleanUser === 'PLUZ' ? '*' : cleanUser,
+                    contractor: cleanUser === 'PLUZ' ? '*' : (cleanUser === 'ALFACO' ? 'DOMINION,COBRA' : cleanUser),
                     role: cleanUser === 'PLUZ' ? 'admin' : 'contractor',
                     cartoApiKey: resolvedCartoKey
                 };
@@ -131,6 +137,18 @@ module.exports = async (req, res) => {
                 user: match.user,
                 contractor: match.contractor || (match.user.toUpperCase() === 'PLUZ' ? '*' : match.user),
                 role: match.role || (match.user.toUpperCase() === 'PLUZ' ? 'admin' : 'contractor'),
+                cartoApiKey: resolvedCartoKey
+            };
+            const payload = JSON.stringify(resObj);
+            if (typeof res.status === 'function') return res.status(200).send(payload);
+            res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+            return res.end(payload);
+        } else if (cleanUser === 'ALFACO' && cleanPass === 'alfaco-2026') {
+            const resObj = {
+                success: true,
+                user: 'ALFACO',
+                contractor: 'DOMINION,COBRA',
+                role: 'contractor',
                 cartoApiKey: resolvedCartoKey
             };
             const payload = JSON.stringify(resObj);

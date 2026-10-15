@@ -70,3 +70,78 @@ test('60-auth.js oculta los filtros de SEDs Críticas para perfiles no admin', (
     assert.match(js, /lblCriticaMap\.style\.display\s*=\s*isAdmin\s*\?\s*'inline-flex'\s*:\s*'none'/, 'Debe ocultar el filtro de Top Críticas en mapa');
     assert.match(js, /lblCriticaModal\.style\.display\s*=\s*isAdmin\s*\?\s*'inline-flex'\s*:\s*'none'/, 'Debe ocultar el filtro de SED Crítica en modal TD OMS');
 });
+
+test('perfil ALFACO está disponible y filtra casos combinados de DOMINION y COBRA', () => {
+    const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+    assert.match(html, /<option\s+value="ALFACO">/, 'index.html debe contener el perfil ALFACO en el selector');
+
+    const coreJs = fs.readFileSync(path.join(root, 'assets', 'js', '00-core.js'), 'utf8');
+    const vm = require('node:vm');
+    const ctx = {
+        console,
+        Date,
+        Map,
+        Set,
+        setTimeout,
+        clearTimeout,
+        document: { addEventListener() {}, getElementById() { return null; } }
+    };
+    vm.createContext(ctx);
+    vm.runInContext(coreJs, ctx);
+
+    const testRecords = [
+        { ticket: 'T1', Contratista: 'DOMINION' },
+        { ticket: 'T2', Contratista: 'COBRA' },
+        { ticket: 'T3', Contratista: 'INMEL' },
+        { ticket: 'T4', Contratista: 'LARI' }
+    ];
+
+    const filtered = ctx.filterRecordsForAssignedContractor(testRecords, 'DOMINION,COBRA');
+    assert.equal(filtered.length, 2, 'ALFACO debe ver exactamente los 2 registros de DOMINION y COBRA');
+    assert.deepEqual(filtered.map(r => r.ticket), ['T1', 'T2']);
+});
+
+test('api/login autentica correctamente al perfil ALFACO con clave alfaco-2026', async () => {
+    const loginHandler = require('../api/login.js');
+    let payload = null;
+    let statusCode = 200;
+
+    const reqValid = {
+        method: 'POST',
+        body: { user: 'ALFACO', password: 'alfaco-2026' },
+        headers: {}
+    };
+    const resValid = {
+        setHeader() {},
+        writeHead(c) { statusCode = c; },
+        end(data) { payload = JSON.parse(data); },
+        status(c) { statusCode = c; return { send(d) { payload = JSON.parse(d); } }; }
+    };
+    await loginHandler(reqValid, resValid);
+
+    assert.equal(statusCode, 200);
+    assert.equal(payload.success, true);
+    assert.equal(payload.user, 'ALFACO');
+    assert.equal(payload.contractor, 'DOMINION,COBRA');
+    assert.equal(payload.role, 'contractor');
+
+    // Clave incorrecta
+    let errPayload = null;
+    let errStatusCode = 200;
+    const reqInvalid = {
+        method: 'POST',
+        body: { user: 'ALFACO', password: 'wrong-password' },
+        headers: {}
+    };
+    const resInvalid = {
+        setHeader() {},
+        writeHead(c) { errStatusCode = c; },
+        end(data) { errPayload = JSON.parse(data); },
+        status(c) { errStatusCode = c; return { send(d) { errPayload = JSON.parse(d); } }; }
+    };
+    await loginHandler(reqInvalid, resInvalid);
+
+    assert.equal(errStatusCode, 401);
+    assert.equal(errPayload.success, false);
+});
+

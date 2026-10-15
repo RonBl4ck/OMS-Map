@@ -263,9 +263,10 @@
             if (assignedContractor === '*') return safeRecords.slice();
             const targetCompany = String(assignedContractor || '').trim().toUpperCase();
             if (!targetCompany) return [];
+            const targetCompanies = targetCompany.split(',').map(s => s.trim()).filter(Boolean);
             return safeRecords.filter(item => {
                 const company = getProp(item, 'Contratista', 'Empresa', 'CONTRATISTA', 'empresa', 'Pto.tbjo.responsable').toUpperCase();
-                return company !== 'N/A' && (company.includes(targetCompany) || targetCompany.includes(company));
+                return company !== 'N/A' && targetCompanies.some(target => company.includes(target) || target.includes(company));
             });
         }
 
