@@ -344,7 +344,8 @@
             if (countEl) countEl.innerText = filtered.length;
 
             if (filtered.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="14" style="text-align: center; padding: 20px; color: #64748b;">No hay casos pendientes que coincidan con la búsqueda.</td></tr>`;
+                const emptyMsg = query ? "No hay casos pendientes que coincidan con la búsqueda." : "No hay casos pendientes.";
+                tableBody.innerHTML = `<tr><td colspan="14" style="text-align: center; padding: 20px; color: #64748b;">${emptyMsg}</td></tr>`;
                 return;
             }
 

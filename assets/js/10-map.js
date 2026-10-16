@@ -141,17 +141,14 @@
         }
 
         function processRawData(data) {
-            const assignedContractor = sessionStorage.getItem("oms_assigned_contractor");
-            data = filterRecordsForAssignedContractor(data, assignedContractor);
+            const fullDataset = Array.isArray(data) ? data : [];
 
-            rawData = data;
-            mapLocations = [];
-            tdOmsRecords = [];
-
-            // Detectar Fecha y Hora de la última subida (Día/Mes y Hora)
+            // Detectar Fecha y Hora de la última subida (Día/Mes y Hora) desde el dataset original antes del filtro
             let lastUploadTime = "";
-            if (data && data.length > 0) {
-                lastUploadTime = data[0].FECHA_ACTUALIZACION_SISTEMA || data[0].fecha_actualizacion || data[0].FECHA_ACTUALIZACION || "";
+            let lastUploadTimeRaw = "";
+            if (fullDataset.length > 0) {
+                lastUploadTimeRaw = fullDataset[0].FECHA_ACTUALIZACION_SISTEMA || fullDataset[0].fecha_actualizacion || fullDataset[0].FECHA_ACTUALIZACION || "";
+                lastUploadTime = lastUploadTimeRaw;
             }
             if (!lastUploadTime) {
                 const now = new Date();
@@ -180,8 +177,15 @@
             if (timeEl) timeEl.innerText = `🕒 ${lastUploadTime}`;
             if (typeof window !== 'undefined') {
                 window.lastUploadTime = lastUploadTime;
-                window.lastUploadTimeRaw = (data && data.length > 0) ? (data[0].FECHA_ACTUALIZACION_SISTEMA || data[0].fecha_actualizacion || data[0].FECHA_ACTUALIZACION || "") : "";
+                window.lastUploadTimeRaw = lastUploadTimeRaw;
             }
+
+            const assignedContractor = sessionStorage.getItem("oms_assigned_contractor");
+            data = filterRecordsForAssignedContractor(fullDataset, assignedContractor);
+
+            rawData = data;
+            mapLocations = [];
+            tdOmsRecords = [];
 
             data.forEach(item => {
                 let lat = NaN;
@@ -1026,7 +1030,7 @@
             if (bounds.length > 0 && (!query || searchType !== "ticket")) {
                 leafletMap.fitBounds(L.latLngBounds(bounds).pad(0.1));
             }
-            document.getElementById("topNavCount").innerText = `🚨 ${count}`;
+            document.getElementById("topNavCount").innerText = count > 0 ? `🚨 ${count}` : '0';
 
             renderSedPerimeters(visibleLocations);
         }

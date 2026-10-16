@@ -92,18 +92,19 @@ module.exports = async (req, res) => {
         // Fallback para desarrollo local si la hoja de Google Sheets no está en entorno local
         if (!users || users.length === 0) {
             const cleanUser = String(user).trim().toUpperCase();
-            const devProfiles = ['PLUZ', 'COBRA', 'DOMINION', 'INMEL', 'LARI', 'PA', 'ALFACO'];
+            const devProfiles = ['PLUZ', 'COBRA', 'DOMINION', 'INMEL', 'LARI', 'PA', 'ALFACO', 'FACO'];
             if (devProfiles.includes(cleanUser)) {
-                if (cleanUser === 'ALFACO' && String(password).trim() !== 'alfaco-2026') {
+                if ((cleanUser === 'ALFACO' || cleanUser === 'FACO') && String(password).trim() !== 'alfaco-2026') {
                     const payload = JSON.stringify({ success: false, message: 'Usuario o contraseña incorrectos' });
                     if (typeof res.status === 'function') return res.status(401).send(payload);
                     res.writeHead(401, { 'Content-Type': 'application/json; charset=utf-8' });
                     return res.end(payload);
                 }
+                const canonicalUser = cleanUser === 'FACO' ? 'ALFACO' : cleanUser;
                 const resObj = {
                     success: true,
-                    user: cleanUser,
-                    contractor: cleanUser === 'PLUZ' ? '*' : cleanUser,
+                    user: canonicalUser,
+                    contractor: cleanUser === 'PLUZ' ? '*' : canonicalUser,
                     role: cleanUser === 'PLUZ' ? 'admin' : 'contractor',
                     cartoApiKey: resolvedCartoKey
                 };

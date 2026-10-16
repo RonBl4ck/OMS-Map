@@ -125,6 +125,26 @@ test('api/login autentica correctamente al perfil ALFACO con clave alfaco-2026',
     assert.equal(payload.contractor, 'ALFACO');
     assert.equal(payload.role, 'contractor');
 
+    // Alias FACO
+    let aliasPayload = null;
+    let aliasStatusCode = 200;
+    const reqAlias = {
+        method: 'POST',
+        body: { user: 'FACO', password: 'alfaco-2026' },
+        headers: {}
+    };
+    const resAlias = {
+        setHeader() {},
+        writeHead(c) { aliasStatusCode = c; },
+        end(data) { aliasPayload = JSON.parse(data); },
+        status(c) { aliasStatusCode = c; return { send(d) { aliasPayload = JSON.parse(d); } }; }
+    };
+    await loginHandler(reqAlias, resAlias);
+    assert.equal(aliasStatusCode, 200);
+    assert.equal(aliasPayload.success, true);
+    assert.equal(aliasPayload.user, 'ALFACO');
+    assert.equal(aliasPayload.contractor, 'ALFACO');
+
     // Clave incorrecta
     let errPayload = null;
     let errStatusCode = 200;
@@ -143,5 +163,12 @@ test('api/login autentica correctamente al perfil ALFACO con clave alfaco-2026',
 
     assert.equal(errStatusCode, 401);
     assert.equal(errPayload.success, false);
+});
+
+test('10-map.js detecta la fecha de subida antes de filtrar y muestra 0 cuando no hay casos', () => {
+    const mapJs = fs.readFileSync(path.join(root, 'assets', 'js', '10-map.js'), 'utf8');
+    assert.match(mapJs, /const\s+fullDataset\s*=\s*Array\.isArray\(data\)/, 'processRawData debe conservar el dataset completo');
+    assert.match(mapJs, /lastUploadTimeRaw\s*=\s*fullDataset\[0\]\.FECHA_ACTUALIZACION_SISTEMA/, 'Debe extraer la fecha del dataset original antes del filtro');
+    assert.match(mapJs, /topNavCount.*?count\s*>\s*0\s*\?\s*`🚨\s*\$\{count\}`\s*:\s*'0'/, 'topNavCount debe mostrar 0 cuando no hay casos');
 });
 
