@@ -219,7 +219,7 @@
                     if (passVal === 'alfaco-2026') {
                         sessionStorage.setItem("oms_auth_token", "authenticated");
                         sessionStorage.setItem("oms_user_id", "ALFACO");
-                        sessionStorage.setItem("oms_assigned_contractor", "DOMINION,COBRA");
+                        sessionStorage.setItem("oms_assigned_contractor", "ALFACO");
                         sessionStorage.setItem("oms_user_role", "contractor");
                         let cartoKey = sessionStorage.getItem("oms_carto_key") || "cb1_27lw_1_d612fa2bb664e7fb0d1f742c";
                         try {

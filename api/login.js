@@ -103,7 +103,7 @@ module.exports = async (req, res) => {
                 const resObj = {
                     success: true,
                     user: cleanUser,
-                    contractor: cleanUser === 'PLUZ' ? '*' : (cleanUser === 'ALFACO' ? 'DOMINION,COBRA' : cleanUser),
+                    contractor: cleanUser === 'PLUZ' ? '*' : cleanUser,
                     role: cleanUser === 'PLUZ' ? 'admin' : 'contractor',
                     cartoApiKey: resolvedCartoKey
                 };

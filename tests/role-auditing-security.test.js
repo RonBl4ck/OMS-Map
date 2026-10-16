@@ -71,7 +71,7 @@ test('60-auth.js oculta los filtros de SEDs Críticas para perfiles no admin', (
     assert.match(js, /lblCriticaModal\.style\.display\s*=\s*isAdmin\s*\?\s*'inline-flex'\s*:\s*'none'/, 'Debe ocultar el filtro de SED Crítica en modal TD OMS');
 });
 
-test('perfil ALFACO está disponible y filtra casos combinados de DOMINION y COBRA', () => {
+test('perfil ALFACO está disponible y filtra casos propios asignados como ALFACO', () => {
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     assert.match(html, /<option\s+value="ALFACO">/, 'index.html debe contener el perfil ALFACO en el selector');
 
@@ -90,15 +90,15 @@ test('perfil ALFACO está disponible y filtra casos combinados de DOMINION y COB
     vm.runInContext(coreJs, ctx);
 
     const testRecords = [
-        { ticket: 'T1', Contratista: 'DOMINION' },
+        { ticket: 'T1', Contratista: 'ALFACO' },
         { ticket: 'T2', Contratista: 'COBRA' },
         { ticket: 'T3', Contratista: 'INMEL' },
-        { ticket: 'T4', Contratista: 'LARI' }
+        { ticket: 'T4', Contratista: 'DOMINION' }
     ];
 
-    const filtered = ctx.filterRecordsForAssignedContractor(testRecords, 'DOMINION,COBRA');
-    assert.equal(filtered.length, 2, 'ALFACO debe ver exactamente los 2 registros de DOMINION y COBRA');
-    assert.deepEqual(filtered.map(r => r.ticket), ['T1', 'T2']);
+    const filtered = ctx.filterRecordsForAssignedContractor(testRecords, 'ALFACO');
+    assert.equal(filtered.length, 1, 'ALFACO debe ver exclusivamente sus propios registros');
+    assert.deepEqual(filtered.map(r => r.ticket), ['T1']);
 });
 
 test('api/login autentica correctamente al perfil ALFACO con clave alfaco-2026', async () => {
@@ -122,7 +122,7 @@ test('api/login autentica correctamente al perfil ALFACO con clave alfaco-2026',
     assert.equal(statusCode, 200);
     assert.equal(payload.success, true);
     assert.equal(payload.user, 'ALFACO');
-    assert.equal(payload.contractor, 'DOMINION,COBRA');
+    assert.equal(payload.contractor, 'ALFACO');
     assert.equal(payload.role, 'contractor');
 
     // Clave incorrecta
