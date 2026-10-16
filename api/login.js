@@ -143,18 +143,6 @@ module.exports = async (req, res) => {
             if (typeof res.status === 'function') return res.status(200).send(payload);
             res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
             return res.end(payload);
-        } else if (cleanUser === 'ALFACO' && cleanPass === 'alfaco-2026') {
-            const resObj = {
-                success: true,
-                user: 'ALFACO',
-                contractor: 'DOMINION,COBRA',
-                role: 'contractor',
-                cartoApiKey: resolvedCartoKey
-            };
-            const payload = JSON.stringify(resObj);
-            if (typeof res.status === 'function') return res.status(200).send(payload);
-            res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-            return res.end(payload);
         } else {
             const payload = JSON.stringify({
                 success: false,

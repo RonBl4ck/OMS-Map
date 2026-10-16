@@ -215,43 +215,6 @@
                     btnLogin.disabled = true;
                 }
 
-                if (selectedUser.trim().toUpperCase() === 'ALFACO') {
-                    if (passVal === 'alfaco-2026') {
-                        sessionStorage.setItem("oms_auth_token", "authenticated");
-                        sessionStorage.setItem("oms_user_id", "ALFACO");
-                        sessionStorage.setItem("oms_assigned_contractor", "ALFACO");
-                        sessionStorage.setItem("oms_user_role", "contractor");
-                        let cartoKey = sessionStorage.getItem("oms_carto_key") || "cb1_27lw_1_d612fa2bb664e7fb0d1f742c";
-                        try {
-                            const cfgResp = await fetch('/api/config-data?role=contractor');
-                            if (cfgResp.ok) {
-                                const cfg = await cfgResp.json();
-                                if (cfg.carto_api_key) cartoKey = cfg.carto_api_key;
-                            }
-                        } catch(e) {}
-                        sessionStorage.setItem("oms_carto_key", cartoKey);
-                        if (typeof applyBaseLayers === 'function') applyBaseLayers(cartoKey);
-
-                        if (authOverlay) authOverlay.style.display = "none";
-                        updateUserBadge();
-                        initMap();
-                        loadData();
-                    } else {
-                        if (errMsg) {
-                            errMsg.innerText = "❌ Contraseña incorrecta";
-                            errMsg.style.display = "block";
-                        }
-                        if (passInput) {
-                            passInput.value = "";
-                            passInput.focus();
-                        }
-                    }
-                    if (btnLogin) {
-                        btnLogin.innerText = "Ingresar";
-                        btnLogin.disabled = false;
-                    }
-                    return;
-                }
 
                 try {
                     const response = await fetch('/api/login', {
