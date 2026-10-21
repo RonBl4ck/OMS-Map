@@ -65,6 +65,7 @@
                     GOOGLE_SHEET_LLAMADAS_URL = (isAdmin && cfg.sheets_url_llamadas) ? cfg.sheets_url_llamadas : "";
                     if (cfg.sheets_url_tecnicos) GOOGLE_SHEET_TECNICOS_URL = cfg.sheets_url_tecnicos;
                     GOOGLE_SHEET_SED_CRITICAS_URL = (isAdmin && cfg.sheets_url_sed_criticas) ? cfg.sheets_url_sed_criticas : "";
+                    GOOGLE_SHEET_SUPERVISOR_URL = (isAdmin && cfg.sheets_url_supervisor) ? cfg.sheets_url_supervisor : "";
                     if (cfg.carto_api_key) {
                         sessionStorage.setItem("oms_carto_key", cfg.carto_api_key);
                         applyBaseLayers(cfg.carto_api_key);
@@ -119,6 +120,62 @@
                 } else {
                     sedCriticasSet.clear();
                     sedCriticasMap.clear();
+                }
+
+                // Carga de Seguimiento y Supervisión PLUZ (SOLO para perfil Admin / PLUZ)
+                if (isAdmin && GOOGLE_SHEET_SUPERVISOR_URL) {
+                    let supUrl = GOOGLE_SHEET_SUPERVISOR_URL;
+                    if (supUrl.includes('docs.google.com/spreadsheets') && !supUrl.includes('gviz/tq') && !supUrl.includes('/pub')) {
+                        const match = supUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+                        if (match) {
+                            supUrl = `https://docs.google.com/spreadsheets/d/${match[1]}/gviz/tq?tqx=out:csv&sheet=SEGUIMIENTO_SUPERVISOR`;
+                        }
+                    }
+                    if (supUrl.includes('docs.google.com')) {
+                        supUrl += (supUrl.includes('?') ? '&' : '?') + '_nocache=' + Date.now();
+                    }
+
+                    await new Promise((resolve) => {
+                        Papa.parse(supUrl, {
+                            download: true,
+                            header: true,
+                            skipEmptyLines: true,
+                            complete: function(results) {
+                                supervisorRecordsMap.clear();
+                                const rows = results.data || [];
+                                rows.forEach(r => {
+                                    const ticketVal = getProp(r, 'Ticket', 'ticket', 'TICKET', 'nro_ticket');
+                                    const tKey = String(ticketVal || '').trim().toLowerCase();
+                                    if (!tKey) return;
+
+                                    const entry = {
+                                        fecha: getProp(r, 'Fecha_Hora', 'fecha_hora', 'Fecha', 'fecha', 'Timestamp', 'timestamp') || '',
+                                        ticket: String(ticketVal).trim(),
+                                        estado: getProp(r, 'Estado_Supervisor', 'estado_supervisor', 'Estado', 'estado') || '',
+                                        detalle: getProp(r, 'Detalle', 'detalle', 'Observaciones', 'observaciones', 'novedad') || '',
+                                        usuario: getProp(r, 'Usuario', 'usuario', 'perfil') || 'PLUZ'
+                                    };
+
+                                    let record = supervisorRecordsMap.get(tKey);
+                                    if (!record) {
+                                        record = { latest: entry, history: [entry] };
+                                        supervisorRecordsMap.set(tKey, record);
+                                    } else {
+                                        record.latest = entry;
+                                        record.history.unshift(entry);
+                                    }
+                                });
+                                console.log(`🛡️ [Supervisión PLUZ] ${supervisorRecordsMap.size} tickets con novedades cargados.`);
+                                resolve();
+                            },
+                            error: function(err) {
+                                console.warn("⚠️ No se pudo cargar SEGUIMIENTO_SUPERVISOR:", err);
+                                resolve();
+                            }
+                        });
+                    });
+                } else {
+                    supervisorRecordsMap.clear();
                 }
 
                 // Carga de Ejecutados (para alimentar el historial de 7 días y análisis, segmentado por contratista)

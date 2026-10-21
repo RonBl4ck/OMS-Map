@@ -282,25 +282,40 @@
             const countEl = document.getElementById("tableCasesCount");
             const filterInput = document.getElementById("inputFilterTable");
             const query = filterInput ? filterInput.value.trim().toLowerCase() : "";
+            const isPluz = typeof isCurrentUserAdmin === 'function' && isCurrentUserAdmin();
+
+            const thSup = document.getElementById("thSupervisorCol");
+            if (thSup) {
+                thSup.style.display = isPluz ? "" : "none";
+            }
 
             if (!tableBody) return;
 
             let filtered = records;
             if (query) {
-                filtered = records.filter(r =>
-                    String(r.ticket || '').toLowerCase().includes(query) ||
-                    String(r.estado || '').toLowerCase().includes(query) ||
-                    String(r.empresa || '').toLowerCase().includes(query) ||
-                    String(r.falla || '').toLowerCase().includes(query) ||
-                    String(r.intervalo || '').toLowerCase().includes(query) ||
-                    String(r.dia || '').toLowerCase().includes(query) ||
-                    String(r.sed || '').toLowerCase().includes(query) ||
-                    String(r.alimentador || '').toLowerCase().includes(query) ||
-                    String(r.afectacion || '').toLowerCase().includes(query) ||
-                    String(r.llamadas || '').toLowerCase().includes(query) ||
-                    String(r.odm || '').toLowerCase().includes(query) ||
-                    String(r.hora_inicio || r.fecha_inicio || '').toLowerCase().includes(query)
-                );
+                filtered = records.filter(r => {
+                    const baseMatch = String(r.ticket || '').toLowerCase().includes(query) ||
+                        String(r.estado || '').toLowerCase().includes(query) ||
+                        String(r.empresa || '').toLowerCase().includes(query) ||
+                        String(r.falla || '').toLowerCase().includes(query) ||
+                        String(r.intervalo || '').toLowerCase().includes(query) ||
+                        String(r.dia || '').toLowerCase().includes(query) ||
+                        String(r.sed || '').toLowerCase().includes(query) ||
+                        String(r.alimentador || '').toLowerCase().includes(query) ||
+                        String(r.afectacion || '').toLowerCase().includes(query) ||
+                        String(r.llamadas || '').toLowerCase().includes(query) ||
+                        String(r.odm || '').toLowerCase().includes(query) ||
+                        String(r.hora_inicio || r.fecha_inicio || '').toLowerCase().includes(query);
+                    if (baseMatch) return true;
+                    if (isPluz && typeof getSupervisorDataForTicket === 'function') {
+                        const sup = getSupervisorDataForTicket(r.ticket);
+                        if (sup && sup.latest) {
+                            return String(sup.latest.estado || '').toLowerCase().includes(query) ||
+                                   String(sup.latest.detalle || '').toLowerCase().includes(query);
+                        }
+                    }
+                    return false;
+                });
             }
 
             if (currentSortCol) {
@@ -309,7 +324,12 @@
                     let valA = a[currentSortCol];
                     let valB = b[currentSortCol];
 
-                    if (currentSortCol === 'hora_inicio') {
+                    if (currentSortCol === 'supervisor') {
+                        const supA = typeof getSupervisorDataForTicket === 'function' ? getSupervisorDataForTicket(a.ticket) : null;
+                        const supB = typeof getSupervisorDataForTicket === 'function' ? getSupervisorDataForTicket(b.ticket) : null;
+                        valA = (supA && supA.latest) ? supA.latest.estado : '';
+                        valB = (supB && supB.latest) ? supB.latest.estado : '';
+                    } else if (currentSortCol === 'hora_inicio') {
                         valA = a.hora_inicio || a.fecha_inicio || '';
                         valB = b.hora_inicio || b.fecha_inicio || '';
 
@@ -345,7 +365,8 @@
 
             if (filtered.length === 0) {
                 const emptyMsg = query ? "No hay casos pendientes que coincidan con la búsqueda." : "No hay casos pendientes.";
-                tableBody.innerHTML = `<tr><td colspan="14" style="text-align: center; padding: 20px; color: #64748b;">${emptyMsg}</td></tr>`;
+                const colSpanCount = isPluz ? 15 : 14;
+                tableBody.innerHTML = `<tr><td colspan="${colSpanCount}" style="text-align: center; padding: 20px; color: #64748b;">${emptyMsg}</td></tr>`;
                 return;
             }
 
@@ -360,6 +381,36 @@
                 let rawOdm = String(r.odm || '').trim();
                 let odmCellHtml = (!rawOdm || rawOdm === 'N/A' || rawOdm === 'Sin dato' || rawOdm === '0' || rawOdm === '0.0') ? '' : escapeHtml(rawOdm);
 
+                let supTdHtml = '';
+                if (isPluz) {
+                    const supData = (typeof getSupervisorDataForTicket === 'function') ? getSupervisorDataForTicket(r.ticket) : null;
+                    if (supData && supData.latest) {
+                        const supLatest = supData.latest;
+                        const countHist = (supData.history && Array.isArray(supData.history)) ? supData.history.length : 1;
+                        const bClass = (typeof getSupervisorBadgeClass === 'function') ? getSupervisorBadgeClass(supLatest.estado) : 'sup-status-generic';
+                        const detSnippet = supLatest.detalle ? escapeHtml(supLatest.detalle.length > 45 ? supLatest.detalle.slice(0, 42) + '...' : supLatest.detalle) : '';
+                        supTdHtml = `
+                            <td data-label="Supervisión" style="padding: 6px 10px; min-width: 170px;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-bottom: 2px;">
+                                    <span class="sup-status-badge ${bClass}">${escapeHtml(supLatest.estado)}</span>
+                                    <button type="button" class="btn-sup-action" onclick="openSupervisorModal('${escapeHtml(r.ticket)}')" title="Ver historial y registrar novedad">
+                                        📜 ${countHist} | ✏️
+                                    </button>
+                                </div>
+                                ${detSnippet ? `<div style="font-size: 10px; color: #475569; font-style: italic; line-height: 1.2;" title="${escapeHtml(supLatest.detalle)}">"${detSnippet}"</div>` : ''}
+                            </td>
+                        `;
+                    } else {
+                        supTdHtml = `
+                            <td data-label="Supervisión" style="padding: 6px 10px; white-space: nowrap;">
+                                <button type="button" class="btn-sup-new" onclick="openSupervisorModal('${escapeHtml(r.ticket)}')" title="Registrar novedad de supervisión PLUZ">
+                                    ➕ Registrar
+                                </button>
+                            </td>
+                        `;
+                    }
+                }
+
                 return `
                     <tr style="background: ${bg}; border-bottom: 1px solid #e2e8f0;">
                         <td data-label="Ticket" style="padding: 7px 10px; white-space: nowrap;">
@@ -369,6 +420,7 @@
                             </div>
                         </td>
                         <td data-label="Estado" style="padding: 7px 10px; white-space: nowrap;"><span class="status-badge ${stateClass}">${escapeHtml(r.estado)}</span></td>
+                        ${supTdHtml}
                         <td data-label="Empresa" style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.empresa)}</td>
                         <td data-label="Falla" style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.falla)}</td>
                         <td data-label="Intervalo" style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.intervalo)}</td>
@@ -755,3 +807,308 @@
         ['btn-download-ejecutados', 'btn-mobile-download-ejecutados'].forEach(id => {
             document.getElementById(id)?.addEventListener('click', downloadExecutedBase);
         });
+
+        // ==========================================================================
+        // GESTIÓN DE SUPERVISIÓN Y NOVEDADES PLUZ (Modal e Historial)
+        // ==========================================================================
+        let currentSupervisorTicket = null;
+
+        function getSupervisorBadgeClass(status) {
+            const s = String(status || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+            if (s.includes('camino')) return 'sup-status-en-camino';
+            if (s.includes('sitio')) return 'sup-status-en-sitio';
+            if (s.includes('falla')) return 'sup-status-buscando-falla';
+            if (s.includes('maniobra')) return 'sup-status-maniobras';
+            if (s.includes('material')) return 'sup-status-materiales';
+            if (s.includes('normaliz') || s.includes('resuelt') || s.includes('cerrad')) return 'sup-status-normalizado';
+            return 'sup-status-generic';
+        }
+
+        function openSupervisorModal(ticket) {
+            if (typeof isCurrentUserAdmin === 'function' && !isCurrentUserAdmin()) return;
+            const cleanTicket = String(ticket || '').trim();
+            if (!cleanTicket) return;
+
+            currentSupervisorTicket = cleanTicket;
+
+            // Buscar datos del caso para encabezado
+            const rec = (tdOmsRecords || []).find(r => String(r.ticket || '').trim().toLowerCase() === cleanTicket.toLowerCase()) ||
+                        (mapLocations || []).find(l => String(l.ticket || '').trim().toLowerCase() === cleanTicket.toLowerCase()) || {};
+
+            const modal = document.getElementById("supervisorModalOverlay");
+            const tNum = document.getElementById("supModalTicketNum");
+            const bEmp = document.getElementById("supModalBadgeEmpresa");
+            const bEst = document.getElementById("supModalBadgeEstadoOms");
+            const sSed = document.getElementById("supModalSed");
+            const sAli = document.getElementById("supModalAlimentador");
+            const sFal = document.getElementById("supModalFalla");
+            const inEstado = document.getElementById("supInputEstado");
+            const inDetalle = document.getElementById("supInputDetalle");
+            const feedback = document.getElementById("supSaveFeedback");
+
+            if (tNum) tNum.textContent = cleanTicket;
+            if (bEmp) bEmp.textContent = rec.empresa || 'N/A';
+            if (bEst) bEst.textContent = rec.estado || 'PENDIENTE';
+            if (sSed) sSed.textContent = rec.sed || 'N/A';
+            if (sAli) sAli.textContent = rec.alimentador || 'N/A';
+            if (sFal) sFal.textContent = rec.falla || 'Sin falla especificada';
+
+            if (feedback) feedback.style.display = 'none';
+            if (inDetalle) inDetalle.value = '';
+
+            const supData = (typeof getSupervisorDataForTicket === 'function') ? getSupervisorDataForTicket(cleanTicket) : null;
+            if (inEstado) {
+                inEstado.value = (supData && supData.latest) ? (supData.latest.estado || '') : '';
+            }
+
+            updateSupervisorChipSelection(inEstado ? inEstado.value : '');
+            renderSupervisorTimeline(cleanTicket);
+
+            if (modal) {
+                modal.style.display = "flex";
+                setTimeout(() => {
+                    if (inDetalle) inDetalle.focus();
+                }, 100);
+            }
+        }
+
+        function closeSupervisorModal() {
+            const modal = document.getElementById("supervisorModalOverlay");
+            if (modal) modal.style.display = "none";
+            currentSupervisorTicket = null;
+        }
+
+        function updateSupervisorChipSelection(selectedState) {
+            const chips = document.querySelectorAll("#supQuickStateChips .sup-chip-btn");
+            const cleanState = String(selectedState || '').trim().toLowerCase();
+            chips.forEach(btn => {
+                const val = String(btn.getAttribute("data-val") || '').trim().toLowerCase();
+                if (val && cleanState === val) {
+                    btn.classList.add("active");
+                } else {
+                    btn.classList.remove("active");
+                }
+            });
+        }
+
+        function renderSupervisorTimeline(ticket) {
+            const container = document.getElementById("supTimelineContainer");
+            const countEl = document.getElementById("supTimelineCount");
+            if (!container) return;
+
+            const supData = (typeof getSupervisorDataForTicket === 'function') ? getSupervisorDataForTicket(ticket) : null;
+            const history = (supData && Array.isArray(supData.history)) ? supData.history : [];
+
+            if (countEl) countEl.textContent = history.length;
+
+            if (history.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 25px 12px; color: #94a3b8; font-size: 11px; background: #fff; border-radius: 6px; border: 1px dashed #cbd5e1;">
+                        🛡️ Aún no hay registros de supervisión para el ticket #${escapeHtml(ticket)}.<br>
+                        Selecciona un estado y escribe una novedad arriba para comenzar la bitácora.
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = history.map(entry => {
+                const bClass = getSupervisorBadgeClass(entry.estado);
+                let cardModifier = '';
+                const norm = String(entry.estado || '').toLowerCase();
+                if (norm.includes('normaliz')) cardModifier = 'is-normalizado';
+                else if (norm.includes('falla')) cardModifier = 'is-buscando-falla';
+                else if (norm.includes('maniobra')) cardModifier = 'is-maniobras';
+                else if (norm.includes('material')) cardModifier = 'is-materiales';
+
+                return `
+                    <div class="sup-timeline-card ${cardModifier}">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <span class="sup-status-badge ${bClass}">${escapeHtml(entry.estado)}</span>
+                            <span style="font-size: 10px; color: #64748b; font-weight: 600;">🕒 ${escapeHtml(entry.fecha || '')}</span>
+                        </div>
+                        ${entry.detalle ? `<div style="font-size: 11px; color: #1e293b; line-height: 1.35; margin-bottom: 4px;">${escapeHtml(entry.detalle)}</div>` : ''}
+                        <div style="font-size: 9.5px; color: #94a3b8; text-align: right;">
+                            Registrado por: <b>${escapeHtml(entry.usuario || 'PLUZ')}</b>
+                        </div>
+                    </div>
+                `;
+            }).join("");
+        }
+
+        async function saveSupervisorLog() {
+            if (!currentSupervisorTicket) return;
+            const inEstado = document.getElementById("supInputEstado");
+            const inDetalle = document.getElementById("supInputDetalle");
+            const btnSave = document.getElementById("btnSaveSupervisorLog");
+            const feedback = document.getElementById("supSaveFeedback");
+
+            const estado = inEstado ? inEstado.value.trim() : "";
+            const detalle = inDetalle ? inDetalle.value.trim() : "";
+
+            if (!estado) {
+                if (feedback) {
+                    feedback.style.color = "#dc2626";
+                    feedback.textContent = "⚠️ Debes seleccionar o escribir un estado.";
+                    feedback.style.display = "block";
+                }
+                return;
+            }
+
+            if (btnSave) {
+                btnSave.disabled = true;
+                btnSave.textContent = "⏳ Guardando...";
+            }
+            if (feedback) {
+                feedback.style.color = "#0284c7";
+                feedback.textContent = "Guardando novedad...";
+                feedback.style.display = "block";
+            }
+
+            const now = new Date();
+            const pad = n => String(n).padStart(2, '0');
+            const localTimestamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+            const optimisticEntry = {
+                fecha: localTimestamp,
+                ticket: currentSupervisorTicket,
+                estado: estado,
+                detalle: detalle,
+                usuario: 'PLUZ'
+            };
+
+            // 1. Actualización optimista inmediata en memoria
+            if (typeof addSupervisorLogOptimistic === 'function') {
+                addSupervisorLogOptimistic(optimisticEntry);
+            }
+            renderSupervisorTimeline(currentSupervisorTicket);
+            renderTdOmsTable(getFilteredTdOms());
+            if (typeof renderMapMarkers === 'function') {
+                renderMapMarkers();
+            }
+
+            // 2. Persistencia en Backend / Google Sheets
+            try {
+                const userRole = (typeof sessionStorage !== 'undefined') ? sessionStorage.getItem('oms_user_role') : 'admin';
+                const resp = await fetch('/api/update-supervisor-status', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-user-role': userRole || 'admin'
+                    },
+                    body: JSON.stringify({
+                        ticket: currentSupervisorTicket,
+                        estado: estado,
+                        detalle: detalle,
+                        role: userRole || 'admin'
+                    })
+                });
+
+                const data = await resp.json();
+
+                if (resp.ok && data.success) {
+                    if (feedback) {
+                        feedback.style.color = "#16a34a";
+                        feedback.textContent = "✅ " + (data.message || "Guardado exitosamente.");
+                        feedback.style.display = "block";
+                    }
+                    if (inDetalle) inDetalle.value = '';
+                    if (typeof showAppNotification === 'function') {
+                        showAppNotification(`Novedad registrada para ticket #${currentSupervisorTicket}`, 'success');
+                    }
+                    setTimeout(() => {
+                        closeSupervisorModal();
+                    }, 1100);
+                } else {
+                    if (feedback) {
+                        feedback.style.color = "#dc2626";
+                        feedback.textContent = "⚠️ " + (data.message || "Error al sincronizar con Sheets.");
+                        feedback.style.display = "block";
+                    }
+                }
+            } catch (err) {
+                console.error("Error guardando novedad de supervisión:", err);
+                if (feedback) {
+                    feedback.style.color = "#f59e0b";
+                    feedback.textContent = "Guardado localmente (sin conexión a Sheets).";
+                    feedback.style.display = "block";
+                }
+            } finally {
+                if (btnSave) {
+                    btnSave.disabled = false;
+                    btnSave.textContent = "💾 Guardar Novedad";
+                }
+            }
+        }
+
+        function initSupervisorModalEvents() {
+            if (typeof document === 'undefined') return;
+
+            const btnClose = document.getElementById("btnCloseSupervisorModal");
+            const modal = document.getElementById("supervisorModalOverlay");
+            const btnSave = document.getElementById("btnSaveSupervisorLog");
+            const inEstado = document.getElementById("supInputEstado");
+            const inDetalle = document.getElementById("supInputDetalle");
+
+            if (btnClose) {
+                btnClose.onclick = closeSupervisorModal;
+            }
+
+            if (modal) {
+                modal.onclick = (e) => {
+                    if (e.target === modal) closeSupervisorModal();
+                };
+            }
+
+            if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+                window.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && modal && modal.style.display !== 'none') {
+                        closeSupervisorModal();
+                    }
+                });
+            }
+
+            if (btnSave) {
+                btnSave.onclick = saveSupervisorLog;
+            }
+
+            if (inDetalle) {
+                inDetalle.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                        e.preventDefault();
+                        saveSupervisorLog();
+                    }
+                });
+            }
+
+            // Delegación de chips de estado
+            const chips = document.querySelectorAll("#supQuickStateChips .sup-chip-btn");
+            chips.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const val = btn.getAttribute("data-val") || "";
+                    if (inEstado) {
+                        inEstado.value = val;
+                    }
+                    updateSupervisorChipSelection(val);
+                });
+            });
+
+            if (inEstado) {
+                inEstado.addEventListener('input', () => {
+                    updateSupervisorChipSelection(inEstado.value);
+                });
+            }
+        }
+
+        if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initSupervisorModalEvents);
+            } else {
+                initSupervisorModalEvents();
+            }
+        }
+
+        if (typeof window !== 'undefined') {
+            window.openSupervisorModal = openSupervisorModal;
+            window.closeSupervisorModal = closeSupervisorModal;
+            window.getSupervisorBadgeClass = getSupervisorBadgeClass;
+        }

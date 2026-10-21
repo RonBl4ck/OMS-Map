@@ -85,10 +85,6 @@ module.exports = async (req, res) => {
             } catch(e) {}
         }
 
-        if (!resolvedCartoKey) {
-            resolvedCartoKey = "cb1_27lw_1_d612fa2bb664e7fb0d1f742c";
-        }
-
         // Fallback para desarrollo local si la hoja de Google Sheets no está en entorno local
         if (!users || users.length === 0) {
             const cleanUser = String(user).trim().toUpperCase();

@@ -28,6 +28,7 @@ config.local.json
 data.json
 data_ejecutados.json
 data_tecnicos.json
+data_supervisor_logs.json
 
 # Herramientas y Asistentes IA
 .agy/

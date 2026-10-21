@@ -5,15 +5,17 @@
             if (!leafletMap) return;
 
             let key = (cartoKey || sessionStorage.getItem('oms_carto_key') || '').trim();
-            if (!key || key === 'undefined' || key === 'null') {
-                key = 'cb1_27lw_1_d612fa2bb664e7fb0d1f742c';
+            if (key === 'undefined' || key === 'null') {
+                key = '';
             }
 
-            sessionStorage.setItem('oms_carto_key', key);
-            console.log("🗺️ [CARTO Basemaps] Capa base configurada con Key:", `${key.substring(0, 8)}...`);
+            if (key) {
+                sessionStorage.setItem('oms_carto_key', key);
+                console.log("🗺️ [CARTO Basemaps] Capa base configurada con Key:", `${key.substring(0, 8)}...`);
+            }
 
             const cleanKey = encodeURIComponent(key);
-            const keyParam = `?key=${cleanKey}&api_key=${cleanKey}`;
+            const keyParam = key ? `?key=${cleanKey}&api_key=${cleanKey}` : '';
 
             // Capas Base Disponibles
             const voyagerLayer = L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png${keyParam}`, {
@@ -328,6 +330,36 @@
                     sedBadgeHtml = `<span style="font-size:10px; font-weight:bold; color:#2b4791; background:#dbeafe; padding:1px 6px; border-radius:4px;">(7D: ${loc.sed_count} fallas)</span>`;
                 }
 
+                let supCardHtml = '';
+                if (isAdmin) {
+                    const supData = (typeof getSupervisorDataForTicket === 'function') ? getSupervisorDataForTicket(loc.ticket) : null;
+                    if (supData && supData.latest) {
+                        const supLatest = supData.latest;
+                        const countHist = (supData.history && Array.isArray(supData.history)) ? supData.history.length : 1;
+                        const bClass = (typeof getSupervisorBadgeClass === 'function') ? getSupervisorBadgeClass(supLatest.estado) : 'sup-status-generic';
+                        supCardHtml = `
+                            <div style="margin-top: 8px; padding: 7px 9px; background: #f0f7ff; border: 1px solid #bae6fd; border-radius: 6px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
+                                    <span style="font-weight:700; color:#0369a1; font-size:11px;">🛡️ Supervisión PLUZ</span>
+                                    <span class="sup-status-badge ${bClass}" style="font-size:10px; padding:1px 6px;">${escapeHtml(supLatest.estado)}</span>
+                                </div>
+                                ${supLatest.detalle ? `<div style="font-size:11px; color:#334155; margin-bottom:4px; line-height:1.3; font-style:italic;">"${escapeHtml(supLatest.detalle)}"</div>` : ''}
+                                <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px; color:#64748b;">
+                                    <span>🕒 ${escapeHtml(supLatest.fecha || '')}</span>
+                                    <button type="button" onclick="openSupervisorModal('${escapeHtml(loc.ticket)}')" style="border:none; background:none; color:#0284c7; font-weight:700; cursor:pointer; text-decoration:underline; padding:0;">Historial (${countHist}) / ✏️ Editar</button>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        supCardHtml = `
+                            <div style="margin-top: 8px; padding: 6px 8px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 6px; display:flex; justify-content:space-between; align-items:center;">
+                                <span style="font-size:11px; color:#64748b;">🛡️ Sin notas PLUZ</span>
+                                <button type="button" onclick="openSupervisorModal('${escapeHtml(loc.ticket)}')" style="background:#0284c7; color:white; border:none; border-radius:4px; padding:3px 8px; font-size:10px; font-weight:700; cursor:pointer;">➕ Reportar Novedad</button>
+                            </div>
+                        `;
+                    }
+                }
+
                 const popupHtml = `
                     <div style="font-family: Arial, sans-serif; font-size: 12px; min-width: 265px; line-height: 1.5;">
                         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #3c5a9f; padding-bottom:4px; margin-bottom:6px;">
@@ -348,6 +380,7 @@
                         <b>Fecha Inicio:</b> ${escapeHtml(loc.fecha_inicio)}<br>
                         <b>Dirección:</b> ${escapeHtml(loc.direccion)}<br>
                         <b>Distrito:</b> ${escapeHtml(loc.distrito)}
+                        ${supCardHtml}
                         <div style="margin-top: 10px; display: flex; gap: 6px; justify-content: center; align-items: center; flex-wrap: wrap;">
                             ${(isAdmin && (loc.es_sed_critica || loc.es_top_critica)) ? `
                             <button type="button" onclick="openCriticalSedPanel('${escapeHtml(loc.sed)}')" style="

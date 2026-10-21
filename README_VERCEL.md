@@ -42,12 +42,13 @@ En el panel de tu proyecto en [vercel.com](https://vercel.com) (pestaña **Setti
 | `SHEETS_URL_USERS` | Enlace CSV publicado de la pestaña **ACCESOS**. |
 | `CONFIG_MASTER_PASSWORD` | Contraseña / PIN para desbloquear el menú `⚙️ Config` (por defecto `PLUZ_2026_PLUZ`). |
 | `GOOGLE_SCRIPT_USERS_URL` | *(Opcional)* URL de Google Apps Script Webhook para sincronizar cambios desde la web a Sheets. |
-| `CARTO_API_KEY` | Clave API de Carto Basemaps (`cb1_27lw_1_...`). |
+| `CARTO_API_KEY` | Clave API de Carto Basemaps. |
 | `SHEETS_URL_BASE` | URL CSV de la base de pendientes. |
 | `SHEETS_URL_EJECUTADOS` | URL CSV de la base de ejecutados. |
 | `SHEETS_URL_LLAMADAS` | URL CSV de la base de llamadas. |
 | `SHEETS_URL_TECNICOS` | URL CSV de la base de técnicos. |
-| `SHEETS_URL_SED_CRITICAS` | URL CSV de la lista de SEDs Críticas (`.../pub?output=csv&single=true&gid=921101383`). |
+| `SHEETS_URL_SED_CRITICAS` | URL CSV de la lista de SEDs Críticas (`.../pub?output=csv&single=true&gid=1398943131`). |
+| `SHEETS_URL_SUPERVISOR` | URL CSV de la pestaña de Supervisión (`.../pub?output=csv&single=true&gid=143086031`). |
 
 ---
 

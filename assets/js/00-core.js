@@ -3,6 +3,9 @@
         let GOOGLE_SHEET_LLAMADAS_URL = "";
         let GOOGLE_SHEET_TECNICOS_URL = "";
         let GOOGLE_SHEET_SED_CRITICAS_URL = "";
+        let GOOGLE_SHEET_SUPERVISOR_URL = "";
+        let supervisorRecordsMap = new Map();
+        if (typeof window !== 'undefined') window.supervisorRecordsMap = supervisorRecordsMap;
         let sedCriticasSet = new Set();
         let sedCriticasMap = new Map();
         let mapLocations = [];
@@ -47,6 +50,30 @@
         function isCurrentUserAdmin() {
             if (typeof sessionStorage === 'undefined') return false;
             return sessionStorage.getItem('oms_user_role') === 'admin';
+        }
+
+        function getSupervisorDataForTicket(ticket) {
+            if (!ticket) return null;
+            const key = String(ticket).trim().toLowerCase();
+            return supervisorRecordsMap.get(key) || null;
+        }
+
+        function addSupervisorLogOptimistic(entry) {
+            if (!entry || !entry.ticket) return;
+            const key = String(entry.ticket).trim().toLowerCase();
+            let data = supervisorRecordsMap.get(key);
+            if (!data) {
+                data = { latest: entry, history: [entry] };
+                supervisorRecordsMap.set(key, data);
+            } else {
+                data.latest = entry;
+                if (!Array.isArray(data.history)) data.history = [];
+                data.history.unshift(entry);
+            }
+        }
+        if (typeof window !== 'undefined') {
+            window.getSupervisorDataForTicket = getSupervisorDataForTicket;
+            window.addSupervisorLogOptimistic = addSupervisorLogOptimistic;
         }
 
         function debounceUi(callback, wait = 120) {
