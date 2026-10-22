@@ -152,6 +152,7 @@
 
                                     const estadoOperativo = getProp(r, 'Estado_Operativo', 'estado_operativo', 'Estado_Supervisor', 'estado_supervisor', 'Estado', 'estado') || '';
                                     const detalleOperativo = getProp(r, 'Detalle_Operativo', 'detalle_operativo', 'Detalle', 'detalle', 'Observaciones', 'observaciones', 'novedad') || '';
+                                    const jefeCuadrilla = getProp(r, 'Jefe_Cuadrilla', 'jefe_cuadrilla', 'JC', 'jc', 'JefeCuadrilla') || '';
                                     const estadoCritico = getProp(r, 'Estado_Critico', 'estado_critico', 'Criticidad', 'criticidad') || '';
                                     const detalleCritico = getProp(r, 'Detalle_Critico', 'detalle_critico') || '';
 
@@ -173,6 +174,7 @@
                                         ticket: String(ticketVal).trim(),
                                         estadoOperativo: resolvedOperativo,
                                         detalleOperativo: resolvedDetalleOp,
+                                        jefeCuadrilla: jefeCuadrilla,
                                         estadoCritico: resolvedCritico,
                                         detalleCritico: resolvedDetalleCrit,
                                         // Legacy aliases

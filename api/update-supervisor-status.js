@@ -50,6 +50,8 @@ module.exports = async (req, res) => {
             detalleOperativo, 
             estadoCritico, 
             detalleCritico, 
+            jefeCuadrilla,
+            jc,
             role, 
             scriptUrl 
         } = body || {};
@@ -71,6 +73,7 @@ module.exports = async (req, res) => {
         // Detalle Operativo: detalleOperativo || detalle
         const cleanEstadoOperativo = String(estadoOperativo !== undefined ? estadoOperativo : (estado || '')).trim().toUpperCase();
         const cleanDetalleOperativo = String(detalleOperativo !== undefined ? detalleOperativo : (detalle || '')).trim();
+        const cleanJefeCuadrilla = String(jefeCuadrilla !== undefined ? jefeCuadrilla : (jc || '')).trim();
         const cleanEstadoCritico = String(estadoCritico || '').trim().toUpperCase();
         const cleanDetalleCritico = String(detalleCritico || '').trim();
 
@@ -81,7 +84,7 @@ module.exports = async (req, res) => {
             return res.end(payload);
         }
 
-        if (!cleanEstadoOperativo && !cleanEstadoCritico) {
+        if (!cleanEstadoOperativo && !cleanEstadoCritico && !cleanJefeCuadrilla) {
             const payload = JSON.stringify({ success: false, message: 'Debe ingresar al menos un estado operativo o nivel de criticidad.' });
             if (typeof res.status === 'function') return res.status(400).send(payload);
             res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -94,6 +97,7 @@ module.exports = async (req, res) => {
             ticket: cleanTicket,
             estadoOperativo: cleanEstadoOperativo,
             detalleOperativo: cleanDetalleOperativo,
+            jefeCuadrilla: cleanJefeCuadrilla,
             estadoCritico: cleanEstadoCritico,
             detalleCritico: cleanDetalleCritico,
             // Campos de compatibilidad con versiones previas:

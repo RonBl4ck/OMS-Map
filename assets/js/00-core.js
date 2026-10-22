@@ -67,6 +67,7 @@
                 ticket: String(entry.ticket).trim(),
                 estadoOperativo: entry.estadoOperativo || entry.estado || '',
                 detalleOperativo: entry.detalleOperativo || entry.detalle || '',
+                jefeCuadrilla: entry.jefeCuadrilla || entry.jc || '',
                 estadoCritico: entry.estadoCritico || '',
                 detalleCritico: entry.detalleCritico || '',
                 estado: entry.estadoOperativo || entry.estado || entry.estadoCritico || '',

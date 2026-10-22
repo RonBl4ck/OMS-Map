@@ -311,6 +311,11 @@
                 topCriticalSedsList = [];
             }
 
+            tdOmsRecords.forEach(r => {
+                r.es_sed_critica = isAdmin && isSedCritica(r.sed);
+                r.es_top_critica = isAdmin && (typeof isTopCriticalSed === 'function' ? isTopCriticalSed(r.sed) : false);
+            });
+
             mapLocations.forEach(loc => {
                 loc.es_sed_critica = isAdmin && isSedCritica(loc.sed);
                 loc.es_top_critica = isAdmin && isTopCriticalSed(loc.sed);
@@ -1039,39 +1044,62 @@
             const bounds = [];
             const visibleLocations = [];
 
-            mapLocations.forEach(loc => {
+            function matchesCurrentMapFilter(item) {
                 let matchQuery = true;
                 if (query && searchType === "ticket") {
                     // Para búsqueda de ticket/ODM: NO se ocultan los demás marcadores.
                     // Todos permanecen al 100% de opacidad en el mapa.
                     matchQuery = true;
                 } else if (query && searchType === "sed") {
-                    matchQuery = String(loc.sed || '').toLowerCase().includes(query);
+                    matchQuery = String(item.sed || '').toLowerCase().includes(query);
                 } else if (query && searchType === "alimentador") {
-                    matchQuery = String(loc.alimentador || '').toLowerCase().includes(query);
+                    matchQuery = String(item.alimentador || '').toLowerCase().includes(query);
                 }
 
-                const matchEst = matchesMultiSelection(loc.estado, selEsts);
-                const matchEmp = matchesMultiSelection(loc.empresa, selEmps);
-                const matchFal = matchesMultiSelection(loc.falla, selFallas);
-                const numLlamadas = parseInt(loc.llamadas || 0, 10) || 0;
+                const matchEst = matchesMultiSelection(item.estado, selEsts);
+                const matchEmp = matchesMultiSelection(item.empresa, selEmps);
+                const matchFal = matchesMultiSelection(item.falla, selFallas);
+                const numLlamadas = parseInt(item.llamadas || 0, 10) || 0;
                 const matchLlamadas = !only7Llamadas || numLlamadas >= 7;
-                const matchSed = !onlyReincSed || (loc.sed_reincidente || loc.sed_count > 2);
-                const matchSum = !onlyReincSum || (loc.suministro_count >= 2);
-                const matchCrit = !onlyCritica || loc.es_top_critica;
+                const matchSed = !onlyReincSed || (item.sed_reincidente || item.sed_count > 2);
+                const matchSum = !onlyReincSum || (item.suministro_count >= 2);
+                const isTopCrit = isAdmin && (typeof isTopCriticalSed === 'function' ? isTopCriticalSed(item.sed) : !!item.es_top_critica);
+                const matchCrit = !onlyCritica || isTopCrit;
 
-                if (matchQuery && matchEst && matchEmp && matchFal && matchLlamadas && matchSed && matchSum && matchCrit) {
+                return matchQuery && matchEst && matchEmp && matchFal && matchLlamadas && matchSed && matchSum && matchCrit;
+            }
+
+            // Contar el total de incidencias que cumplen el filtro (incluyendo las no georreferenciadas / sin GPS)
+            const allRecordsSource = (tdOmsRecords && tdOmsRecords.length > 0) ? tdOmsRecords : mapLocations;
+            allRecordsSource.forEach(record => {
+                if (matchesCurrentMapFilter(record)) {
+                    count++;
+                }
+            });
+
+            // Georreferenciar y dibujar en el mapa las incidencias con coordenadas válidas
+            mapLocations.forEach(loc => {
+                if (matchesCurrentMapFilter(loc)) {
                     if (markerMap.has(loc.ticket.toLowerCase())) {
                         markersGroup.addLayer(markerMap.get(loc.ticket.toLowerCase()).marker);
                         bounds.push([loc.lat, loc.lon]);
                         visibleLocations.push(loc);
-                        count++;
                     }
                 }
             });
 
             if (bounds.length > 0 && (!query || searchType !== "ticket")) {
                 leafletMap.fitBounds(L.latLngBounds(bounds).pad(0.1));
+            }
+
+            const topNavEl = document.getElementById("topNavCount");
+            if (topNavEl) {
+                const noGpsCount = count - visibleLocations.length;
+                if (noGpsCount > 0) {
+                    topNavEl.title = `Total: ${count} incidencias (${visibleLocations.length} en mapa, ${noGpsCount} sin coordenadas GPS)`;
+                } else {
+                    topNavEl.title = `Total: ${count} incidencias pendientes`;
+                }
             }
             document.getElementById("topNavCount").innerText = count > 0 ? `🚨 ${count}` : '0';
 

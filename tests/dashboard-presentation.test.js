@@ -14,9 +14,12 @@ test('cada gráfico comunica su alcance y total de registros', () => {
 });
 
 test('las filas de indicadores incluyen etiquetas para su lectura móvil', () => {
-  for (const label of ['Ticket', 'Estado', 'Empresa', 'Falla', 'Intervalo', 'Día', 'SED', 'Alimentador', 'Afectación', 'Llamadas', 'ODM', 'Hora de inicio']) {
+  for (const label of ['Ticket', 'ODM', 'Estado', 'Empresa', 'Falla', 'Intervalo', 'Hora de inicio', 'SED', 'Alimentador', 'Afectación', 'Llamadas']) {
     assert.match(source, new RegExp(`data-label="${label}`));
   }
+  assert.doesNotMatch(source, /data-label="Día"/);
+  assert.doesNotMatch(source, /data-label="Latitud"/);
+  assert.doesNotMatch(source, /data-label="Longitud"/);
 });
 
 test('indicadores conserva una tabla compacta y desplazable en celular', () => {

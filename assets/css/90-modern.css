@@ -1721,14 +1721,44 @@ body:not([data-primary-view="map"]) .map-legend { display: none !important; }
   font-weight: 800;
   box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
 }
+.sup-status-vencido {
+  background: #fff7ed;
+  color: #c2410c;
+  border: 1px solid #f97316;
+  font-weight: 800;
+  box-shadow: 0 0 6px rgba(249, 115, 22, 0.4);
+}
 
 /* Modificadores de borde para Línea de Tiempo */
 .sup-timeline-card.is-quantico { border-left-color: #ec4899; }
 .sup-timeline-card.is-critico { border-left-color: #ef4444; }
+.sup-timeline-card.is-vencido { border-left-color: #f97316; }
 .sup-timeline-card.is-impedido { border-left-color: #dc2626; }
 .sup-timeline-card.is-derivado { border-left-color: #ea580c; }
 .sup-timeline-card.is-en-ejecucion { border-left-color: #0284c7; }
 .sup-timeline-card.is-pendiente { border-left-color: #eab308; }
+
+/* Tarjeta Hero Última Novedad */
+.sup-hero-card {
+  background: linear-gradient(to bottom, #ffffff, #f8fafc);
+  border: 1px solid #cbd5e1;
+  border-left: 4px solid #0284c7;
+  border-radius: 8px;
+  padding: 11px 13px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.04);
+}
+.sup-hero-card.has-critico { border-left-color: #ef4444; }
+.sup-hero-card.has-quantico { border-left-color: #ec4899; }
+.sup-hero-card.has-vencido { border-left-color: #f97316; }
+.sup-hero-card.has-impedido { border-left-color: #dc2626; }
+
+/* Microinteracciones activas estilo Emil Kowalski */
+.sup-chip-btn:active,
+#btnSaveSupervisorLog:active,
+.btn-sup-action:active,
+.btn-sup-new:active {
+  transform: scale(0.97);
+}
 
 /* Botón de Exportar Tabla */
 .btn-export-table {

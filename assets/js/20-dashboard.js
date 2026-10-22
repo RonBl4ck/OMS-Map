@@ -30,7 +30,7 @@
                 if (onlyQuanticoCritico) {
                     const sup = typeof getSupervisorDataForTicket === 'function' ? getSupervisorDataForTicket(r.ticket) : null;
                     const cState = (sup && sup.latest) ? String(sup.latest.estadoCritico || sup.latest.estado || '').toUpperCase() : '';
-                    matchQuanticoCritico = cState.includes('QUANT') || cState.includes('CRIT');
+                    matchQuanticoCritico = cState.includes('QUANT') || cState.includes('CRIT') || cState.includes('VENCID');
                 }
 
                 return (
@@ -264,6 +264,34 @@
             return Number.isNaN(fallback) ? null : fallback;
         }
 
+        function formatShortDate(value) {
+            if (!value || value === 'N/A' || value === 'Sin dato') return 'N/A';
+            const text = String(value).trim();
+            let match = text.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::\d{2})?)?$/);
+            if (match) {
+                const d = match[1].padStart(2, '0');
+                const m = match[2].padStart(2, '0');
+                if (match[4] !== undefined) {
+                    const hh = match[4].padStart(2, '0');
+                    const mm = match[5] || '00';
+                    return `${d}/${m} ${hh}:${mm}`;
+                }
+                return `${d}/${m}`;
+            }
+            match = text.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})(?:[T\s]+(\d{1,2}):(\d{2})(?::\d{2})?)?$/);
+            if (match) {
+                const d = match[3].padStart(2, '0');
+                const m = match[2].padStart(2, '0');
+                if (match[4] !== undefined) {
+                    const hh = match[4].padStart(2, '0');
+                    const mm = match[5] || '00';
+                    return `${d}/${m} ${hh}:${mm}`;
+                }
+                return `${d}/${m}`;
+            }
+            return text;
+        }
+
         function sortTdOmsTable(key) {
             if (currentSortCol === key) {
                 currentSortDir = currentSortDir === 'asc' ? 'desc' : 'asc';
@@ -386,7 +414,7 @@
 
             if (filtered.length === 0) {
                 const emptyMsg = query ? "No hay casos pendientes que coincidan con la búsqueda." : "No hay casos pendientes.";
-                const colSpanCount = isPluz ? 16 : 14;
+                const colSpanCount = isPluz ? 13 : 11;
                 tableBody.innerHTML = `<tr><td colspan="${colSpanCount}" style="text-align: center; padding: 20px; color: #64748b;">${emptyMsg}</td></tr>`;
                 return;
             }
@@ -396,6 +424,7 @@
 
                 const bg = idx % 2 === 0 ? "#ffffff" : "#f8fafc";
                 const horaIni = r.hora_inicio || r.fecha_inicio || 'N/A';
+                const horaIniShort = formatShortDate(horaIni);
                 const latVal = r.latitud !== undefined && r.latitud !== null ? r.latitud : (r.lat !== undefined ? r.lat : 'N/A');
                 const lonVal = r.longitud !== undefined && r.longitud !== null ? r.longitud : (r.lon !== undefined ? r.lon : 'N/A');
 
@@ -410,29 +439,32 @@
                         const supLatest = supData.latest;
                         const countHist = (supData.history && Array.isArray(supData.history)) ? supData.history.length : 1;
                         
-                        // 1. Columna Estado Operativo
+                        // 1. Columna Estado (PLUZ)
                         const opEstado = supLatest.estadoOperativo || supLatest.estado || 'PENDIENTE';
                         const opDetalle = supLatest.detalleOperativo || supLatest.detalle || '';
+                        const opJc = supLatest.jefeCuadrilla || '';
                         const opBadgeClass = (typeof getSupervisorBadgeClass === 'function') ? getSupervisorBadgeClass(opEstado) : 'sup-status-generic';
                         const opSnippet = opDetalle ? escapeHtml(opDetalle.length > 40 ? opDetalle.slice(0, 37) + '...' : opDetalle) : '';
 
                         supOperativoTdHtml = `
-                            <td data-label="Estado Operativo (PLUZ)" style="padding: 6px 10px; min-width: 150px;">
+                            <td data-label="Estado (PLUZ)" style="padding: 6px 10px; min-width: 140px;">
                                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-bottom: 2px;">
                                     <span class="sup-status-badge ${opBadgeClass}">${escapeHtml(opEstado)}</span>
-                                    <button type="button" class="btn-sup-action" onclick="openSupervisorModal('${escapeHtml(r.ticket)}')" title="Ver historial y actualizar">
-                                        📜 ${countHist} | ✏️
+                                    <button type="button" class="btn-sup-action" onclick="openSupervisorModal('${escapeHtml(r.ticket)}')" title="Historial (${countHist}) - Clic para actualizar" aria-label="Actualizar estado operativo">
+                                        🔄
                                     </button>
                                 </div>
+                                ${opJc ? `<div style="font-size: 10px; font-weight: 700; color: #1e293b; line-height: 1.2;">JC: ${escapeHtml(opJc)}</div>` : ''}
                                 ${opSnippet ? `<div style="font-size: 10px; color: #475569; font-style: italic; line-height: 1.2;" title="${escapeHtml(opDetalle)}">"${opSnippet}"</div>` : ''}
                             </td>
                         `;
 
                         // 2. Columna Criticidad
                         const critEstado = supLatest.estadoCritico || '';
-                        const critDetalle = supLatest.detalleCritico || '';
+                        const rawCritDetalle = String(supLatest.detalleCritico || '').trim();
+                        const isNaCritDetalle = !rawCritDetalle || /^n\/?a$/i.test(rawCritDetalle) || rawCritDetalle === '-';
                         const critBadgeClass = (typeof getCriticoBadgeClass === 'function') ? getCriticoBadgeClass(critEstado) : 'sup-status-normal';
-                        const critSnippet = critDetalle ? escapeHtml(critDetalle.length > 40 ? critDetalle.slice(0, 37) + '...' : critDetalle) : '';
+                        const critSnippet = !isNaCritDetalle ? escapeHtml(rawCritDetalle.length > 40 ? rawCritDetalle.slice(0, 37) + '...' : rawCritDetalle) : '';
 
                         supCriticoTdHtml = `
                             <td data-label="Criticidad (PLUZ)" style="padding: 6px 10px; min-width: 130px;">
@@ -440,7 +472,7 @@
                                     <div style="margin-bottom: 2px;">
                                         <span class="sup-status-badge ${critBadgeClass}">${escapeHtml(critEstado)}</span>
                                     </div>
-                                    ${critSnippet ? `<div style="font-size: 10px; color: #831843; font-style: italic; line-height: 1.2;" title="${escapeHtml(critDetalle)}">"${critSnippet}"</div>` : ''}
+                                    ${critSnippet ? `<div style="font-size: 10px; color: #831843; font-style: italic; line-height: 1.2;" title="${escapeHtml(rawCritDetalle)}">"${critSnippet}"</div>` : ''}
                                 ` : `
                                     <span style="font-size: 10px; color: #94a3b8;">NORMAL</span>
                                 `}
@@ -448,7 +480,7 @@
                         `;
                     } else {
                         supOperativoTdHtml = `
-                            <td data-label="Estado Operativo (PLUZ)" style="padding: 6px 10px; white-space: nowrap;">
+                            <td data-label="Estado (PLUZ)" style="padding: 6px 10px; white-space: nowrap;">
                                 <button type="button" class="btn-sup-new" onclick="openSupervisorModal('${escapeHtml(r.ticket)}')" title="Registrar novedad de supervisión PLUZ">
                                     ➕ Registrar
                                 </button>
@@ -470,23 +502,20 @@
                                 <button type="button" class="btn-ticket-pin" onclick="navigateToTicketOnMap('${escapeHtml(r.ticket)}')" title="Localizar ticket #${escapeHtml(r.ticket)} en el mapa" aria-label="Localizar ticket #${escapeHtml(r.ticket)} en el mapa">📍</button>
                             </div>
                         </td>
-                        <td data-label="Estado" style="padding: 7px 10px; white-space: nowrap;"><span class="status-badge ${stateClass}">${escapeHtml(r.estado)}</span></td>
-                        ${supOperativoTdHtml}
-                        ${supCriticoTdHtml}
-                        <td data-label="Empresa" style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.empresa)}</td>
-                        <td data-label="Falla" style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.falla)}</td>
-                        <td data-label="Intervalo" style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.intervalo)}</td>
-                        <td data-label="Día" style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.dia)}</td>
+                        <td data-label="ODM" style="padding: 7px 10px; white-space: nowrap;">${odmCellHtml}</td>
+                        <td data-label="Hora de inicio" style="padding: 7px 10px; white-space: nowrap;" title="${escapeHtml(horaIni)}">${escapeHtml(horaIniShort)}</td>
                         <td data-label="SED" style="padding: 7px 10px; white-space: nowrap;">
-                            ${r.es_sed_critica ? `<button type="button" class="sed-critical-link" onclick="if(typeof openCriticalSedPanel==='function') openCriticalSedPanel('${escapeHtml(r.sed)}')" title="Ver historial y análisis de la SED Crítica ${escapeHtml(r.sed)}">${escapeHtml(r.sed)} 🚨 CRÍTICA</button>` : escapeHtml(r.sed)}
+                            ${r.es_sed_critica ? `<button type="button" class="sed-critical-link" onclick="if(typeof openCriticalSedPanel==='function') openCriticalSedPanel('${escapeHtml(r.sed)}')" title="Ver historial y análisis de la SED Crítica ${escapeHtml(r.sed)}">${escapeHtml(r.sed)}</button>` : escapeHtml(r.sed)}
                         </td>
+                        <td data-label="Falla" style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.falla)}</td>
+                        <td data-label="Llamadas" style="padding: 7px 10px; text-align: center; white-space: nowrap;">${escapeHtml(r.llamadas)}</td>
+                        <td data-label="Estado" style="padding: 7px 10px; white-space: nowrap;"><span class="status-badge ${stateClass}">${escapeHtml(r.estado)}</span></td>
+                        <td data-label="Empresa" style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.empresa)}</td>
+                        <td data-label="Intervalo" style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.intervalo)}</td>
                         <td data-label="Alimentador" style="padding: 7px 10px; font-weight: 600; color: #475569; white-space: nowrap;">${escapeHtml(r.alimentador || 'N/A')}</td>
                         <td data-label="Afectación" style="padding: 7px 10px; text-align: center; white-space: nowrap;">${escapeHtml(r.afectacion)}</td>
-                        <td data-label="Llamadas" style="padding: 7px 10px; text-align: center; white-space: nowrap;">${escapeHtml(r.llamadas)}</td>
-                        <td data-label="ODM" style="padding: 7px 10px; white-space: nowrap;">${odmCellHtml}</td>
-                        <td data-label="Hora de inicio" style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(horaIni)}</td>
-                        <td data-label="Latitud" style="padding: 7px 10px; font-family: monospace; white-space: nowrap;">${escapeHtml(latVal)}</td>
-                        <td data-label="Longitud" style="padding: 7px 10px; font-family: monospace; white-space: nowrap;">${escapeHtml(lonVal)}</td>
+                        ${supOperativoTdHtml}
+                        ${supCriticoTdHtml}
                     </tr>
                 `;
             }).join("");
@@ -862,26 +891,31 @@
                 const latest = supData ? supData.latest : null;
                 const row = {
                     "Ticket": r.ticket || "",
-                    "Estado": r.estado || ""
+                    "ODM": r.odm || "",
+                    "Hora Inicio": r.hora_inicio || r.fecha_inicio || "",
+                    "SED": r.sed || "",
+                    "Falla": r.falla || "",
+                    "Llamadas": r.llamadas !== undefined ? r.llamadas : "",
+                    "Estado": r.estado || "",
+                    "Empresa": r.empresa || "",
+                    "Intervalo": r.intervalo || "",
+                    "Alimentador": r.alimentador || "",
+                    "Afectación": r.afectacion !== undefined ? r.afectacion : ""
                 };
 
                 if (isPluz) {
                     row["Estado Operativo (PLUZ)"] = latest ? (latest.estadoOperativo || latest.estado || "") : "";
+                    row["JC"] = latest ? (latest.jefeCuadrilla || "") : "";
                     row["Detalle Operativo (PLUZ)"] = latest ? (latest.detalleOperativo || latest.detalle || "") : "";
                     row["Criticidad (PLUZ)"] = latest ? (latest.estadoCritico || "") : "";
                     row["Detalle Criticidad (PLUZ)"] = latest ? (latest.detalleCritico || "") : "";
                 }
 
-                row["Empresa"] = r.empresa || "";
-                row["Falla"] = r.falla || "";
-                row["Intervalo"] = r.intervalo || "";
                 row["Día"] = r.dia || "";
                 row["SED"] = r.sed || "";
                 row["Alimentador"] = r.alimentador || "";
                 row["Afectación"] = r.afectacion !== undefined ? r.afectacion : "";
                 row["Llamadas"] = r.llamadas !== undefined ? r.llamadas : "";
-                row["ODM"] = r.odm || "";
-                row["Hora Inicio"] = r.hora_inicio || r.fecha_inicio || "";
                 row["Latitud"] = r.latitud !== undefined && r.latitud !== null ? r.latitud : (r.lat || "");
                 row["Longitud"] = r.longitud !== undefined && r.longitud !== null ? r.longitud : (r.lon || "");
                 return row;
@@ -961,6 +995,7 @@
         function getCriticoBadgeClass(status) {
             const s = String(status || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
             if (s.includes('quant')) return 'sup-status-quantico';
+            if (s.includes('vencid')) return 'sup-status-vencido';
             if (s.includes('crit')) return 'sup-status-critico';
             return 'sup-status-normal';
         }
@@ -984,6 +1019,7 @@
             const sAli = document.getElementById("supModalAlimentador");
             const sFal = document.getElementById("supModalFalla");
             
+            const inJc = document.getElementById("supInputJefeCuadrilla");
             const inEstOp = document.getElementById("supInputEstadoOperativo");
             const inDetOp = document.getElementById("supInputDetalleOperativo");
             const inEstCrit = document.getElementById("supInputEstadoCritico");
@@ -1002,10 +1038,53 @@
             const supData = (typeof getSupervisorDataForTicket === 'function') ? getSupervisorDataForTicket(cleanTicket) : null;
             const supLatest = supData ? supData.latest : null;
 
+            // HERO CARD: Mostrar última novedad arriba si existe historial
+            const heroEl = document.getElementById("supHeroLatestContainer");
+            if (heroEl) {
+                if (supLatest) {
+                    const opEst = supLatest.estadoOperativo || supLatest.estado || 'PENDIENTE';
+                    const critEst = supLatest.estadoCritico || '';
+                    const opBadgeClass = getSupervisorBadgeClass(opEst);
+                    const critBadgeClass = critEst ? getCriticoBadgeClass(critEst) : '';
+                    const jcVal = supLatest.jefeCuadrilla || '';
+                    const opDet = supLatest.detalleOperativo || supLatest.detalle || '';
+                    const critDet = supLatest.detalleCritico || '';
+
+                    let borderClass = 'is-en-ejecucion';
+                    const critNorm = String(critEst).toLowerCase();
+                    const opNorm = String(opEst).toLowerCase();
+                    if (critNorm.includes('crit')) borderClass = 'has-critico';
+                    else if (critNorm.includes('quant')) borderClass = 'has-quantico';
+                    else if (critNorm.includes('vencid')) borderClass = 'has-vencido';
+                    else if (opNorm.includes('impedid')) borderClass = 'has-impedido';
+
+                    heroEl.innerHTML = `
+                        <div class="sup-hero-card ${borderClass}">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 4px;">
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span style="font-size: 11px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.3px;">📌 Última Novedad:</span>
+                                    <span class="sup-status-badge ${opBadgeClass}">⚙️ ${escapeHtml(opEst)}</span>
+                                    ${critEst ? `<span class="sup-status-badge ${critBadgeClass}">${escapeHtml(critEst)}</span>` : ''}
+                                </div>
+                                <span style="font-size: 10px; color: #64748b; font-weight: 600;">🕒 ${escapeHtml(supLatest.fecha || '')} • por <b>${escapeHtml(supLatest.usuario || 'PLUZ')}</b></span>
+                            </div>
+                            ${jcVal ? `<div style="font-size: 11px; color: #0f172a; margin-bottom: 4px; font-weight: 700;">JC: <span style="font-weight: 600; color: #1e293b;">${escapeHtml(jcVal)}</span></div>` : ''}
+                            ${opDet ? `<div style="font-size: 11px; color: #334155; line-height: 1.35; margin-bottom: 3px;"><b>Operativo:</b> ${escapeHtml(opDet)}</div>` : ''}
+                            ${critDet && !/^n\/?a$/i.test(critDet) ? `<div style="font-size: 11px; color: #9d174d; line-height: 1.35;"><b>Criticidad:</b> ${escapeHtml(critDet)}</div>` : ''}
+                        </div>
+                    `;
+                    heroEl.style.display = "block";
+                } else {
+                    heroEl.style.display = "none";
+                }
+            }
+
+            // Heredar JC y estados seleccionados, pero dejar las notas limpias para la nueva novedad
+            if (inJc) inJc.value = supLatest ? (supLatest.jefeCuadrilla || '') : '';
             if (inEstOp) inEstOp.value = supLatest ? (supLatest.estadoOperativo || supLatest.estado || 'PENDIENTE') : 'PENDIENTE';
-            if (inDetOp) inDetOp.value = supLatest ? (supLatest.detalleOperativo || supLatest.detalle || '') : '';
+            if (inDetOp) inDetOp.value = '';
             if (inEstCrit) inEstCrit.value = supLatest ? (supLatest.estadoCritico || '') : '';
-            if (inDetCrit) inDetCrit.value = supLatest ? (supLatest.detalleCritico || '') : '';
+            if (inDetCrit) inDetCrit.value = '';
 
             updateSupervisorOperativoChipSelection(inEstOp ? inEstOp.value : '');
             updateSupervisorCriticoChipSelection(inEstCrit ? inEstCrit.value : '');
@@ -1082,6 +1161,7 @@
                 const critNorm = String(critEst).toLowerCase();
                 if (critNorm.includes('crit')) cardModifier = 'is-critico';
                 else if (critNorm.includes('quant')) cardModifier = 'is-quantico';
+                else if (critNorm.includes('vencid')) cardModifier = 'is-vencido';
                 else if (opNorm.includes('impedid')) cardModifier = 'is-impedido';
                 else if (opNorm.includes('derivad')) cardModifier = 'is-derivado';
                 else if (opNorm.includes('ejecuc')) cardModifier = 'is-en-ejecucion';
@@ -1097,6 +1177,11 @@
                             </div>
                             <span style="font-size: 10px; color: #64748b; font-weight: 600;">🕒 ${escapeHtml(entry.fecha || '')}</span>
                         </div>
+                        ${entry.jefeCuadrilla ? `
+                            <div style="font-size: 11px; color: #0f172a; margin-bottom: 3px; font-weight: 700;">
+                                JC: <span style="font-weight: 600; color: #1e293b;">${escapeHtml(entry.jefeCuadrilla)}</span>
+                            </div>
+                        ` : ''}
                         ${(entry.detalleOperativo || entry.detalle) ? `
                             <div style="font-size: 11px; color: #1e293b; line-height: 1.35; margin-bottom: 4px;">
                                 <b>Operativo:</b> ${escapeHtml(entry.detalleOperativo || entry.detalle)}
@@ -1117,6 +1202,7 @@
 
         async function saveSupervisorLog() {
             if (!currentSupervisorTicket) return;
+            const inJc = document.getElementById("supInputJefeCuadrilla");
             const inEstOp = document.getElementById("supInputEstadoOperativo");
             const inDetOp = document.getElementById("supInputDetalleOperativo");
             const inEstCrit = document.getElementById("supInputEstadoCritico");
@@ -1124,15 +1210,16 @@
             const btnSave = document.getElementById("btnSaveSupervisorLog");
             const feedback = document.getElementById("supSaveFeedback");
 
+            const jefeCuadrilla = inJc ? inJc.value.trim().toUpperCase() : "";
             const estadoOperativo = inEstOp ? inEstOp.value.trim().toUpperCase() : "";
             const detalleOperativo = inDetOp ? inDetOp.value.trim() : "";
             const estadoCritico = inEstCrit ? inEstCrit.value.trim().toUpperCase() : "";
             const detalleCritico = inDetCrit ? inDetCrit.value.trim() : "";
 
-            if (!estadoOperativo && !estadoCritico) {
+            if (!estadoOperativo && !estadoCritico && !jefeCuadrilla) {
                 if (feedback) {
                     feedback.style.color = "#dc2626";
-                    feedback.textContent = "⚠️ Debes ingresar al menos un estado operativo o nivel de criticidad.";
+                    feedback.textContent = "⚠️ Debes ingresar al menos un estado operativo, JC o nivel de criticidad.";
                     feedback.style.display = "block";
                 }
                 return;
@@ -1157,6 +1244,7 @@
                 ticket: currentSupervisorTicket,
                 estadoOperativo: estadoOperativo,
                 detalleOperativo: detalleOperativo,
+                jefeCuadrilla: jefeCuadrilla,
                 estadoCritico: estadoCritico,
                 detalleCritico: detalleCritico,
                 estado: estadoOperativo || estadoCritico,
@@ -1174,6 +1262,51 @@
                 renderMapMarkers();
             }
 
+            // Actualizar la Hero Card superior con el nuevo estado recién guardado
+            const heroEl = document.getElementById("supHeroLatestContainer");
+            if (heroEl) {
+                const supData = (typeof getSupervisorDataForTicket === 'function') ? getSupervisorDataForTicket(currentSupervisorTicket) : null;
+                const supLatest = supData ? supData.latest : null;
+                if (supLatest) {
+                    const opEst = supLatest.estadoOperativo || supLatest.estado || 'PENDIENTE';
+                    const critEst = supLatest.estadoCritico || '';
+                    const opBadgeClass = getSupervisorBadgeClass(opEst);
+                    const critBadgeClass = critEst ? getCriticoBadgeClass(critEst) : '';
+                    const jcVal = supLatest.jefeCuadrilla || '';
+                    const opDet = supLatest.detalleOperativo || supLatest.detalle || '';
+                    const critDet = supLatest.detalleCritico || '';
+
+                    let borderClass = 'is-en-ejecucion';
+                    const critNorm = String(critEst).toLowerCase();
+                    const opNorm = String(opEst).toLowerCase();
+                    if (critNorm.includes('crit')) borderClass = 'has-critico';
+                    else if (critNorm.includes('quant')) borderClass = 'has-quantico';
+                    else if (critNorm.includes('vencid')) borderClass = 'has-vencido';
+                    else if (opNorm.includes('impedid')) borderClass = 'has-impedido';
+
+                    heroEl.innerHTML = `
+                        <div class="sup-hero-card ${borderClass}">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 4px;">
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span style="font-size: 11px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.3px;">📌 Última Novedad:</span>
+                                    <span class="sup-status-badge ${opBadgeClass}">⚙️ ${escapeHtml(opEst)}</span>
+                                    ${critEst ? `<span class="sup-status-badge ${critBadgeClass}">${escapeHtml(critEst)}</span>` : ''}
+                                </div>
+                                <span style="font-size: 10px; color: #64748b; font-weight: 600;">🕒 ${escapeHtml(supLatest.fecha || '')} • por <b>${escapeHtml(supLatest.usuario || 'PLUZ')}</b></span>
+                            </div>
+                            ${jcVal ? `<div style="font-size: 11px; color: #0f172a; margin-bottom: 4px; font-weight: 700;">JC: <span style="font-weight: 600; color: #1e293b;">${escapeHtml(jcVal)}</span></div>` : ''}
+                            ${opDet ? `<div style="font-size: 11px; color: #334155; line-height: 1.35; margin-bottom: 3px;"><b>Operativo:</b> ${escapeHtml(opDet)}</div>` : ''}
+                            ${critDet && !/^n\/?a$/i.test(critDet) ? `<div style="font-size: 11px; color: #9d174d; line-height: 1.35;"><b>Criticidad:</b> ${escapeHtml(critDet)}</div>` : ''}
+                        </div>
+                    `;
+                    heroEl.style.display = "block";
+                }
+            }
+
+            // Limpiar inputs de notas tras guardar
+            if (inDetOp) inDetOp.value = '';
+            if (inDetCrit) inDetCrit.value = '';
+
             // 2. Persistencia en Backend / Google Sheets
             try {
                 const userRole = (typeof sessionStorage !== 'undefined') ? sessionStorage.getItem('oms_user_role') : 'admin';
@@ -1187,6 +1320,7 @@
                         ticket: currentSupervisorTicket,
                         estadoOperativo: estadoOperativo,
                         detalleOperativo: detalleOperativo,
+                        jefeCuadrilla: jefeCuadrilla,
                         estadoCritico: estadoCritico,
                         detalleCritico: detalleCritico,
                         role: userRole || 'admin'

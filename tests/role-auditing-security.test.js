@@ -172,3 +172,9 @@ test('10-map.js detecta la fecha de subida antes de filtrar y muestra 0 cuando n
     assert.match(mapJs, /topNavCount.*?count\s*>\s*0\s*\?\s*`🚨\s*\$\{count\}`\s*:\s*'0'/, 'topNavCount debe mostrar 0 cuando no hay casos');
 });
 
+
+test('topNavCount en 10-map.js contabiliza el total de incidencias incluyendo casos sin GPS', () => {
+    const mapJs = fs.readFileSync(path.join(root, 'assets', 'js', '10-map.js'), 'utf8');
+    assert.match(mapJs, /allRecordsSource\s*=\s*\(tdOmsRecords\s*&&\s*tdOmsRecords\.length\s*>\s*0\)\s*\?\s*tdOmsRecords\s*:\s*mapLocations/);
+    assert.match(mapJs, /matchesCurrentMapFilter\(record\)/);
+});

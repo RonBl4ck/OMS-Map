@@ -380,21 +380,18 @@
                             <thead>
                                 <tr style="background: var(--pluz-dark); color: white; position: sticky; top: 0; z-index: 5;">
                                     <th data-sort="ticket" data-label="Ticket" onclick="sortTdOmsTable('ticket')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Ticket">Ticket <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
-                                    <th data-sort="estado" data-label="Estado" onclick="sortTdOmsTable('estado')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Estado">Estado <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
-                                    <th id="thSupervisorOperativoCol" data-sort="supervisorOperativo" data-label="Estado Operativo (PLUZ)" onclick="sortTdOmsTable('supervisorOperativo')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; display: none;" title="Ordenar por Estado Operativo PLUZ">Estado Operativo (PLUZ) <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
-                                    <th id="thSupervisorCriticoCol" data-sort="supervisorCritico" data-label="Criticidad (PLUZ)" onclick="sortTdOmsTable('supervisorCritico')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; display: none;" title="Ordenar por Criticidad PLUZ">Criticidad (PLUZ) <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
-                                    <th data-sort="empresa" data-label="Empresa" onclick="sortTdOmsTable('empresa')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Empresa">Empresa <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
-                                    <th data-sort="falla" data-label="Falla" onclick="sortTdOmsTable('falla')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Falla">Falla <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
-                                    <th data-sort="intervalo" data-label="Intervalo" onclick="sortTdOmsTable('intervalo')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Intervalo">Intervalo <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
-                                    <th data-sort="dia" data-label="Día" onclick="sortTdOmsTable('dia')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Día">Día <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
-                                    <th data-sort="sed" data-label="SED" onclick="sortTdOmsTable('sed')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por SED">SED <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
-                                    <th data-sort="alimentador" data-label="Alimentador" onclick="sortTdOmsTable('alimentador')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Alimentador">Alimentador <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
-                                    <th data-sort="afectacion" data-label="Afectación" onclick="sortTdOmsTable('afectacion')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; text-align: center;" title="Ordenar por Afectación">Afectación <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
-                                    <th data-sort="llamadas" data-label="Llamadas" onclick="sortTdOmsTable('llamadas')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; text-align: center;" title="Ordenar por Llamadas">Llamadas <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
                                     <th data-sort="odm" data-label="ODM" onclick="sortTdOmsTable('odm')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por ODM">ODM <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
                                     <th data-sort="hora_inicio" data-label="Hora de Inicio" onclick="sortTdOmsTable('hora_inicio')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Hora de Inicio">Hora de Inicio <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
-                                    <th data-sort="latitud" data-label="Latitud" onclick="sortTdOmsTable('latitud')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Latitud">Latitud <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
-                                    <th data-sort="longitud" data-label="Longitud" onclick="sortTdOmsTable('longitud')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Longitud">Longitud <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
+                                    <th data-sort="sed" data-label="SED" onclick="sortTdOmsTable('sed')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por SED">SED <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
+                                    <th data-sort="falla" data-label="Falla" onclick="sortTdOmsTable('falla')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Falla">Falla <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
+                                    <th data-sort="llamadas" data-label="Llamadas" onclick="sortTdOmsTable('llamadas')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; text-align: center;" title="Ordenar por Llamadas">Llamadas <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
+                                    <th data-sort="estado" data-label="Estado" onclick="sortTdOmsTable('estado')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Estado">Estado <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
+                                    <th data-sort="empresa" data-label="Empresa" onclick="sortTdOmsTable('empresa')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Empresa">Empresa <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
+                                    <th data-sort="intervalo" data-label="Intervalo" onclick="sortTdOmsTable('intervalo')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Intervalo">Intervalo <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
+                                    <th data-sort="alimentador" data-label="Alimentador" onclick="sortTdOmsTable('alimentador')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Alimentador">Alimentador <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
+                                    <th data-sort="afectacion" data-label="Afectación" onclick="sortTdOmsTable('afectacion')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; text-align: center;" title="Ordenar por Afectación">Afectación <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
+                                    <th id="thSupervisorOperativoCol" data-sort="supervisorOperativo" data-label="Estado (PLUZ)" onclick="sortTdOmsTable('supervisorOperativo')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; display: none;" title="Ordenar por Estado PLUZ">Estado (PLUZ) <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
+                                    <th id="thSupervisorCriticoCol" data-sort="supervisorCritico" data-label="Criticidad (PLUZ)" onclick="sortTdOmsTable('supervisorCritico')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; display: none;" title="Ordenar por Criticidad PLUZ">Criticidad (PLUZ) <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
                                 </tr>
                             </thead>
                             <tbody id="tdOmsTableBody">
@@ -541,6 +538,9 @@
             </div>
             
             <div class="tech-detail-body" style="padding: 16px;">
+                <!-- HERO CARD: ÚLTIMA NOVEDAD REGISTRADA (Se muestra arriba cuando hay historial) -->
+                <div id="supHeroLatestContainer" style="display: none; margin-bottom: 14px;"></div>
+
                 <!-- Formulario para Registrar Nueva Novedad (2 Columnas: Operativo y Criticidad) -->
                 <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 16px;">
                     <h4 style="margin: 0 0 12px; font-size: 12px; font-weight: 700; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px;">
@@ -560,23 +560,33 @@
                             <button type="button" class="sup-chip-btn" data-val="IMPEDIDO">⛔ IMPEDIDO</button>
                             <button type="button" class="sup-chip-btn" data-val="DERIVADO">↗️ DERIVADO</button>
                         </div>
-                        <input type="text" id="supInputEstadoOperativo" placeholder="O escribe otro estado operativo..." style="width: 100%; box-sizing: border-box; padding: 6px 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 4px; outline: none; margin-bottom: 6px;">
-                        <textarea id="supInputDetalleOperativo" rows="2" placeholder="Detalle operativo (motivo de impedimento, brigada en camino, derivación, maniobra...)" style="width: 100%; box-sizing: border-box; padding: 6px 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 4px; outline: none; resize: vertical; font-family: inherit;"></textarea>
+                        <div style="display: grid; grid-template-columns: 140px 1fr; gap: 8px; margin-bottom: 6px;">
+                            <div>
+                                <label for="supInputJefeCuadrilla" style="font-size: 10px; font-weight: 700; color: #475569; display: block; margin-bottom: 3px;">JC:</label>
+                                <input type="text" id="supInputJefeCuadrilla" placeholder="Nombre JC..." style="width: 100%; box-sizing: border-box; padding: 6px 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 4px; outline: none;">
+                            </div>
+                            <div>
+                                <label for="supInputEstadoOperativo" style="font-size: 10px; font-weight: 700; color: #475569; display: block; margin-bottom: 3px;">Estado libre / Otro:</label>
+                                <input type="text" id="supInputEstadoOperativo" placeholder="O escribe otro estado..." style="width: 100%; box-sizing: border-box; padding: 6px 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 4px; outline: none;">
+                            </div>
+                        </div>
+                        <textarea id="supInputDetalleOperativo" rows="2" placeholder="Nueva novedad u observación operativa..." style="width: 100%; box-sizing: border-box; padding: 6px 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 4px; outline: none; resize: vertical; font-family: inherit;"></textarea>
                     </div>
 
                     <!-- BLOQUE 2: CRITICIDAD -->
                     <div style="background: #ffffff; border: 1px solid #fbcfe8; border-radius: 6px; padding: 10px 12px; margin-bottom: 12px;">
                         <label style="font-size: 11px; font-weight: 700; color: #9d174d; display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
                             <span>2️⃣ CRITICIDAD:</span>
-                            <span style="font-size: 10px; color: #be185d; font-weight: normal;">(Quántico / Crítico / Normal)</span>
+                            <span style="font-size: 10px; color: #be185d; font-weight: normal;">(Quántico / Crítico / Vencido / Normal)</span>
                         </label>
                         <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px;" id="supQuickCriticoChips">
                             <button type="button" class="sup-chip-btn" data-val="">⚪ NORMAL / LIMPIAR</button>
                             <button type="button" class="sup-chip-btn" data-val="QUANTICO" style="border-color: #f472b6; color: #9d174d;">🔮 QUANTICO</button>
                             <button type="button" class="sup-chip-btn" data-val="CRITICO" style="border-color: #ef4444; color: #b91c1c;">🚨 CRITICO</button>
+                            <button type="button" class="sup-chip-btn" data-val="VENCIDO" style="border-color: #f97316; color: #c2410c;">⏱️ VENCIDO</button>
                         </div>
                         <input type="text" id="supInputEstadoCritico" placeholder="Estado de criticidad..." style="width: 100%; box-sizing: border-box; padding: 6px 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 4px; outline: none; margin-bottom: 6px;">
-                        <textarea id="supInputDetalleCritico" rows="2" placeholder="Detalle de criticidad (motivo de quántico, impacto, cliente sensible, etc...)" style="width: 100%; box-sizing: border-box; padding: 6px 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 4px; outline: none; resize: vertical; font-family: inherit;"></textarea>
+                        <textarea id="supInputDetalleCritico" rows="2" placeholder="Detalle de criticidad (motivo de quántico, plazo vencido, cliente sensible...)" style="width: 100%; box-sizing: border-box; padding: 6px 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 4px; outline: none; resize: vertical; font-family: inherit;"></textarea>
                     </div>
 
                     <!-- Botón Guardar -->
