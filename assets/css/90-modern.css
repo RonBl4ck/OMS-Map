@@ -1699,5 +1699,58 @@ body:not([data-primary-view="map"]) .map-legend { display: none !important; }
 .sup-timeline-card.is-maniobras { border-left-color: #a855f7; }
 .sup-timeline-card.is-materiales { border-left-color: #f97316; }
 
+/* Nuevos Estados Operativos */
+.sup-status-pendiente { background: #fef9c3; color: #854d0e; border: 1px solid #fef08a; }
+.sup-status-en-ejecucion { background: #e0f2fe; color: #075985; border: 1px solid #7dd3fc; }
+.sup-status-impedido { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+.sup-status-derivado { background: #ffedd5; color: #9a3412; border: 1px solid #fed7aa; }
+
+/* Estados de Criticidad */
+.sup-status-normal { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+.sup-status-quantico {
+  background: #fdf2f8;
+  color: #9d174d;
+  border: 1px solid #f472b6;
+  font-weight: 800;
+  box-shadow: 0 0 6px rgba(244, 114, 182, 0.4);
+}
+.sup-status-critico {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #ef4444;
+  font-weight: 800;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
+}
+
+/* Modificadores de borde para Línea de Tiempo */
+.sup-timeline-card.is-quantico { border-left-color: #ec4899; }
+.sup-timeline-card.is-critico { border-left-color: #ef4444; }
+.sup-timeline-card.is-impedido { border-left-color: #dc2626; }
+.sup-timeline-card.is-derivado { border-left-color: #ea580c; }
+.sup-timeline-card.is-en-ejecucion { border-left-color: #0284c7; }
+.sup-timeline-card.is-pendiente { border-left-color: #eab308; }
+
+/* Botón de Exportar Tabla */
+.btn-export-table {
+  background: #10b981;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 120ms ease;
+  user-select: none;
+}
+.btn-export-table:hover {
+  background: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+}
+
 
 

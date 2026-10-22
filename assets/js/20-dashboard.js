@@ -15,6 +15,8 @@
             const isAdmin = typeof isCurrentUserAdmin === 'function' ? isCurrentUserAdmin() : (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('oms_user_role') === 'admin');
             const chkCritModal = document.getElementById("chkCriticaModal");
             const onlyCritModal = isAdmin && chkCritModal ? chkCritModal.checked : false;
+            const chkQuantCrit = document.getElementById("checkFilterQuanticoCritico");
+            const onlyQuanticoCritico = isAdmin && chkQuantCrit ? chkQuantCrit.checked : false;
 
             return tdOmsRecords.filter(r => {
                 const numLlamadas = parseInt(r.llamadas || 0, 10) || 0;
@@ -23,6 +25,14 @@
                 const matchSum = !onlyReincSum || (r.suministro_count >= 2);
                 const matchCrit = !onlyCritModal || r.es_top_critica;
                 const matchDia = !tdFilterDia || r.dia === tdFilterDia;
+
+                let matchQuanticoCritico = true;
+                if (onlyQuanticoCritico) {
+                    const sup = typeof getSupervisorDataForTicket === 'function' ? getSupervisorDataForTicket(r.ticket) : null;
+                    const cState = (sup && sup.latest) ? String(sup.latest.estadoCritico || sup.latest.estado || '').toUpperCase() : '';
+                    matchQuanticoCritico = cState.includes('QUANT') || cState.includes('CRIT');
+                }
+
                 return (
                     matchesMultiSelection(r.intervalo, selIntervalos) &&
                     matchesMultiSelection(r.empresa, selEmps) &&
@@ -32,7 +42,8 @@
                     matchSed &&
                     matchSum &&
                     matchCrit &&
-                    matchDia
+                    matchDia &&
+                    matchQuanticoCritico
                 );
             });
         }
@@ -284,10 +295,13 @@
             const query = filterInput ? filterInput.value.trim().toLowerCase() : "";
             const isPluz = typeof isCurrentUserAdmin === 'function' && isCurrentUserAdmin();
 
-            const thSup = document.getElementById("thSupervisorCol");
-            if (thSup) {
-                thSup.style.display = isPluz ? "" : "none";
-            }
+            const thSupOp = document.getElementById("thSupervisorOperativoCol");
+            const thSupCrit = document.getElementById("thSupervisorCriticoCol");
+            const lblFilterQC = document.getElementById("lblFilterQuanticoCritico");
+
+            if (thSupOp) thSupOp.style.display = isPluz ? "" : "none";
+            if (thSupCrit) thSupCrit.style.display = isPluz ? "" : "none";
+            if (lblFilterQC) lblFilterQC.style.display = isPluz ? "inline-flex" : "none";
 
             if (!tableBody) return;
 
@@ -310,8 +324,10 @@
                     if (isPluz && typeof getSupervisorDataForTicket === 'function') {
                         const sup = getSupervisorDataForTicket(r.ticket);
                         if (sup && sup.latest) {
-                            return String(sup.latest.estado || '').toLowerCase().includes(query) ||
-                                   String(sup.latest.detalle || '').toLowerCase().includes(query);
+                            return String(sup.latest.estadoOperativo || sup.latest.estado || '').toLowerCase().includes(query) ||
+                                   String(sup.latest.detalleOperativo || sup.latest.detalle || '').toLowerCase().includes(query) ||
+                                   String(sup.latest.estadoCritico || '').toLowerCase().includes(query) ||
+                                   String(sup.latest.detalleCritico || '').toLowerCase().includes(query);
                         }
                     }
                     return false;
@@ -324,11 +340,16 @@
                     let valA = a[currentSortCol];
                     let valB = b[currentSortCol];
 
-                    if (currentSortCol === 'supervisor') {
+                    if (currentSortCol === 'supervisorOperativo' || currentSortCol === 'supervisor') {
                         const supA = typeof getSupervisorDataForTicket === 'function' ? getSupervisorDataForTicket(a.ticket) : null;
                         const supB = typeof getSupervisorDataForTicket === 'function' ? getSupervisorDataForTicket(b.ticket) : null;
-                        valA = (supA && supA.latest) ? supA.latest.estado : '';
-                        valB = (supB && supB.latest) ? supB.latest.estado : '';
+                        valA = (supA && supA.latest) ? (supA.latest.estadoOperativo || supA.latest.estado || '') : '';
+                        valB = (supB && supB.latest) ? (supB.latest.estadoOperativo || supB.latest.estado || '') : '';
+                    } else if (currentSortCol === 'supervisorCritico') {
+                        const supA = typeof getSupervisorDataForTicket === 'function' ? getSupervisorDataForTicket(a.ticket) : null;
+                        const supB = typeof getSupervisorDataForTicket === 'function' ? getSupervisorDataForTicket(b.ticket) : null;
+                        valA = (supA && supA.latest) ? (supA.latest.estadoCritico || '') : '';
+                        valB = (supB && supB.latest) ? (supB.latest.estadoCritico || '') : '';
                     } else if (currentSortCol === 'hora_inicio') {
                         valA = a.hora_inicio || a.fecha_inicio || '';
                         valB = b.hora_inicio || b.fecha_inicio || '';
@@ -365,7 +386,7 @@
 
             if (filtered.length === 0) {
                 const emptyMsg = query ? "No hay casos pendientes que coincidan con la búsqueda." : "No hay casos pendientes.";
-                const colSpanCount = isPluz ? 15 : 14;
+                const colSpanCount = isPluz ? 16 : 14;
                 tableBody.innerHTML = `<tr><td colspan="${colSpanCount}" style="text-align: center; padding: 20px; color: #64748b;">${emptyMsg}</td></tr>`;
                 return;
             }
@@ -381,31 +402,61 @@
                 let rawOdm = String(r.odm || '').trim();
                 let odmCellHtml = (!rawOdm || rawOdm === 'N/A' || rawOdm === 'Sin dato' || rawOdm === '0' || rawOdm === '0.0') ? '' : escapeHtml(rawOdm);
 
-                let supTdHtml = '';
+                let supOperativoTdHtml = '';
+                let supCriticoTdHtml = '';
                 if (isPluz) {
                     const supData = (typeof getSupervisorDataForTicket === 'function') ? getSupervisorDataForTicket(r.ticket) : null;
                     if (supData && supData.latest) {
                         const supLatest = supData.latest;
                         const countHist = (supData.history && Array.isArray(supData.history)) ? supData.history.length : 1;
-                        const bClass = (typeof getSupervisorBadgeClass === 'function') ? getSupervisorBadgeClass(supLatest.estado) : 'sup-status-generic';
-                        const detSnippet = supLatest.detalle ? escapeHtml(supLatest.detalle.length > 45 ? supLatest.detalle.slice(0, 42) + '...' : supLatest.detalle) : '';
-                        supTdHtml = `
-                            <td data-label="Supervisión" style="padding: 6px 10px; min-width: 170px;">
+                        
+                        // 1. Columna Estado Operativo
+                        const opEstado = supLatest.estadoOperativo || supLatest.estado || 'PENDIENTE';
+                        const opDetalle = supLatest.detalleOperativo || supLatest.detalle || '';
+                        const opBadgeClass = (typeof getSupervisorBadgeClass === 'function') ? getSupervisorBadgeClass(opEstado) : 'sup-status-generic';
+                        const opSnippet = opDetalle ? escapeHtml(opDetalle.length > 40 ? opDetalle.slice(0, 37) + '...' : opDetalle) : '';
+
+                        supOperativoTdHtml = `
+                            <td data-label="Estado Operativo (PLUZ)" style="padding: 6px 10px; min-width: 150px;">
                                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-bottom: 2px;">
-                                    <span class="sup-status-badge ${bClass}">${escapeHtml(supLatest.estado)}</span>
-                                    <button type="button" class="btn-sup-action" onclick="openSupervisorModal('${escapeHtml(r.ticket)}')" title="Ver historial y registrar novedad">
+                                    <span class="sup-status-badge ${opBadgeClass}">${escapeHtml(opEstado)}</span>
+                                    <button type="button" class="btn-sup-action" onclick="openSupervisorModal('${escapeHtml(r.ticket)}')" title="Ver historial y actualizar">
                                         📜 ${countHist} | ✏️
                                     </button>
                                 </div>
-                                ${detSnippet ? `<div style="font-size: 10px; color: #475569; font-style: italic; line-height: 1.2;" title="${escapeHtml(supLatest.detalle)}">"${detSnippet}"</div>` : ''}
+                                ${opSnippet ? `<div style="font-size: 10px; color: #475569; font-style: italic; line-height: 1.2;" title="${escapeHtml(opDetalle)}">"${opSnippet}"</div>` : ''}
+                            </td>
+                        `;
+
+                        // 2. Columna Criticidad
+                        const critEstado = supLatest.estadoCritico || '';
+                        const critDetalle = supLatest.detalleCritico || '';
+                        const critBadgeClass = (typeof getCriticoBadgeClass === 'function') ? getCriticoBadgeClass(critEstado) : 'sup-status-normal';
+                        const critSnippet = critDetalle ? escapeHtml(critDetalle.length > 40 ? critDetalle.slice(0, 37) + '...' : critDetalle) : '';
+
+                        supCriticoTdHtml = `
+                            <td data-label="Criticidad (PLUZ)" style="padding: 6px 10px; min-width: 130px;">
+                                ${critEstado ? `
+                                    <div style="margin-bottom: 2px;">
+                                        <span class="sup-status-badge ${critBadgeClass}">${escapeHtml(critEstado)}</span>
+                                    </div>
+                                    ${critSnippet ? `<div style="font-size: 10px; color: #831843; font-style: italic; line-height: 1.2;" title="${escapeHtml(critDetalle)}">"${critSnippet}"</div>` : ''}
+                                ` : `
+                                    <span style="font-size: 10px; color: #94a3b8;">NORMAL</span>
+                                `}
                             </td>
                         `;
                     } else {
-                        supTdHtml = `
-                            <td data-label="Supervisión" style="padding: 6px 10px; white-space: nowrap;">
+                        supOperativoTdHtml = `
+                            <td data-label="Estado Operativo (PLUZ)" style="padding: 6px 10px; white-space: nowrap;">
                                 <button type="button" class="btn-sup-new" onclick="openSupervisorModal('${escapeHtml(r.ticket)}')" title="Registrar novedad de supervisión PLUZ">
                                     ➕ Registrar
                                 </button>
+                            </td>
+                        `;
+                        supCriticoTdHtml = `
+                            <td data-label="Criticidad (PLUZ)" style="padding: 6px 10px; white-space: nowrap;">
+                                <span style="font-size: 10px; color: #94a3b8;">--</span>
                             </td>
                         `;
                     }
@@ -420,7 +471,8 @@
                             </div>
                         </td>
                         <td data-label="Estado" style="padding: 7px 10px; white-space: nowrap;"><span class="status-badge ${stateClass}">${escapeHtml(r.estado)}</span></td>
-                        ${supTdHtml}
+                        ${supOperativoTdHtml}
+                        ${supCriticoTdHtml}
                         <td data-label="Empresa" style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.empresa)}</td>
                         <td data-label="Falla" style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.falla)}</td>
                         <td data-label="Intervalo" style="padding: 7px 10px; white-space: nowrap;">${escapeHtml(r.intervalo)}</td>
@@ -654,6 +706,8 @@
         if (chkModalSum) chkModalSum.addEventListener("change", refreshDashboard);
         const chkModalCrit = document.getElementById("chkCriticaModal");
         if (chkModalCrit) chkModalCrit.addEventListener("change", refreshDashboard);
+        const chkModalQuantCrit = document.getElementById("checkFilterQuanticoCritico");
+        if (chkModalQuantCrit) chkModalQuantCrit.addEventListener("change", refreshDashboard);
 
         document.getElementById("btnResetFilters").addEventListener("click", () => {
             tdFilterDia = null;
@@ -665,6 +719,8 @@
             if (chkSumMod) chkSumMod.checked = false;
             const chkCritMod = document.getElementById("chkCriticaModal");
             if (chkCritMod) chkCritMod.checked = false;
+            const chkQCMod = document.getElementById("checkFilterQuanticoCritico");
+            if (chkQCMod) chkQCMod.checked = false;
 
             if (tdCtrlIntervalo) tdCtrlIntervalo.reset();
             if (tdCtrlEmpresa) tdCtrlEmpresa.reset();
@@ -760,6 +816,80 @@
             downloadExcel(rawData, 'base_pendientes');
         };
 
+        const exportFilteredTdOmsTable = () => {
+            const currentFiltered = getFilteredTdOms();
+            const filterInput = document.getElementById("inputFilterTable");
+            const query = filterInput ? filterInput.value.trim().toLowerCase() : "";
+            const isPluz = typeof isCurrentUserAdmin === 'function' && isCurrentUserAdmin();
+
+            let visibleRecords = currentFiltered;
+            if (query) {
+                visibleRecords = currentFiltered.filter(r => {
+                    const baseMatch = String(r.ticket || '').toLowerCase().includes(query) ||
+                        String(r.estado || '').toLowerCase().includes(query) ||
+                        String(r.empresa || '').toLowerCase().includes(query) ||
+                        String(r.falla || '').toLowerCase().includes(query) ||
+                        String(r.intervalo || '').toLowerCase().includes(query) ||
+                        String(r.dia || '').toLowerCase().includes(query) ||
+                        String(r.sed || '').toLowerCase().includes(query) ||
+                        String(r.alimentador || '').toLowerCase().includes(query) ||
+                        String(r.afectacion || '').toLowerCase().includes(query) ||
+                        String(r.llamadas || '').toLowerCase().includes(query) ||
+                        String(r.odm || '').toLowerCase().includes(query) ||
+                        String(r.hora_inicio || r.fecha_inicio || '').toLowerCase().includes(query);
+                    if (baseMatch) return true;
+                    if (isPluz && typeof getSupervisorDataForTicket === 'function') {
+                        const sup = getSupervisorDataForTicket(r.ticket);
+                        if (sup && sup.latest) {
+                            return String(sup.latest.estadoOperativo || sup.latest.estado || '').toLowerCase().includes(query) ||
+                                   String(sup.latest.detalleOperativo || sup.latest.detalle || '').toLowerCase().includes(query) ||
+                                   String(sup.latest.estadoCritico || '').toLowerCase().includes(query) ||
+                                   String(sup.latest.detalleCritico || '').toLowerCase().includes(query);
+                        }
+                    }
+                    return false;
+                });
+            }
+
+            if (!visibleRecords || visibleRecords.length === 0) {
+                alert("⚠️ No hay registros visibles en la tabla para exportar.");
+                return;
+            }
+
+            // Construir dataset enriquecido con las columnas de supervisión
+            const exportData = visibleRecords.map(r => {
+                const supData = (isPluz && typeof getSupervisorDataForTicket === 'function') ? getSupervisorDataForTicket(r.ticket) : null;
+                const latest = supData ? supData.latest : null;
+                const row = {
+                    "Ticket": r.ticket || "",
+                    "Estado": r.estado || ""
+                };
+
+                if (isPluz) {
+                    row["Estado Operativo (PLUZ)"] = latest ? (latest.estadoOperativo || latest.estado || "") : "";
+                    row["Detalle Operativo (PLUZ)"] = latest ? (latest.detalleOperativo || latest.detalle || "") : "";
+                    row["Criticidad (PLUZ)"] = latest ? (latest.estadoCritico || "") : "";
+                    row["Detalle Criticidad (PLUZ)"] = latest ? (latest.detalleCritico || "") : "";
+                }
+
+                row["Empresa"] = r.empresa || "";
+                row["Falla"] = r.falla || "";
+                row["Intervalo"] = r.intervalo || "";
+                row["Día"] = r.dia || "";
+                row["SED"] = r.sed || "";
+                row["Alimentador"] = r.alimentador || "";
+                row["Afectación"] = r.afectacion !== undefined ? r.afectacion : "";
+                row["Llamadas"] = r.llamadas !== undefined ? r.llamadas : "";
+                row["ODM"] = r.odm || "";
+                row["Hora Inicio"] = r.hora_inicio || r.fecha_inicio || "";
+                row["Latitud"] = r.latitud !== undefined && r.latitud !== null ? r.latitud : (r.lat || "");
+                row["Longitud"] = r.longitud !== undefined && r.longitud !== null ? r.longitud : (r.lon || "");
+                return row;
+            });
+
+            downloadExcel(exportData, 'indicadores_tabla_filtrada');
+        };
+
         const downloadExecutedBase = async () => {
                 let downloaded = false;
 
@@ -817,11 +947,22 @@
             const s = String(status || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
             if (s.includes('camino')) return 'sup-status-en-camino';
             if (s.includes('sitio')) return 'sup-status-en-sitio';
+            if (s.includes('ejecuc')) return 'sup-status-en-ejecucion';
+            if (s.includes('pendient')) return 'sup-status-pendiente';
+            if (s.includes('impedid')) return 'sup-status-impedido';
+            if (s.includes('derivad')) return 'sup-status-derivado';
             if (s.includes('falla')) return 'sup-status-buscando-falla';
             if (s.includes('maniobra')) return 'sup-status-maniobras';
             if (s.includes('material')) return 'sup-status-materiales';
             if (s.includes('normaliz') || s.includes('resuelt') || s.includes('cerrad')) return 'sup-status-normalizado';
             return 'sup-status-generic';
+        }
+
+        function getCriticoBadgeClass(status) {
+            const s = String(status || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+            if (s.includes('quant')) return 'sup-status-quantico';
+            if (s.includes('crit')) return 'sup-status-critico';
+            return 'sup-status-normal';
         }
 
         function openSupervisorModal(ticket) {
@@ -842,8 +983,11 @@
             const sSed = document.getElementById("supModalSed");
             const sAli = document.getElementById("supModalAlimentador");
             const sFal = document.getElementById("supModalFalla");
-            const inEstado = document.getElementById("supInputEstado");
-            const inDetalle = document.getElementById("supInputDetalle");
+            
+            const inEstOp = document.getElementById("supInputEstadoOperativo");
+            const inDetOp = document.getElementById("supInputDetalleOperativo");
+            const inEstCrit = document.getElementById("supInputEstadoCritico");
+            const inDetCrit = document.getElementById("supInputDetalleCritico");
             const feedback = document.getElementById("supSaveFeedback");
 
             if (tNum) tNum.textContent = cleanTicket;
@@ -854,20 +998,23 @@
             if (sFal) sFal.textContent = rec.falla || 'Sin falla especificada';
 
             if (feedback) feedback.style.display = 'none';
-            if (inDetalle) inDetalle.value = '';
 
             const supData = (typeof getSupervisorDataForTicket === 'function') ? getSupervisorDataForTicket(cleanTicket) : null;
-            if (inEstado) {
-                inEstado.value = (supData && supData.latest) ? (supData.latest.estado || '') : '';
-            }
+            const supLatest = supData ? supData.latest : null;
 
-            updateSupervisorChipSelection(inEstado ? inEstado.value : '');
+            if (inEstOp) inEstOp.value = supLatest ? (supLatest.estadoOperativo || supLatest.estado || 'PENDIENTE') : 'PENDIENTE';
+            if (inDetOp) inDetOp.value = supLatest ? (supLatest.detalleOperativo || supLatest.detalle || '') : '';
+            if (inEstCrit) inEstCrit.value = supLatest ? (supLatest.estadoCritico || '') : '';
+            if (inDetCrit) inDetCrit.value = supLatest ? (supLatest.detalleCritico || '') : '';
+
+            updateSupervisorOperativoChipSelection(inEstOp ? inEstOp.value : '');
+            updateSupervisorCriticoChipSelection(inEstCrit ? inEstCrit.value : '');
             renderSupervisorTimeline(cleanTicket);
 
             if (modal) {
                 modal.style.display = "flex";
                 setTimeout(() => {
-                    if (inDetalle) inDetalle.focus();
+                    if (inDetOp) inDetOp.focus();
                 }, 100);
             }
         }
@@ -878,12 +1025,25 @@
             currentSupervisorTicket = null;
         }
 
-        function updateSupervisorChipSelection(selectedState) {
-            const chips = document.querySelectorAll("#supQuickStateChips .sup-chip-btn");
-            const cleanState = String(selectedState || '').trim().toLowerCase();
+        function updateSupervisorOperativoChipSelection(selectedState) {
+            const chips = document.querySelectorAll("#supQuickOperativoChips .sup-chip-btn");
+            const clean = String(selectedState || '').trim().toUpperCase();
             chips.forEach(btn => {
-                const val = String(btn.getAttribute("data-val") || '').trim().toLowerCase();
-                if (val && cleanState === val) {
+                const val = String(btn.getAttribute("data-val") || '').trim().toUpperCase();
+                if (val && clean === val) {
+                    btn.classList.add("active");
+                } else {
+                    btn.classList.remove("active");
+                }
+            });
+        }
+
+        function updateSupervisorCriticoChipSelection(selectedState) {
+            const chips = document.querySelectorAll("#supQuickCriticoChips .sup-chip-btn");
+            const clean = String(selectedState || '').trim().toUpperCase();
+            chips.forEach(btn => {
+                const val = String(btn.getAttribute("data-val") || '').trim().toUpperCase();
+                if (clean === val) {
                     btn.classList.add("active");
                 } else {
                     btn.classList.remove("active");
@@ -912,21 +1072,41 @@
             }
 
             container.innerHTML = history.map(entry => {
-                const bClass = getSupervisorBadgeClass(entry.estado);
+                const opEst = entry.estadoOperativo || entry.estado || 'PENDIENTE';
+                const critEst = entry.estadoCritico || '';
+                const opBadgeClass = getSupervisorBadgeClass(opEst);
+                const critBadgeClass = critEst ? getCriticoBadgeClass(critEst) : '';
+
                 let cardModifier = '';
-                const norm = String(entry.estado || '').toLowerCase();
-                if (norm.includes('normaliz')) cardModifier = 'is-normalizado';
-                else if (norm.includes('falla')) cardModifier = 'is-buscando-falla';
-                else if (norm.includes('maniobra')) cardModifier = 'is-maniobras';
-                else if (norm.includes('material')) cardModifier = 'is-materiales';
+                const opNorm = String(opEst).toLowerCase();
+                const critNorm = String(critEst).toLowerCase();
+                if (critNorm.includes('crit')) cardModifier = 'is-critico';
+                else if (critNorm.includes('quant')) cardModifier = 'is-quantico';
+                else if (opNorm.includes('impedid')) cardModifier = 'is-impedido';
+                else if (opNorm.includes('derivad')) cardModifier = 'is-derivado';
+                else if (opNorm.includes('ejecuc')) cardModifier = 'is-en-ejecucion';
+                else if (opNorm.includes('camino')) cardModifier = 'is-en-camino';
+                else if (opNorm.includes('normaliz')) cardModifier = 'is-normalizado';
 
                 return `
                     <div class="sup-timeline-card ${cardModifier}">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                            <span class="sup-status-badge ${bClass}">${escapeHtml(entry.estado)}</span>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 4px;">
+                            <div style="display: flex; align-items: center; gap: 4px;">
+                                <span class="sup-status-badge ${opBadgeClass}">⚙️ ${escapeHtml(opEst)}</span>
+                                ${critEst ? `<span class="sup-status-badge ${critBadgeClass}">⚡ ${escapeHtml(critEst)}</span>` : ''}
+                            </div>
                             <span style="font-size: 10px; color: #64748b; font-weight: 600;">🕒 ${escapeHtml(entry.fecha || '')}</span>
                         </div>
-                        ${entry.detalle ? `<div style="font-size: 11px; color: #1e293b; line-height: 1.35; margin-bottom: 4px;">${escapeHtml(entry.detalle)}</div>` : ''}
+                        ${(entry.detalleOperativo || entry.detalle) ? `
+                            <div style="font-size: 11px; color: #1e293b; line-height: 1.35; margin-bottom: 4px;">
+                                <b>Operativo:</b> ${escapeHtml(entry.detalleOperativo || entry.detalle)}
+                            </div>
+                        ` : ''}
+                        ${entry.detalleCritico ? `
+                            <div style="font-size: 11px; color: #9d174d; line-height: 1.35; margin-bottom: 4px;">
+                                <b>Criticidad:</b> ${escapeHtml(entry.detalleCritico)}
+                            </div>
+                        ` : ''}
                         <div style="font-size: 9.5px; color: #94a3b8; text-align: right;">
                             Registrado por: <b>${escapeHtml(entry.usuario || 'PLUZ')}</b>
                         </div>
@@ -937,18 +1117,22 @@
 
         async function saveSupervisorLog() {
             if (!currentSupervisorTicket) return;
-            const inEstado = document.getElementById("supInputEstado");
-            const inDetalle = document.getElementById("supInputDetalle");
+            const inEstOp = document.getElementById("supInputEstadoOperativo");
+            const inDetOp = document.getElementById("supInputDetalleOperativo");
+            const inEstCrit = document.getElementById("supInputEstadoCritico");
+            const inDetCrit = document.getElementById("supInputDetalleCritico");
             const btnSave = document.getElementById("btnSaveSupervisorLog");
             const feedback = document.getElementById("supSaveFeedback");
 
-            const estado = inEstado ? inEstado.value.trim() : "";
-            const detalle = inDetalle ? inDetalle.value.trim() : "";
+            const estadoOperativo = inEstOp ? inEstOp.value.trim().toUpperCase() : "";
+            const detalleOperativo = inDetOp ? inDetOp.value.trim() : "";
+            const estadoCritico = inEstCrit ? inEstCrit.value.trim().toUpperCase() : "";
+            const detalleCritico = inDetCrit ? inDetCrit.value.trim() : "";
 
-            if (!estado) {
+            if (!estadoOperativo && !estadoCritico) {
                 if (feedback) {
                     feedback.style.color = "#dc2626";
-                    feedback.textContent = "⚠️ Debes seleccionar o escribir un estado.";
+                    feedback.textContent = "⚠️ Debes ingresar al menos un estado operativo o nivel de criticidad.";
                     feedback.style.display = "block";
                 }
                 return;
@@ -960,7 +1144,7 @@
             }
             if (feedback) {
                 feedback.style.color = "#0284c7";
-                feedback.textContent = "Guardando novedad...";
+                feedback.textContent = "Guardando actualización...";
                 feedback.style.display = "block";
             }
 
@@ -971,8 +1155,12 @@
             const optimisticEntry = {
                 fecha: localTimestamp,
                 ticket: currentSupervisorTicket,
-                estado: estado,
-                detalle: detalle,
+                estadoOperativo: estadoOperativo,
+                detalleOperativo: detalleOperativo,
+                estadoCritico: estadoCritico,
+                detalleCritico: detalleCritico,
+                estado: estadoOperativo || estadoCritico,
+                detalle: detalleOperativo || detalleCritico,
                 usuario: 'PLUZ'
             };
 
@@ -997,8 +1185,10 @@
                     },
                     body: JSON.stringify({
                         ticket: currentSupervisorTicket,
-                        estado: estado,
-                        detalle: detalle,
+                        estadoOperativo: estadoOperativo,
+                        detalleOperativo: detalleOperativo,
+                        estadoCritico: estadoCritico,
+                        detalleCritico: detalleCritico,
                         role: userRole || 'admin'
                     })
                 });
@@ -1011,7 +1201,6 @@
                         feedback.textContent = "✅ " + (data.message || "Guardado exitosamente.");
                         feedback.style.display = "block";
                     }
-                    if (inDetalle) inDetalle.value = '';
                     if (typeof showAppNotification === 'function') {
                         showAppNotification(`Novedad registrada para ticket #${currentSupervisorTicket}`, 'success');
                     }
@@ -1046,8 +1235,10 @@
             const btnClose = document.getElementById("btnCloseSupervisorModal");
             const modal = document.getElementById("supervisorModalOverlay");
             const btnSave = document.getElementById("btnSaveSupervisorLog");
-            const inEstado = document.getElementById("supInputEstado");
-            const inDetalle = document.getElementById("supInputDetalle");
+            const inEstOp = document.getElementById("supInputEstadoOperativo");
+            const inDetOp = document.getElementById("supInputDetalleOperativo");
+            const inEstCrit = document.getElementById("supInputEstadoCritico");
+            const inDetCrit = document.getElementById("supInputDetalleCritico");
 
             if (btnClose) {
                 btnClose.onclick = closeSupervisorModal;
@@ -1071,30 +1262,62 @@
                 btnSave.onclick = saveSupervisorLog;
             }
 
-            if (inDetalle) {
-                inDetalle.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-                        e.preventDefault();
-                        saveSupervisorLog();
-                    }
-                });
-            }
+            [inDetOp, inDetCrit].forEach(el => {
+                if (el) {
+                    el.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                            e.preventDefault();
+                            saveSupervisorLog();
+                        }
+                    });
+                }
+            });
 
-            // Delegación de chips de estado
-            const chips = document.querySelectorAll("#supQuickStateChips .sup-chip-btn");
-            chips.forEach(btn => {
+            // Delegación de chips de Estado Operativo
+            const opChips = document.querySelectorAll("#supQuickOperativoChips .sup-chip-btn");
+            opChips.forEach(btn => {
                 btn.addEventListener('click', () => {
                     const val = btn.getAttribute("data-val") || "";
-                    if (inEstado) {
-                        inEstado.value = val;
-                    }
-                    updateSupervisorChipSelection(val);
+                    if (inEstOp) inEstOp.value = val;
+                    updateSupervisorOperativoChipSelection(val);
                 });
             });
 
-            if (inEstado) {
-                inEstado.addEventListener('input', () => {
-                    updateSupervisorChipSelection(inEstado.value);
+            if (inEstOp) {
+                inEstOp.addEventListener('input', () => {
+                    updateSupervisorOperativoChipSelection(inEstOp.value);
+                });
+            }
+
+            // Delegación de chips de Criticidad
+            const critChips = document.querySelectorAll("#supQuickCriticoChips .sup-chip-btn");
+            critChips.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const val = btn.getAttribute("data-val") || "";
+                    if (inEstCrit) inEstCrit.value = val;
+                    updateSupervisorCriticoChipSelection(val);
+                });
+            });
+
+            if (inEstCrit) {
+                inEstCrit.addEventListener('input', () => {
+                    updateSupervisorCriticoChipSelection(inEstCrit.value);
+                });
+            }
+
+            // Checkbox Filtro Quántico / Crítico en la barra de filtros superiores
+            const chkQC = document.getElementById("checkFilterQuanticoCritico");
+            if (chkQC) {
+                chkQC.addEventListener('change', () => {
+                    refreshDashboard();
+                });
+            }
+
+            // Botón Exportar Tabla Filtrada
+            const btnExpTable = document.getElementById("btnExportFilteredTable");
+            if (btnExpTable) {
+                btnExpTable.addEventListener('click', () => {
+                    exportFilteredTdOmsTable();
                 });
             }
         }
@@ -1111,4 +1334,6 @@
             window.openSupervisorModal = openSupervisorModal;
             window.closeSupervisorModal = closeSupervisorModal;
             window.getSupervisorBadgeClass = getSupervisorBadgeClass;
+            window.getCriticoBadgeClass = getCriticoBadgeClass;
+            window.exportFilteredTdOmsTable = exportFilteredTdOmsTable;
         }

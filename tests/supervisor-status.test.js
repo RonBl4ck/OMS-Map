@@ -74,7 +74,7 @@ test('api/update-supervisor-status deniega acceso (403) a contratistas y roles n
     assert.match(payload.message, /No autorizado/);
 });
 
-test('api/update-supervisor-status valida campos obligatorios (ticket y estado)', async () => {
+test('api/update-supervisor-status valida campos obligatorios (ticket y estado/criticidad)', async () => {
     const handler = require('../api/update-supervisor-status.js');
 
     // Sin ticket
@@ -83,7 +83,7 @@ test('api/update-supervisor-status valida campos obligatorios (ticket y estado)'
     const reqSinTicket = {
         method: 'POST',
         headers: { 'x-user-role': 'admin' },
-        body: { estado: 'Buscando Falla' }
+        body: { estadoOperativo: 'EN CAMINO' }
     };
     const res = {
         setHeader() {},
@@ -96,7 +96,7 @@ test('api/update-supervisor-status valida campos obligatorios (ticket y estado)'
     assert.equal(statusCode, 400);
     assert.match(payload.message, /ticket es obligatorio/);
 
-    // Sin estado
+    // Sin estado operativo ni criticidad
     const reqSinEstado = {
         method: 'POST',
         headers: { 'x-user-role': 'admin' },
@@ -104,7 +104,7 @@ test('api/update-supervisor-status valida campos obligatorios (ticket y estado)'
     };
     await handler(reqSinEstado, res);
     assert.equal(statusCode, 400);
-    assert.match(payload.message, /estado de supervisión es obligatorio/);
+    assert.match(payload.message, /al menos un estado operativo o nivel de criticidad/);
 });
 
 test('api/update-supervisor-status procesa correctamente petición admin con respaldo local', async () => {
@@ -117,8 +117,10 @@ test('api/update-supervisor-status procesa correctamente petición admin con res
         headers: { 'x-user-role': 'admin' },
         body: {
             ticket: 'TEST-8849',
-            estado: 'En Sitio',
-            detalle: 'Brigada en maniobras de prueba',
+            estadoOperativo: 'EN EJECUCION',
+            detalleOperativo: 'Brigada en maniobras de prueba',
+            estadoCritico: 'QUANTICO',
+            detalleCritico: 'Cliente electrodependiente',
             role: 'admin',
             scriptUrl: 'http://invalid-test-url-fallback.local'
         }
@@ -136,15 +138,20 @@ test('api/update-supervisor-status procesa correctamente petición admin con res
     assert.equal(payload.success, true);
     assert.ok(payload.logEntry);
     assert.equal(payload.logEntry.ticket, 'TEST-8849');
-    assert.equal(payload.logEntry.estado, 'En Sitio');
+    assert.equal(payload.logEntry.estadoOperativo, 'EN EJECUCION');
+    assert.equal(payload.logEntry.estadoCritico, 'QUANTICO');
+    assert.equal(payload.logEntry.detalleCritico, 'Cliente electrodependiente');
     assert.equal(payload.logEntry.usuario, 'PLUZ');
     assert.match(payload.logEntry.fecha, /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
 });
 
-test('index.html cuenta con el modal de supervisión y la columna en la tabla', () => {
+test('index.html cuenta con el modal de supervisión, las 2 columnas y el botón de exportación', () => {
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf-8');
     assert.ok(html.includes('id="supervisorModalOverlay"'), 'Debe existir el modal supervisorModalOverlay');
-    assert.ok(html.includes('id="thSupervisorCol"'), 'Debe existir la cabecera thSupervisorCol en tdOmsTable');
+    assert.ok(html.includes('id="thSupervisorOperativoCol"'), 'Debe existir la cabecera thSupervisorOperativoCol');
+    assert.ok(html.includes('id="thSupervisorCriticoCol"'), 'Debe existir la cabecera thSupervisorCriticoCol');
+    assert.ok(html.includes('id="checkFilterQuanticoCritico"'), 'Debe existir el checkbox checkFilterQuanticoCritico');
+    assert.ok(html.includes('id="btnExportFilteredTable"'), 'Debe existir el botón btnExportFilteredTable');
     assert.ok(html.includes('id="supTimelineContainer"'), 'Debe existir el contenedor del timeline');
     assert.ok(html.includes('id="btnSaveSupervisorLog"'), 'Debe existir el botón de guardar');
 });

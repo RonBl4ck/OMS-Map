@@ -42,7 +42,17 @@ module.exports = async (req, res) => {
         if (typeof body === 'string') {
             try { body = JSON.parse(body); } catch(e) {}
         }
-        const { ticket, estado, detalle, role, scriptUrl } = body || {};
+        const { 
+            ticket, 
+            estado, 
+            detalle, 
+            estadoOperativo, 
+            detalleOperativo, 
+            estadoCritico, 
+            detalleCritico, 
+            role, 
+            scriptUrl 
+        } = body || {};
 
         // Validar rol de administrador (exclusivo para perfil PLUZ)
         const headerRole = (req.headers && req.headers['x-user-role']) ? String(req.headers['x-user-role']).trim().toLowerCase() : '';
@@ -56,8 +66,13 @@ module.exports = async (req, res) => {
         }
 
         const cleanTicket = String(ticket || '').trim();
-        const cleanEstado = String(estado || '').trim();
-        const cleanDetalle = String(detalle || '').trim();
+        // Compatibilidad hacia adelante y hacia atrás:
+        // Operativo: estadoOperativo || estado
+        // Detalle Operativo: detalleOperativo || detalle
+        const cleanEstadoOperativo = String(estadoOperativo !== undefined ? estadoOperativo : (estado || '')).trim().toUpperCase();
+        const cleanDetalleOperativo = String(detalleOperativo !== undefined ? detalleOperativo : (detalle || '')).trim();
+        const cleanEstadoCritico = String(estadoCritico || '').trim().toUpperCase();
+        const cleanDetalleCritico = String(detalleCritico || '').trim();
 
         if (!cleanTicket) {
             const payload = JSON.stringify({ success: false, message: 'El número de ticket es obligatorio.' });
@@ -66,8 +81,8 @@ module.exports = async (req, res) => {
             return res.end(payload);
         }
 
-        if (!cleanEstado) {
-            const payload = JSON.stringify({ success: false, message: 'El estado de supervisión es obligatorio.' });
+        if (!cleanEstadoOperativo && !cleanEstadoCritico) {
+            const payload = JSON.stringify({ success: false, message: 'Debe ingresar al menos un estado operativo o nivel de criticidad.' });
             if (typeof res.status === 'function') return res.status(400).send(payload);
             res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
             return res.end(payload);
@@ -77,8 +92,13 @@ module.exports = async (req, res) => {
         const logEntry = {
             fecha: timestampStr,
             ticket: cleanTicket,
-            estado: cleanEstado,
-            detalle: cleanDetalle,
+            estadoOperativo: cleanEstadoOperativo,
+            detalleOperativo: cleanDetalleOperativo,
+            estadoCritico: cleanEstadoCritico,
+            detalleCritico: cleanDetalleCritico,
+            // Campos de compatibilidad con versiones previas:
+            estado: cleanEstadoOperativo || cleanEstadoCritico,
+            detalle: cleanDetalleOperativo || cleanDetalleCritico,
             usuario: 'PLUZ'
         };
 

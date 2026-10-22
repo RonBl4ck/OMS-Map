@@ -336,14 +336,24 @@
                     if (supData && supData.latest) {
                         const supLatest = supData.latest;
                         const countHist = (supData.history && Array.isArray(supData.history)) ? supData.history.length : 1;
-                        const bClass = (typeof getSupervisorBadgeClass === 'function') ? getSupervisorBadgeClass(supLatest.estado) : 'sup-status-generic';
+                        const opEst = supLatest.estadoOperativo || supLatest.estado || 'PENDIENTE';
+                        const critEst = supLatest.estadoCritico || '';
+                        const opDet = supLatest.detalleOperativo || supLatest.detalle || '';
+                        const critDet = supLatest.detalleCritico || '';
+                        const bClass = (typeof getSupervisorBadgeClass === 'function') ? getSupervisorBadgeClass(opEst) : 'sup-status-generic';
+                        const cClass = (typeof getCriticoBadgeClass === 'function') ? getCriticoBadgeClass(critEst) : 'sup-status-normal';
+
                         supCardHtml = `
                             <div style="margin-top: 8px; padding: 7px 9px; background: #f0f7ff; border: 1px solid #bae6fd; border-radius: 6px;">
-                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; flex-wrap:wrap; gap:4px;">
                                     <span style="font-weight:700; color:#0369a1; font-size:11px;">🛡️ Supervisión PLUZ</span>
-                                    <span class="sup-status-badge ${bClass}" style="font-size:10px; padding:1px 6px;">${escapeHtml(supLatest.estado)}</span>
+                                    <div style="display:flex; align-items:center; gap:4px;">
+                                        <span class="sup-status-badge ${bClass}" style="font-size:10px; padding:1px 6px;">${escapeHtml(opEst)}</span>
+                                        ${critEst ? `<span class="sup-status-badge ${cClass}" style="font-size:10px; padding:1px 6px;">${escapeHtml(critEst)}</span>` : ''}
+                                    </div>
                                 </div>
-                                ${supLatest.detalle ? `<div style="font-size:11px; color:#334155; margin-bottom:4px; line-height:1.3; font-style:italic;">"${escapeHtml(supLatest.detalle)}"</div>` : ''}
+                                ${opDet ? `<div style="font-size:11px; color:#334155; margin-bottom:3px; line-height:1.3; font-style:italic;"><b>Op:</b> "${escapeHtml(opDet)}"</div>` : ''}
+                                ${critDet ? `<div style="font-size:11px; color:#9d174d; margin-bottom:4px; line-height:1.3; font-style:italic;"><b>Crit:</b> "${escapeHtml(critDet)}"</div>` : ''}
                                 <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px; color:#64748b;">
                                     <span>🕒 ${escapeHtml(supLatest.fecha || '')}</span>
                                     <button type="button" onclick="openSupervisorModal('${escapeHtml(loc.ticket)}')" style="border:none; background:none; color:#0284c7; font-weight:700; cursor:pointer; text-decoration:underline; padding:0;">Historial (${countHist}) / ✏️ Editar</button>

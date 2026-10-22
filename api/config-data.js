@@ -68,10 +68,11 @@ module.exports = async (req, res) => {
             } catch(e) {}
         }
 
-        // Si no hay URL explícita de supervisión pero tenemos la URL base del Spreadsheet, derivamos la pestaña SEGUIMIENTO_SUPERVISOR
-        if (!sheetsUrlSupervisor && sheetsUrl && sheetsUrl.includes('docs.google.com/spreadsheets')) {
+        // Si no hay URL explícita de supervisión pero tenemos la URL base del Spreadsheet tradicional (/d/<ID>/...), derivamos la pestaña SEGUIMIENTO_SUPERVISOR
+        // Nota: NO aplica a URLs publicadas (/d/e/2PACX-...) porque retornarían 404 en gviz.
+        if (!sheetsUrlSupervisor && sheetsUrl && sheetsUrl.includes('docs.google.com/spreadsheets') && !sheetsUrl.includes('/d/e/')) {
             const match = sheetsUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
-            if (match) {
+            if (match && match[1] !== 'e') {
                 sheetsUrlSupervisor = `https://docs.google.com/spreadsheets/d/${match[1]}/gviz/tq?tqx=out:csv&sheet=SEGUIMIENTO_SUPERVISOR`;
             }
         }

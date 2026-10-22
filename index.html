@@ -334,11 +334,15 @@
                             <input type="checkbox" id="chkCriticaModal" style="cursor: pointer; accent-color: #d97706; width: 15px; height: 15px;">
                             <span>🚨 Top Críticas</span>
                         </label>
+                        <label id="lblFilterQuanticoCritico" class="checkbox-filter-label" style="display: none; align-items: center; gap: 6px; padding: 6px 12px; background: #fdf2f8; border: 1px solid #f472b6; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700; color: #9d174d; user-select: none;" title="Filtrar únicamente tickets con criticidad Quántico o Crítico">
+                            <input type="checkbox" id="checkFilterQuanticoCritico" style="cursor: pointer; accent-color: #db2777; width: 15px; height: 15px;">
+                            <span>Quántico / Crítico</span>
+                        </label>
                     </div>
                     <div style="display: flex; align-items: flex-end; gap: 6px; flex-wrap: wrap;">
                         <button class="btn-action-sm btn-reset" id="btnResetFilters">Limpiar Filtros</button>
                         <div class="contractor-report-btns" id="contractorReportBtnsContainer" style="display: none; gap: 4px; align-items: center; flex-wrap: wrap;">
-                            <button type="button" class="btn-action-sm btn-copy-contractor disabled" id="btnCopyContractorReport" disabled title="Copiar reporte completo (imagen con gráficos y texto integrado)">
+                            <button type="button" class="btn-action-sm btn-copy-contractor disabled" id="btnCopyContractorReport" disabled style="display: none;" title="Copiar reporte completo (imagen con gráficos y texto integrado)">
                                 <span>📸</span>
                                 <span id="lblCopyContractorReport">Reporte Completo</span>
                             </button>
@@ -362,7 +366,13 @@
                         <h3 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--pluz-blue); text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px;">
                             📋 Casos Pendientes — Detalle (<span id="tableCasesCount">0</span>)
                         </h3>
-                        <input type="text" id="inputFilterTable" placeholder="🔍 Filtrar en tabla..." style="padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; width: 220px; outline: none;">
+                        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <button type="button" id="btnExportFilteredTable" class="btn-export-table" title="Descargar datos de la tabla con los filtros actuales en Excel (.xlsx)">
+                                <span>📥</span>
+                                <span>Exportar Excel</span>
+                            </button>
+                            <input type="text" id="inputFilterTable" placeholder="🔍 Filtrar en tabla..." style="padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; width: 200px; outline: none;">
+                        </div>
                     </div>
                     <p class="dashboard-table-hint" id="dashboardTableHint">Desliza horizontalmente para consultar todas las columnas.</p>
                     <div class="dashboard-table-scroll" tabindex="0" role="region" aria-label="Casos pendientes; tabla desplazable" aria-describedby="dashboardTableHint" style="overflow-x: auto; max-height: 420px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
@@ -371,7 +381,8 @@
                                 <tr style="background: var(--pluz-dark); color: white; position: sticky; top: 0; z-index: 5;">
                                     <th data-sort="ticket" data-label="Ticket" onclick="sortTdOmsTable('ticket')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Ticket">Ticket <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
                                     <th data-sort="estado" data-label="Estado" onclick="sortTdOmsTable('estado')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Estado">Estado <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
-                                    <th id="thSupervisorCol" data-sort="supervisor" data-label="Supervisión PLUZ" onclick="sortTdOmsTable('supervisor')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; display: none;" title="Ordenar por Supervisión PLUZ">Supervisión PLUZ <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
+                                    <th id="thSupervisorOperativoCol" data-sort="supervisorOperativo" data-label="Estado Operativo (PLUZ)" onclick="sortTdOmsTable('supervisorOperativo')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; display: none;" title="Ordenar por Estado Operativo PLUZ">Estado Operativo (PLUZ) <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
+                                    <th id="thSupervisorCriticoCol" data-sort="supervisorCritico" data-label="Criticidad (PLUZ)" onclick="sortTdOmsTable('supervisorCritico')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; display: none;" title="Ordenar por Criticidad PLUZ">Criticidad (PLUZ) <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
                                     <th data-sort="empresa" data-label="Empresa" onclick="sortTdOmsTable('empresa')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Empresa">Empresa <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
                                     <th data-sort="falla" data-label="Falla" onclick="sortTdOmsTable('falla')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Falla">Falla <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
                                     <th data-sort="intervalo" data-label="Intervalo" onclick="sortTdOmsTable('intervalo')" style="padding: 8px 10px; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none;" title="Ordenar por Intervalo">Intervalo <span style="opacity: 0.3; font-size: 9px;">↕</span></th>
@@ -530,38 +541,48 @@
             </div>
             
             <div class="tech-detail-body" style="padding: 16px;">
-                <!-- Formulario para Registrar Nueva Novedad -->
+                <!-- Formulario para Registrar Nueva Novedad (2 Columnas: Operativo y Criticidad) -->
                 <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 16px;">
-                    <h4 style="margin: 0 0 10px; font-size: 12px; font-weight: 700; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px;">
-                        ➕ Registrar Nueva Novedad
+                    <h4 style="margin: 0 0 12px; font-size: 12px; font-weight: 700; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px;">
+                        ➕ Registrar Actualización de Supervisión
                     </h4>
-                    
-                    <!-- Chips de Estado Rápido -->
-                    <label style="font-size: 11px; font-weight: 600; color: #475569; display: block; margin-bottom: 5px;">
-                        Estado de supervisión:
-                    </label>
-                    <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px;" id="supQuickStateChips">
-                        <button type="button" class="sup-chip-btn" data-val="En Camino">🚗 En Camino</button>
-                        <button type="button" class="sup-chip-btn" data-val="En Sitio">📍 En Sitio</button>
-                        <button type="button" class="sup-chip-btn" data-val="Buscando Falla">🔍 Buscando Falla</button>
-                        <button type="button" class="sup-chip-btn" data-val="Maniobras">⚙️ Maniobras</button>
-                        <button type="button" class="sup-chip-btn" data-val="Materiales">📦 Materiales</button>
-                        <button type="button" class="sup-chip-btn" data-val="Normalizado">✅ Normalizado</button>
+
+                    <!-- BLOQUE 1: ESTADO OPERATIVO -->
+                    <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 12px; margin-bottom: 12px;">
+                        <label style="font-size: 11px; font-weight: 700; color: #1e293b; display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                            <span>1️⃣ ESTADO OPERATIVO:</span>
+                            <span style="font-size: 10px; color: #64748b; font-weight: normal;">(Obligatorio u opcional según novedad)</span>
+                        </label>
+                        <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px;" id="supQuickOperativoChips">
+                            <button type="button" class="sup-chip-btn" data-val="PENDIENTE">⏳ PENDIENTE</button>
+                            <button type="button" class="sup-chip-btn" data-val="EN CAMINO">🚗 EN CAMINO</button>
+                            <button type="button" class="sup-chip-btn" data-val="EN EJECUCION">⚙️ EN EJECUCIÓN</button>
+                            <button type="button" class="sup-chip-btn" data-val="IMPEDIDO">⛔ IMPEDIDO</button>
+                            <button type="button" class="sup-chip-btn" data-val="DERIVADO">↗️ DERIVADO</button>
+                        </div>
+                        <input type="text" id="supInputEstadoOperativo" placeholder="O escribe otro estado operativo..." style="width: 100%; box-sizing: border-box; padding: 6px 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 4px; outline: none; margin-bottom: 6px;">
+                        <textarea id="supInputDetalleOperativo" rows="2" placeholder="Detalle operativo (motivo de impedimento, brigada en camino, derivación, maniobra...)" style="width: 100%; box-sizing: border-box; padding: 6px 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 4px; outline: none; resize: vertical; font-family: inherit;"></textarea>
                     </div>
 
-                    <div style="display: flex; gap: 8px; margin-bottom: 10px;">
-                        <input type="text" id="supInputEstado" placeholder="O escribe otro estado personalizado..." style="flex: 1; padding: 7px 10px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none;">
+                    <!-- BLOQUE 2: CRITICIDAD -->
+                    <div style="background: #ffffff; border: 1px solid #fbcfe8; border-radius: 6px; padding: 10px 12px; margin-bottom: 12px;">
+                        <label style="font-size: 11px; font-weight: 700; color: #9d174d; display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                            <span>2️⃣ CRITICIDAD:</span>
+                            <span style="font-size: 10px; color: #be185d; font-weight: normal;">(Quántico / Crítico / Normal)</span>
+                        </label>
+                        <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px;" id="supQuickCriticoChips">
+                            <button type="button" class="sup-chip-btn" data-val="">⚪ NORMAL / LIMPIAR</button>
+                            <button type="button" class="sup-chip-btn" data-val="QUANTICO" style="border-color: #f472b6; color: #9d174d;">🔮 QUANTICO</button>
+                            <button type="button" class="sup-chip-btn" data-val="CRITICO" style="border-color: #ef4444; color: #b91c1c;">🚨 CRITICO</button>
+                        </div>
+                        <input type="text" id="supInputEstadoCritico" placeholder="Estado de criticidad..." style="width: 100%; box-sizing: border-box; padding: 6px 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 4px; outline: none; margin-bottom: 6px;">
+                        <textarea id="supInputDetalleCritico" rows="2" placeholder="Detalle de criticidad (motivo de quántico, impacto, cliente sensible, etc...)" style="width: 100%; box-sizing: border-box; padding: 6px 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 4px; outline: none; resize: vertical; font-family: inherit;"></textarea>
                     </div>
 
-                    <!-- Detalle libre -->
-                    <label for="supInputDetalle" style="font-size: 11px; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">
-                        Detalle / Observaciones de la supervisión:
-                    </label>
-                    <textarea id="supInputDetalle" rows="2" placeholder="Describe lo que reportó la brigada, maniobra, causa probable, seccionamiento, etc..." style="width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; resize: vertical; font-family: inherit; margin-bottom: 10px;"></textarea>
-
+                    <!-- Botón Guardar -->
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span id="supSaveFeedback" style="font-size: 11px; font-weight: 600; display: none;"></span>
-                        <button type="button" id="btnSaveSupervisorLog" style="margin-left: auto; background: var(--pluz-blue); color: white; border: none; border-radius: 6px; padding: 7px 16px; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: background 0.2s;">
+                        <button type="button" id="btnSaveSupervisorLog" style="margin-left: auto; background: var(--pluz-blue); color: white; border: none; border-radius: 6px; padding: 8px 18px; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: background 0.2s;">
                             💾 Guardar Novedad
                         </button>
                     </div>

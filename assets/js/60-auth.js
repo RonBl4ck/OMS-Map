@@ -8,6 +8,8 @@
             if (lblCriticaMap) lblCriticaMap.style.display = isAdmin ? 'inline-flex' : 'none';
             const lblCriticaModal = document.getElementById("lblCriticaModal");
             if (lblCriticaModal) lblCriticaModal.style.display = isAdmin ? 'inline-flex' : 'none';
+            const lblFilterQC = document.getElementById("lblFilterQuanticoCritico");
+            if (lblFilterQC) lblFilterQC.style.display = isAdmin ? 'inline-flex' : 'none';
             const reportBtns = document.getElementById("contractorReportBtnsContainer");
             if (reportBtns) reportBtns.style.display = isAdmin ? 'inline-flex' : 'none';
             const navUserName = document.getElementById("navUserName");
@@ -148,11 +150,34 @@
                                     const tKey = String(ticketVal || '').trim().toLowerCase();
                                     if (!tKey) return;
 
+                                    const estadoOperativo = getProp(r, 'Estado_Operativo', 'estado_operativo', 'Estado_Supervisor', 'estado_supervisor', 'Estado', 'estado') || '';
+                                    const detalleOperativo = getProp(r, 'Detalle_Operativo', 'detalle_operativo', 'Detalle', 'detalle', 'Observaciones', 'observaciones', 'novedad') || '';
+                                    const estadoCritico = getProp(r, 'Estado_Critico', 'estado_critico', 'Criticidad', 'criticidad') || '';
+                                    const detalleCritico = getProp(r, 'Detalle_Critico', 'detalle_critico') || '';
+
+                                    // Compatibilidad si vino guardado con la versión previa (donde 'estado' podía ser 'QUANTICO' o 'CRITICO')
+                                    let resolvedOperativo = estadoOperativo;
+                                    let resolvedCritico = estadoCritico;
+                                    let resolvedDetalleOp = detalleOperativo;
+                                    let resolvedDetalleCrit = detalleCritico;
+
+                                    if (!resolvedCritico && (resolvedOperativo.toUpperCase() === 'QUANTICO' || resolvedOperativo.toUpperCase() === 'CRITICO')) {
+                                        resolvedCritico = resolvedOperativo.toUpperCase();
+                                        resolvedDetalleCrit = resolvedDetalleOp;
+                                        resolvedOperativo = '';
+                                        resolvedDetalleOp = '';
+                                    }
+
                                     const entry = {
                                         fecha: getProp(r, 'Fecha_Hora', 'fecha_hora', 'Fecha', 'fecha', 'Timestamp', 'timestamp') || '',
                                         ticket: String(ticketVal).trim(),
-                                        estado: getProp(r, 'Estado_Supervisor', 'estado_supervisor', 'Estado', 'estado') || '',
-                                        detalle: getProp(r, 'Detalle', 'detalle', 'Observaciones', 'observaciones', 'novedad') || '',
+                                        estadoOperativo: resolvedOperativo,
+                                        detalleOperativo: resolvedDetalleOp,
+                                        estadoCritico: resolvedCritico,
+                                        detalleCritico: resolvedDetalleCrit,
+                                        // Legacy aliases
+                                        estado: resolvedOperativo || resolvedCritico,
+                                        detalle: resolvedDetalleOp || resolvedDetalleCrit,
                                         usuario: getProp(r, 'Usuario', 'usuario', 'perfil') || 'PLUZ'
                                     };
 

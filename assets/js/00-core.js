@@ -62,13 +62,24 @@
             if (!entry || !entry.ticket) return;
             const key = String(entry.ticket).trim().toLowerCase();
             let data = supervisorRecordsMap.get(key);
+            const normalizedEntry = {
+                fecha: entry.fecha || '',
+                ticket: String(entry.ticket).trim(),
+                estadoOperativo: entry.estadoOperativo || entry.estado || '',
+                detalleOperativo: entry.detalleOperativo || entry.detalle || '',
+                estadoCritico: entry.estadoCritico || '',
+                detalleCritico: entry.detalleCritico || '',
+                estado: entry.estadoOperativo || entry.estado || entry.estadoCritico || '',
+                detalle: entry.detalleOperativo || entry.detalle || entry.detalleCritico || '',
+                usuario: entry.usuario || 'PLUZ'
+            };
             if (!data) {
-                data = { latest: entry, history: [entry] };
+                data = { latest: normalizedEntry, history: [normalizedEntry] };
                 supervisorRecordsMap.set(key, data);
             } else {
-                data.latest = entry;
+                data.latest = normalizedEntry;
                 if (!Array.isArray(data.history)) data.history = [];
-                data.history.unshift(entry);
+                data.history.unshift(normalizedEntry);
             }
         }
         if (typeof window !== 'undefined') {
