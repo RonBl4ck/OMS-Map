@@ -4,6 +4,10 @@
             const isAdmin = sessionStorage.getItem('oms_user_role') === 'admin';
             const tabLlamadas = document.getElementById('tabLlamadas');
             if (tabLlamadas) tabLlamadas.style.display = isAdmin ? '' : 'none';
+            const tabHistorialPluz = document.getElementById('tabHistorialPluz');
+            if (tabHistorialPluz) tabHistorialPluz.style.display = isAdmin ? '' : 'none';
+            const btnOpenHistorialPluzFromTdOms = document.getElementById('btnOpenHistorialPluzFromTdOms');
+            if (btnOpenHistorialPluzFromTdOms) btnOpenHistorialPluzFromTdOms.style.display = isAdmin ? 'inline-flex' : 'none';
             const lblCriticaMap = document.getElementById("lblCriticaMap");
             if (lblCriticaMap) lblCriticaMap.style.display = isAdmin ? 'inline-flex' : 'none';
             const lblCriticaModal = document.getElementById("lblCriticaModal");
@@ -144,11 +148,19 @@
                             skipEmptyLines: true,
                             complete: function(results) {
                                 supervisorRecordsMap.clear();
+                                if (typeof supervisorRecordsBySedMap !== 'undefined' && supervisorRecordsBySedMap.clear) {
+                                    supervisorRecordsBySedMap.clear();
+                                }
                                 const rows = results.data || [];
                                 rows.forEach(r => {
                                     const ticketVal = getProp(r, 'Ticket', 'ticket', 'TICKET', 'nro_ticket');
                                     const tKey = String(ticketVal || '').trim().toLowerCase();
                                     if (!tKey) return;
+
+                                    const sedVal = getProp(r, 'SED', 'sed', 'Sed', 'Subestacion', 'subestacion') || '';
+                                    const horaIniVal = getProp(r, 'Hora_Inicio', 'hora_inicio', 'Hora Inicio', 'Fecha_Inicio', 'fecha_inicio', 'HoraInicio') || '';
+                                    const alimentadorVal = getProp(r, 'Alimentador', 'alimentador', 'ALIMENTADOR') || '';
+                                    const empresaVal = getProp(r, 'Empresa', 'empresa', 'Contratista', 'contratista') || '';
 
                                     const estadoOperativo = getProp(r, 'Estado_Operativo', 'estado_operativo', 'Estado_Supervisor', 'estado_supervisor', 'Estado', 'estado') || '';
                                     const detalleOperativo = getProp(r, 'Detalle_Operativo', 'detalle_operativo', 'Detalle', 'detalle', 'Observaciones', 'observaciones', 'novedad') || '';
@@ -172,6 +184,10 @@
                                     const entry = {
                                         fecha: getProp(r, 'Fecha_Hora', 'fecha_hora', 'Fecha', 'fecha', 'Timestamp', 'timestamp') || '',
                                         ticket: String(ticketVal).trim(),
+                                        sed: String(sedVal).trim(),
+                                        horaInicio: String(horaIniVal).trim(),
+                                        alimentador: String(alimentadorVal).trim(),
+                                        empresa: String(empresaVal).trim(),
                                         estadoOperativo: resolvedOperativo,
                                         detalleOperativo: resolvedDetalleOp,
                                         jefeCuadrilla: jefeCuadrilla,
@@ -191,6 +207,16 @@
                                         record.latest = entry;
                                         record.history.unshift(entry);
                                     }
+
+                                    if (entry.sed && typeof supervisorRecordsBySedMap !== 'undefined') {
+                                        const sKey = entry.sed.toUpperCase();
+                                        let sList = supervisorRecordsBySedMap.get(sKey);
+                                        if (!sList) {
+                                            sList = [];
+                                            supervisorRecordsBySedMap.set(sKey, sList);
+                                        }
+                                        sList.push(entry);
+                                    }
                                 });
                                 console.log(`🛡️ [Supervisión PLUZ] ${supervisorRecordsMap.size} tickets con novedades cargados.`);
                                 resolve();
@@ -203,6 +229,9 @@
                     });
                 } else {
                     supervisorRecordsMap.clear();
+                    if (typeof supervisorRecordsBySedMap !== 'undefined' && supervisorRecordsBySedMap.clear) {
+                        supervisorRecordsBySedMap.clear();
+                    }
                 }
 
                 // Carga de Ejecutados (para alimentar el historial de 7 días y análisis, segmentado por contratista)
@@ -249,6 +278,9 @@
                         complete: function(results) {
                             try {
                                 processRawData(results.data || []);
+                                if (typeof enrichSupervisorRecordsWithOmsData === 'function') {
+                                    enrichSupervisorRecordsWithOmsData();
+                                }
                                 resolve();
                             } catch (error) {
                                 reject(error);

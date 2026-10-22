@@ -1239,9 +1239,29 @@
             const pad = n => String(n).padStart(2, '0');
             const localTimestamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 
+            // Extraer metadatos de contexto del ticket (SED, Hora de Inicio, Alimentador, Empresa)
+            const targetRec = (typeof tdOmsRecords !== 'undefined' && Array.isArray(tdOmsRecords) ? tdOmsRecords.find(r => String(r.ticket || '').trim().toLowerCase() === currentSupervisorTicket.toLowerCase()) : null) ||
+                              (typeof mapLocations !== 'undefined' && Array.isArray(mapLocations) ? mapLocations.find(l => String(l.ticket || '').trim().toLowerCase() === currentSupervisorTicket.toLowerCase()) : null) || {};
+
+            const sedRaw = (targetRec.sed && targetRec.sed !== 'N/A' ? targetRec.sed : '') || (document.getElementById("supModalSed") ? document.getElementById("supModalSed").textContent.trim() : '');
+            const cleanSedVal = (sedRaw === '--' || sedRaw === 'N/A') ? '' : sedRaw;
+
+            const horaIniRaw = targetRec.hora_inicio || targetRec.fecha_inicio || '';
+            const cleanHoraIniVal = (horaIniRaw === '--' || horaIniRaw === 'N/A') ? '' : horaIniRaw;
+
+            const aliRaw = (targetRec.alimentador && targetRec.alimentador !== 'N/A' && targetRec.alimentador !== '--' ? targetRec.alimentador : '') || (document.getElementById("supModalAlimentador") ? document.getElementById("supModalAlimentador").textContent.trim() : '');
+            const cleanAliVal = (aliRaw === '--' || aliRaw === 'N/A') ? '' : aliRaw;
+
+            const empRaw = (targetRec.empresa && targetRec.empresa !== 'N/A' && targetRec.empresa !== '--' ? targetRec.empresa : '') || (document.getElementById("supModalBadgeEmpresa") ? document.getElementById("supModalBadgeEmpresa").textContent.trim() : '');
+            const cleanEmpVal = (empRaw === '--' || empRaw === 'N/A') ? '' : empRaw;
+
             const optimisticEntry = {
                 fecha: localTimestamp,
                 ticket: currentSupervisorTicket,
+                sed: cleanSedVal,
+                horaInicio: cleanHoraIniVal,
+                alimentador: cleanAliVal,
+                empresa: cleanEmpVal,
                 estadoOperativo: estadoOperativo,
                 detalleOperativo: detalleOperativo,
                 jefeCuadrilla: jefeCuadrilla,
@@ -1318,6 +1338,10 @@
                     },
                     body: JSON.stringify({
                         ticket: currentSupervisorTicket,
+                        sed: cleanSedVal,
+                        horaInicio: cleanHoraIniVal,
+                        alimentador: cleanAliVal,
+                        empresa: cleanEmpVal,
                         estadoOperativo: estadoOperativo,
                         detalleOperativo: detalleOperativo,
                         jefeCuadrilla: jefeCuadrilla,

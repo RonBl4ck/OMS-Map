@@ -5,7 +5,11 @@
         let GOOGLE_SHEET_SED_CRITICAS_URL = "";
         let GOOGLE_SHEET_SUPERVISOR_URL = "";
         let supervisorRecordsMap = new Map();
-        if (typeof window !== 'undefined') window.supervisorRecordsMap = supervisorRecordsMap;
+        let supervisorRecordsBySedMap = new Map();
+        if (typeof window !== 'undefined') {
+            window.supervisorRecordsMap = supervisorRecordsMap;
+            window.supervisorRecordsBySedMap = supervisorRecordsBySedMap;
+        }
         let sedCriticasSet = new Set();
         let sedCriticasMap = new Map();
         let mapLocations = [];
@@ -58,6 +62,13 @@
             return supervisorRecordsMap.get(key) || null;
         }
 
+        function getSupervisorLogsForSed(sed) {
+            if (!sed) return [];
+            const key = String(sed).trim().toUpperCase();
+            const list = supervisorRecordsBySedMap.get(key);
+            return Array.isArray(list) ? list : [];
+        }
+
         function addSupervisorLogOptimistic(entry) {
             if (!entry || !entry.ticket) return;
             const key = String(entry.ticket).trim().toLowerCase();
@@ -65,6 +76,10 @@
             const normalizedEntry = {
                 fecha: entry.fecha || '',
                 ticket: String(entry.ticket).trim(),
+                sed: entry.sed || '',
+                horaInicio: entry.horaInicio || entry.hora_inicio || '',
+                alimentador: entry.alimentador || '',
+                empresa: entry.empresa || '',
                 estadoOperativo: entry.estadoOperativo || entry.estado || '',
                 detalleOperativo: entry.detalleOperativo || entry.detalle || '',
                 jefeCuadrilla: entry.jefeCuadrilla || entry.jc || '',
@@ -82,10 +97,23 @@
                 if (!Array.isArray(data.history)) data.history = [];
                 data.history.unshift(normalizedEntry);
             }
+
+            if (normalizedEntry.sed) {
+                const sKey = String(normalizedEntry.sed).trim().toUpperCase();
+                let sedList = supervisorRecordsBySedMap.get(sKey);
+                if (!sedList) {
+                    sedList = [];
+                    supervisorRecordsBySedMap.set(sKey, sedList);
+                }
+                sedList.unshift(normalizedEntry);
+            }
         }
         if (typeof window !== 'undefined') {
             window.getSupervisorDataForTicket = getSupervisorDataForTicket;
+            window.getSupervisorLogsForSed = getSupervisorLogsForSed;
             window.addSupervisorLogOptimistic = addSupervisorLogOptimistic;
+            window.supervisorRecordsMap = supervisorRecordsMap;
+            window.supervisorRecordsBySedMap = supervisorRecordsBySedMap;
         }
 
         function debounceUi(callback, wait = 120) {

@@ -1,18 +1,23 @@
         // Tab view Navigation Controls
         const fullViewOverlay = document.getElementById("tdOmsModalOverlay");
         const llamadasOverlay = document.getElementById('llamadasModalOverlay');
+        const historialPluzOverlay = document.getElementById('historialPluzOverlay');
         const btnCloseModal = document.getElementById("btnCloseModal");
         const btnCloseLlamadas = document.getElementById('btnCloseLlamadas');
+        const btnCloseHistorialPluz = document.getElementById('btnCloseHistorialPluz');
         const tabTdOms = document.getElementById("tabTdOms");
         const tabTecnicos = document.getElementById('tabTecnicos');
         const tecnicosOverlay = document.getElementById('tecnicosModalOverlay');
+        const tabHistorialPluz = document.getElementById('tabHistorialPluz');
         const tabLlamadas = document.getElementById('tabLlamadas');
         const tabMapaEl = document.getElementById("tabMapa");
+        const btnOpenHistorialPluzFromTdOms = document.getElementById('btnOpenHistorialPluzFromTdOms');
 
         const primaryViews = [
             { tab: tabMapaEl, panel: document.getElementById('map'), name: 'map' },
             { tab: tabTdOms, panel: fullViewOverlay, name: 'indicators' },
             { tab: tabTecnicos, panel: tecnicosOverlay, name: 'tracking' },
+            { tab: tabHistorialPluz, panel: historialPluzOverlay, name: 'historialPluz' },
             { tab: tabLlamadas, panel: llamadasOverlay, name: 'calls' }
         ];
 
@@ -50,16 +55,30 @@
             selectPrimaryView('tracking');
             loadTecnicos();
         }
+        function showHistorialPluzView() {
+            if (sessionStorage.getItem('oms_user_role') !== 'admin') return;
+            selectPrimaryView('historialPluz');
+            if (typeof renderHistorialPluz === 'function') {
+                renderHistorialPluz();
+            }
+        }
 
         selectPrimaryView('map');
 
 
         if (tabTdOms) tabTdOms.addEventListener("click", showDashboardView);
+        if (tabHistorialPluz) tabHistorialPluz.addEventListener('click', showHistorialPluzView);
+        if (btnOpenHistorialPluzFromTdOms) btnOpenHistorialPluzFromTdOms.addEventListener('click', showHistorialPluzView);
         if (tabLlamadas) tabLlamadas.addEventListener('click', showLlamadasView);
         if (tabTecnicos) tabTecnicos.addEventListener('click', showTecnicosView);
         if (tabMapaEl) tabMapaEl.addEventListener("click", showMapView);
         if (btnCloseModal) btnCloseModal.addEventListener("click", showMapView);
         if (btnCloseLlamadas) btnCloseLlamadas.addEventListener('click', showMapView);
+        if (btnCloseHistorialPluz) btnCloseHistorialPluz.addEventListener('click', showMapView);
+
+        if (typeof window !== 'undefined') {
+            window.showHistorialPluzView = showHistorialPluzView;
+        }
         const mobileActionsTrigger = document.getElementById('btnMobileActions');
         const mobileActionsMenu = document.getElementById('mobileActionsMenu');
         const closeMobileActions = () => {

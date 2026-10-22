@@ -44,6 +44,14 @@ module.exports = async (req, res) => {
         }
         const { 
             ticket, 
+            sed,
+            horaInicio,
+            hora_inicio,
+            fechaInicio,
+            fecha_inicio,
+            alimentador,
+            empresa,
+            contratista,
             estado, 
             detalle, 
             estadoOperativo, 
@@ -68,6 +76,11 @@ module.exports = async (req, res) => {
         }
 
         const cleanTicket = String(ticket || '').trim();
+        const cleanSed = String(sed || '').trim();
+        const cleanHoraInicio = String(horaInicio || hora_inicio || fechaInicio || fecha_inicio || '').trim();
+        const cleanAlimentador = String(alimentador || '').trim();
+        const cleanEmpresa = String(empresa || contratista || '').trim();
+
         // Compatibilidad hacia adelante y hacia atrás:
         // Operativo: estadoOperativo || estado
         // Detalle Operativo: detalleOperativo || detalle
@@ -95,6 +108,10 @@ module.exports = async (req, res) => {
         const logEntry = {
             fecha: timestampStr,
             ticket: cleanTicket,
+            sed: cleanSed,
+            horaInicio: cleanHoraInicio,
+            alimentador: cleanAlimentador,
+            empresa: cleanEmpresa,
             estadoOperativo: cleanEstadoOperativo,
             detalleOperativo: cleanDetalleOperativo,
             jefeCuadrilla: cleanJefeCuadrilla,

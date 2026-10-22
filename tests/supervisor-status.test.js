@@ -117,6 +117,10 @@ test('api/update-supervisor-status procesa correctamente petición admin con res
         headers: { 'x-user-role': 'admin' },
         body: {
             ticket: 'TEST-8849',
+            sed: 'SED-40192',
+            horaInicio: '2026-10-22 10:15',
+            alimentador: 'SJL-04',
+            empresa: 'COBRA',
             estadoOperativo: 'EN EJECUCION',
             detalleOperativo: 'Brigada en maniobras de prueba',
             estadoCritico: 'QUANTICO',
@@ -138,6 +142,10 @@ test('api/update-supervisor-status procesa correctamente petición admin con res
     assert.equal(payload.success, true);
     assert.ok(payload.logEntry);
     assert.equal(payload.logEntry.ticket, 'TEST-8849');
+    assert.equal(payload.logEntry.sed, 'SED-40192');
+    assert.equal(payload.logEntry.horaInicio, '2026-10-22 10:15');
+    assert.equal(payload.logEntry.alimentador, 'SJL-04');
+    assert.equal(payload.logEntry.empresa, 'COBRA');
     assert.equal(payload.logEntry.estadoOperativo, 'EN EJECUCION');
     assert.equal(payload.logEntry.estadoCritico, 'QUANTICO');
     assert.equal(payload.logEntry.detalleCritico, 'Cliente electrodependiente');
@@ -154,4 +162,20 @@ test('index.html cuenta con el modal de supervisión, las 2 columnas y el botón
     assert.ok(html.includes('id="btnExportFilteredTable"'), 'Debe existir el botón btnExportFilteredTable');
     assert.ok(html.includes('id="supTimelineContainer"'), 'Debe existir el contenedor del timeline');
     assert.ok(html.includes('id="btnSaveSupervisorLog"'), 'Debe existir el botón de guardar');
+    assert.ok(html.includes('id="tabHistorialPluz"'), 'Debe existir la pestaña tabHistorialPluz');
+    assert.ok(html.includes('id="historialPluzOverlay"'), 'Debe existir la vista historialPluzOverlay');
+    assert.ok(html.includes('id="btnOpenHistorialPluzFromTdOms"'), 'Debe existir el acceso directo en indicadores');
+    assert.ok(html.includes('assets/js/45-historial-pluz.js'), 'Debe cargar el script 45-historial-pluz.js');
+});
+
+test('00-core.js y 60-auth.js indexan novedades por SED y por Ticket', () => {
+    const coreCode = fs.readFileSync(path.join(root, 'assets', 'js', '00-core.js'), 'utf-8');
+    const authCode = fs.readFileSync(path.join(root, 'assets', 'js', '60-auth.js'), 'utf-8');
+    const dashCode = fs.readFileSync(path.join(root, 'assets', 'js', '20-dashboard.js'), 'utf-8');
+
+    assert.ok(coreCode.includes('supervisorRecordsBySedMap'), '00-core.js debe definir supervisorRecordsBySedMap');
+    assert.ok(coreCode.includes('getSupervisorLogsForSed'), '00-core.js debe exponer getSupervisorLogsForSed');
+    assert.ok(dashCode.includes('cleanSedVal'), '20-dashboard.js debe capturar cleanSedVal');
+    assert.ok(dashCode.includes('cleanHoraIniVal'), '20-dashboard.js debe capturar cleanHoraIniVal');
+    assert.ok(authCode.includes('supervisorRecordsBySedMap'), '60-auth.js debe poblar supervisorRecordsBySedMap');
 });

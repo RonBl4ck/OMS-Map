@@ -3,6 +3,13 @@
             const val = getProp(row, ...fields);
             return (val === 'N/A' || !val) ? '' : val;
         }
+
+        function isValidCallEntityId(val) {
+            if (!val) return false;
+            const s = String(val).trim();
+            return s !== '' && s !== '0' && s !== '0.0' && s !== 'N/A' && s !== '-' && s.toLowerCase() !== 'sin dato' && s.toLowerCase() !== 'sin odm';
+        }
+
         let currentLlamadasSortCol = 'horaRegistro';
         let currentLlamadasSortDir = 'desc';
         let visibleLlamadasRecords = [];
@@ -11,35 +18,50 @@
         let callsRepeatCtrl = null;
         let callsStatusCtrl = null;
         const CALL_FILTER_FIELDS = { frequency: 'callsRepeatFilter', estado: 'callsStatusFilter' };
+
         function getCallGroupKey(row) {
-            const odm = String(row?.odm || '').trim();
-            if (odm) return `ODM:${odm}`;
             const ticket = String(row?.ticket || '').trim();
-            if (ticket) return `TICKET:${ticket}`;
-            const aviso = String(row?.aviso || row?.suministro || '').trim();
-            return aviso ? `AVISO:${aviso}` : '';
+            if (isValidCallEntityId(ticket)) return `TICKET:${ticket}`;
+            const odm = String(row?.odm || '').trim();
+            if (isValidCallEntityId(odm)) return `ODM:${odm}`;
+            const aviso = String(row?.aviso || '').trim();
+            if (isValidCallEntityId(aviso)) return `AVISO:${aviso}`;
+            const suministro = String(row?.suministro || '').trim();
+            if (isValidCallEntityId(suministro)) return `SUMINISTRO:${suministro}`;
+            return '';
         }
+
         function getCallCounts(records) {
             const counts = {};
-            let hasPrecalculated = false;
             for (const row of (records || [])) {
                 const key = getCallGroupKey(row);
                 if (!key) continue;
                 if (counts[key] !== undefined) continue;
-                const rawPre = (typeof getProp === 'function') ? getProp(row, 'Conteo_Llamadas', 'conteo_llamadas') : (row?.Conteo_Llamadas ?? row?.conteo_llamadas);
-                const pre = parseInt(rawPre, 10);
+
+                const pre = parseInt(row?.conteoLlamadas, 10);
                 if (!isNaN(pre) && pre > 0) {
                     counts[key] = pre;
-                    hasPrecalculated = true;
                 }
             }
-            if (hasPrecalculated) return counts;
 
-            return (records || []).reduce((acc, row) => {
-                const key = getCallGroupKey(row);
-                if (key) acc[key] = (acc[key] || 0) + 1;
-                return acc;
-            }, {});
+            // Para cualquier fila que no tenga Conteo_Llamadas precalculado, calcular ocurrencias reales
+            const missing = (records || []).some(row => {
+                const k = getCallGroupKey(row);
+                return k && counts[k] === undefined;
+            });
+
+            if (missing) {
+                const manual = (records || []).reduce((acc, row) => {
+                    const key = getCallGroupKey(row);
+                    if (key) acc[key] = (acc[key] || 0) + 1;
+                    return acc;
+                }, {});
+                for (const [k, v] of Object.entries(manual)) {
+                    if (counts[k] === undefined) counts[k] = v;
+                }
+            }
+
+            return counts;
         }
         function callPressure(count) {
             if (typeof count === 'string') {
@@ -107,7 +129,8 @@
             const callCounts = getCallCounts(llamadasRecords);
             let rows = llamadasRecords.filter(row => !query || Object.values(row).some(value => String(value || '').toLowerCase().includes(query)));
             rows = rows.filter(row => {
-                const pressure = callPressure(callCounts[getCallGroupKey(row)] || 1).key;
+                const frequency = (row.conteoLlamadas && row.conteoLlamadas > 0) ? row.conteoLlamadas : (callCounts[getCallGroupKey(row)] || 1);
+                const pressure = callPressure(row.presionLlamadas || frequency).key;
                 const matchesFrequency = matchesMultiSelection(pressure, repeatFilter);
                 const matchesStatus = matchesMultiSelection(row.estado, statusFilter);
                 return matchesFrequency && matchesStatus;
@@ -134,13 +157,18 @@
             }
             if (!rows.length) { body.innerHTML = '<tr class="calls-empty-row"><td colspan="10"><strong>Sin resultados</strong><span>Prueba con otra búsqueda o limpia los filtros.</span></td></tr>'; return; }
             body.innerHTML = renderedRows.map((row, index) => {
-                const frequency = callCounts[getCallGroupKey(row)] || 1;
-                const pressure = callPressure(frequency);
-                return `<tr class="calls-row calls-row--${pressure.key}" tabindex="0" role="button" aria-label="Ver detalle de llamadas de la ODM ${escapeHtml(row.odm || 'sin dato')}" onclick="openCallDetail(${index})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openCallDetail(${index});}">
+                const key = getCallGroupKey(row);
+                const frequency = (row.conteoLlamadas && row.conteoLlamadas > 0) ? row.conteoLlamadas : (callCounts[key] || 1);
+                const pressure = callPressure(row.presionLlamadas || frequency);
+                const hasValidTicket = isValidCallEntityId(row.ticket);
+                const hasValidOdm = isValidCallEntityId(row.odm);
+                const odmDisplay = hasValidOdm ? row.odm : 'Sin ODM';
+
+                return `<tr class="calls-row calls-row--${pressure.key}" tabindex="0" role="button" aria-label="Ver detalle de llamadas de ${hasValidTicket ? `Ticket ${escapeHtml(row.ticket)}` : `Aviso ${escapeHtml(row.aviso || 'sin dato')}`}" onclick="openCallDetail(${index})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openCallDetail(${index});}">
                     <td data-label="Aviso"><strong>${escapeHtml(row.aviso || 'Sin dato')}</strong></td>
-                    <td data-label="Ticket">${row.ticket ? `<div class="ticket-cell"><span class="ticket-number">${escapeHtml(row.ticket)}</span><button type="button" class="btn-ticket-pin" onclick="event.stopPropagation(); navigateToTicketOnMap('${escapeHtml(row.ticket)}')" title="Localizar ticket #${escapeHtml(row.ticket)} en el mapa" aria-label="Localizar ticket #${escapeHtml(row.ticket)} en el mapa">📍</button></div>` : 'Sin dato'}</td>
+                    <td data-label="Ticket">${hasValidTicket ? `<div class="ticket-cell"><span class="ticket-number">${escapeHtml(row.ticket)}</span><button type="button" class="btn-ticket-pin" onclick="event.stopPropagation(); navigateToTicketOnMap('${escapeHtml(row.ticket)}')" title="Localizar ticket #${escapeHtml(row.ticket)} en el mapa" aria-label="Localizar ticket #${escapeHtml(row.ticket)} en el mapa">📍</button></div>` : 'Sin dato'}</td>
                     <td data-label="Suministro">${escapeHtml(row.suministro || 'Sin dato')}</td>
-                    <td data-label="ODM"><strong>${escapeHtml(row.odm || 'Sin ODM')}</strong><span class="call-pressure call-pressure--${pressure.key}">${frequency} ${frequency === 1 ? 'llamada' : 'llamadas'} · ${pressure.label}</span></td>
+                    <td data-label="ODM"><strong>${escapeHtml(odmDisplay)}</strong><span class="call-pressure call-pressure--${pressure.key}">${frequency} ${frequency === 1 ? 'llamada' : 'llamadas'} · ${pressure.label}</span></td>
                     <td data-label="Nombre">${escapeHtml(row.nombre || 'Sin dato')}</td>
                     <td data-label="Hora de registro">${escapeHtml(row.horaRegistro || 'Sin dato')}</td>
                     <td data-label="Distrito">${escapeHtml(row.distrito || 'Sin dato')}</td>
@@ -157,26 +185,33 @@
             const title = document.getElementById('callDetailTitle');
             if (!row || !overlay || !body) return;
 
-            // 1. Agrupar y obtener TODAS las llamadas asociadas a esta ODM, Ticket o Aviso
+            // 1. Agrupar y obtener TODAS las llamadas asociadas a este Ticket, ODM o Aviso
             const groupKey = getCallGroupKey(row);
-            const odmStr = String(row.odm || '').trim();
-            const ticketStr = String(row.ticket || '').trim();
+            const ticketStr = isValidCallEntityId(row.ticket) ? String(row.ticket).trim() : '';
+            const odmStr = isValidCallEntityId(row.odm) ? String(row.odm).trim() : '';
+            const avisoStr = isValidCallEntityId(row.aviso) ? String(row.aviso).trim() : '';
 
             const relatedCalls = (llamadasRecords || []).filter(r => {
                 if (groupKey && getCallGroupKey(r) === groupKey) return true;
-                if (odmStr && String(r.odm || '').trim() === odmStr) return true;
-                if (ticketStr && String(r.ticket || '').trim() === ticketStr) return true;
+                if (ticketStr && isValidCallEntityId(r.ticket) && String(r.ticket).trim() === ticketStr) return true;
+                if (odmStr && isValidCallEntityId(r.odm) && String(r.odm).trim() === odmStr) return true;
                 return false;
             });
 
             // Ordenar de más reciente a más antigua
             relatedCalls.sort((a, b) => (parseLlamadaDate(b.horaRegistro) || 0) - (parseLlamadaDate(a.horaRegistro) || 0));
 
-            const totalCalls = relatedCalls.length || 1;
-            const pressure = callPressure(totalCalls);
+            const totalCalls = row.conteoLlamadas || relatedCalls.length || 1;
+            const pressure = callPressure(row.presionLlamadas || totalCalls);
 
             if (title) {
-                title.textContent = odmStr ? `ODM ${odmStr}` : (ticketStr ? `Ticket ${ticketStr}` : `Aviso ${row.aviso || 'sin dato'}`);
+                if (ticketStr) {
+                    title.textContent = `Ticket ${ticketStr}` + (odmStr ? ` · ODM ${odmStr}` : '');
+                } else if (odmStr) {
+                    title.textContent = `ODM ${odmStr}`;
+                } else {
+                    title.textContent = `Aviso ${row.aviso || 'sin dato'}`;
+                }
             }
 
             // 2. Verificar si este caso existe activo en el mapa
@@ -205,13 +240,13 @@
 
             // Campos generales del caso
             const generalFields = [
-                ['Aviso Principal', row.aviso],
-                ['Ticket OMS', row.ticket],
-                ['Suministro', row.suministro],
-                ['ODM', row.odm],
-                ['Distrito', row.distrito],
-                ['Dirección', row.direccion],
-                ['Estado Actual', row.estado]
+                ['Ticket OMS', ticketStr || 'Sin dato'],
+                ['ODM', odmStr || 'Sin ODM'],
+                ['Aviso Principal', row.aviso || 'Sin dato'],
+                ['Suministro', row.suministro || 'Sin dato'],
+                ['Distrito', row.distrito || 'Sin dato'],
+                ['Dirección', row.direccion || 'Sin dato'],
+                ['Estado Actual', row.estado || 'Sin dato']
             ];
 
             // Renderizado de las llamadas cronológicas individuales
@@ -285,7 +320,10 @@
         }
         function refreshCallsFacets() {
             const counts = getCallCounts(llamadasRecords);
-            const rows = llamadasRecords.map(row => ({ ...row, frequency: callPressure(counts[getCallGroupKey(row)] || 1).key }));
+            const rows = llamadasRecords.map(row => {
+                const frequency = (row.conteoLlamadas && row.conteoLlamadas > 0) ? row.conteoLlamadas : (counts[getCallGroupKey(row)] || 1);
+                return { ...row, frequency: callPressure(row.presionLlamadas || frequency).key };
+            });
             const selections = {
                 callsRepeatFilter: callsRepeatCtrl?.isAllSelected() ? [] : (callsRepeatCtrl?.getSelected() || []),
                 callsStatusFilter: callsStatusCtrl?.isAllSelected() ? [] : (callsStatusCtrl?.getSelected() || [])
@@ -332,18 +370,27 @@
                 const response = await fetch(GOOGLE_SHEET_LLAMADAS_URL + separator + '_nocache=' + Date.now());
                 if (!response.ok) throw new Error('No se pudo leer la hoja de llamadas.');
                 const parsed = Papa.parse(await response.text(), { header: true, skipEmptyLines: true });
-                llamadasRecords = (parsed.data || []).map(row => ({
-                    aviso: getLlamadaValue(row, 'Aviso', 'AVISO'),
-                    ticket: getLlamadaValue(row, 'Ticket', 'TICKET'),
-                    suministro: getLlamadaValue(row, 'Suministro', 'SUMINISTRO', 'Cuenta', 'CUENTA'),
-                    odm: getLlamadaValue(row, 'ODM', 'Odm', 'Orden', 'ORDEN'),
-                    nombre: getLlamadaValue(row, 'Nombre', 'NOMBRE'),
-                    horaRegistro: getLlamadaValue(row, 'Hora de registro', 'HORA DE REGISTRO', 'Hora Registro'),
-                    distrito: getLlamadaValue(row, 'Distrito', 'DISTRITO'),
-                    direccion: getLlamadaValue(row, 'Dirección', 'Direccion', 'DIRECCIÓN', 'DIRECCION'),
-                    estado: formatEstadoAviso(getLlamadaValue(row, 'Estado del aviso', 'Estado Aviso', 'ESTADO DEL AVISO', 'Estado')),
-                    nota: getLlamadaValue(row, 'Nota específica', 'Nota especifica', 'NOTA ESPECIFICA', 'Nota Específica', 'Nota', 'NOTA')
-                })).sort((a, b) => parseLlamadaDate(b.horaRegistro) - parseLlamadaDate(a.horaRegistro));
+                llamadasRecords = (parsed.data || []).map(row => {
+                    const rawConteo = getLlamadaValue(row, 'Conteo_Llamadas', 'conteo_llamadas', 'Conteo Llamadas', 'Conteo', 'Llamadas');
+                    const parsedConteo = parseInt(rawConteo, 10);
+                    const conteoLlamadas = (!isNaN(parsedConteo) && parsedConteo > 0) ? parsedConteo : null;
+                    const presionLlamadas = getLlamadaValue(row, 'Presion_Llamadas', 'presion_llamadas', 'Presion Llamadas', 'Presion');
+
+                    return {
+                        aviso: getLlamadaValue(row, 'Aviso', 'AVISO'),
+                        ticket: getLlamadaValue(row, 'Ticket', 'TICKET'),
+                        suministro: getLlamadaValue(row, 'Suministro', 'SUMINISTRO', 'Cuenta', 'CUENTA'),
+                        odm: getLlamadaValue(row, 'ODM', 'Odm', 'Orden', 'ORDEN'),
+                        nombre: getLlamadaValue(row, 'Nombre', 'NOMBRE'),
+                        horaRegistro: getLlamadaValue(row, 'Hora de registro', 'HORA DE REGISTRO', 'Hora Registro'),
+                        distrito: getLlamadaValue(row, 'Distrito', 'DISTRITO'),
+                        direccion: getLlamadaValue(row, 'Dirección', 'Direccion', 'DIRECCIÓN', 'DIRECCION'),
+                        estado: formatEstadoAviso(getLlamadaValue(row, 'Estado del aviso', 'Estado Aviso', 'ESTADO DEL AVISO', 'Estado')),
+                        nota: getLlamadaValue(row, 'Nota específica', 'Nota especifica', 'NOTA ESPECIFICA', 'Nota Específica', 'Nota', 'NOTA'),
+                        conteoLlamadas: conteoLlamadas,
+                        presionLlamadas: presionLlamadas
+                    };
+                }).sort((a, b) => parseLlamadaDate(b.horaRegistro) - parseLlamadaDate(a.horaRegistro));
                 llamadasLoaded = true;
                 populateCallsStatusFilter();
                 if (status) status.innerText = `${llamadasRecords.length} registros cargados. Ordenados por hora de registro.`;
