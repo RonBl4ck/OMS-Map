@@ -25,7 +25,7 @@
     <link rel="stylesheet" href="assets/css/20-dashboard.css?v=20260918-status-map">
     <link rel="stylesheet" href="assets/css/30-responsive.css">
     <link rel="stylesheet" href="assets/css/40-technicians.css?v=20260910-ticket-search">
-    <link rel="stylesheet" href="assets/css/90-modern.css?v=20260930-studio">
+    <link rel="stylesheet" href="assets/css/90-modern.css?v=20261022-historial">
 </head>
 <body>
 
@@ -525,13 +525,13 @@
 
     <!-- VISTA EXCLUSIVA PLUZ: HISTORIAL DE SUPERVISIÓN Y AUDITORÍA PLUZ -->
     <div id="historialPluzOverlay" class="td-oms-full-view">
-        <div class="view-header-bar" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-bottom: 2px solid var(--pluz-blue); color: white; padding: 14px 20px; border-radius: 8px 8px 0 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <div class="view-header-bar">
             <div>
-                <div class="modal-header-title" style="color: #38bdf8; font-size: 18px; font-weight: 800; display: flex; align-items: center; gap: 8px;">
-                    🛡️ Historial de Supervisión PLUZ
+                <div class="modal-header-title">
+                    Historial de Supervisión PLUZ
                 </div>
-                <p class="view-header-description" style="color: #94a3b8; font-size: 11.5px; margin: 3px 0 0;">
-                    Auditoría integral de estados operativos, criticidades (Quánticos / Críticos) y seguimiento histórico por SED.
+                <p class="view-header-description" style="color: #64748b; font-size: 12px; margin: 4px 0 0;">
+                    Auditoría integral de estados operativos, criticidades (Quánticos / Críticos) y seguimiento cronológico por SED.
                 </p>
             </div>
             <div style="display: flex; gap: 8px; align-items: center;">
@@ -539,66 +539,76 @@
                     <span>📥</span>
                     <span>Exportar Historial</span>
                 </button>
-                <button type="button" id="btnCloseHistorialPluz" class="btn-close-modal" title="Cerrar vista (Esc)" style="color: white; border: none; background: rgba(255,255,255,0.1); border-radius: 6px; width: 36px; height: 36px; font-size: 16px; cursor: pointer;">✕</button>
             </div>
         </div>
 
-        <div style="padding: 16px 20px; max-width: 1240px; margin: 0 auto;">
+        <div style="padding: 0 2px; max-width: 1320px; margin: 0 auto;">
             <!-- KPI Cards Resumen -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 16px;">
-                <div class="hp-kpi-item" style="border-left: 4px solid #0284c7;">
-                    <span class="hp-kpi-lbl">Total Tickets con Novedad</span>
+            <div class="hp-kpi-grid">
+                <div class="hp-kpi-item hp-kpi-accent-blue">
+                    <span class="hp-kpi-lbl">Total Quánticos y Críticos</span>
                     <span class="hp-kpi-num" id="hpKpiTotalTickets">0</span>
                 </div>
-                <div class="hp-kpi-item" style="border-left: 4px solid #38bdf8;">
-                    <span class="hp-kpi-lbl">SEDs con Intervención</span>
+                <div class="hp-kpi-item hp-kpi-accent-sky">
+                    <span class="hp-kpi-lbl">SEDs con Casos</span>
                     <span class="hp-kpi-num" id="hpKpiTotalSeds">0</span>
                 </div>
-                <div class="hp-kpi-item" style="border-left: 4px solid #ec4899;">
-                    <span class="hp-kpi-lbl">Casos Quánticos 🔮</span>
+                <div class="hp-kpi-item hp-kpi-accent-magenta">
+                    <span class="hp-kpi-lbl">Casos Quánticos</span>
                     <span class="hp-kpi-num" id="hpKpiTotalQuanticos" style="color: #be185d;">0</span>
                 </div>
-                <div class="hp-kpi-item" style="border-left: 4px solid #ef4444;">
-                    <span class="hp-kpi-lbl">Casos Críticos 🚨</span>
+                <div class="hp-kpi-item hp-kpi-accent-red">
+                    <span class="hp-kpi-lbl">Casos Críticos</span>
                     <span class="hp-kpi-num" id="hpKpiTotalCriticos" style="color: #b91c1c;">0</span>
-                </div>
-                <div class="hp-kpi-item" style="border-left: 4px solid #ea580c;">
-                    <span class="hp-kpi-lbl">Casos Impedidos ⛔</span>
-                    <span class="hp-kpi-num" id="hpKpiTotalImpedidos" style="color: #c2410c;">0</span>
                 </div>
             </div>
 
             <!-- Toolbar de Filtros y Búsqueda -->
-            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
-                <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-                    <div style="flex: 1; min-width: 280px; position: relative;">
-                        <input type="text" id="inputFilterHistorialPluz" placeholder="🔍 Buscar por SED (ej. 01916S), Ticket (ej. 2600207218), JC o novedad..." style="width: 100%; box-sizing: border-box; padding: 8px 14px; font-size: 12.5px; border: 1.5px solid #cbd5e1; border-radius: 6px; outline: none;">
+            <div class="hp-toolbar-card">
+                <div class="hp-toolbar-row">
+                    <div class="hp-search-wrapper">
+                        <span class="hp-search-icon">🔍</span>
+                        <input type="text" id="inputFilterHistorialPluz" class="hp-search-input" placeholder="Buscar por SED (ej. 01916S), Ticket (ej. 2600207903), JC o detalle...">
+                        <button type="button" id="btnClearSearchInput" class="hp-search-clear" title="Borrar búsqueda" style="display: none;">✕</button>
                     </div>
-                    <button type="button" id="btnClearHistorialPluz" style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 14px; font-size: 11.5px; font-weight: 700; cursor: pointer;">
+                    <button type="button" id="btnClearHistorialPluz" class="hp-btn-reset">
                         Limpiar Filtros
                     </button>
                 </div>
 
-                <!-- Chips de Categoría -->
-                <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-                    <span style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase;">Filtrar:</span>
-                    <button type="button" class="hp-filter-chip active" data-val="ALL">🔘 Todos (<span id="hpBadgeCountAll" class="hp-count">0</span>)</button>
-                    <button type="button" class="hp-filter-chip" data-val="QUANTICO">🔮 Quánticos (<span id="hpBadgeCountQuantico" class="hp-count">0</span>)</button>
-                    <button type="button" class="hp-filter-chip" data-val="CRITICO">🚨 Críticos (<span id="hpBadgeCountCritico" class="hp-count">0</span>)</button>
-                    <button type="button" class="hp-filter-chip" data-val="VENCIDO">⏱️ Vencidos (<span id="hpBadgeCountVencido" class="hp-count">0</span>)</button>
-                    <button type="button" class="hp-filter-chip" data-val="IMPEDIDO">⛔ Impedidos (<span id="hpBadgeCountImpedido" class="hp-count">0</span>)</button>
-                    <button type="button" class="hp-filter-chip" data-val="EJECUCION">⚙️ En Ejecución (<span id="hpBadgeCountEjecucion" class="hp-count">0</span>)</button>
+                <!-- Chips de Categoría y Badge de Filtro Activo SED -->
+                <div class="hp-filters-subrow">
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                        <span style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.3px;">Criticidad:</span>
+                        <button type="button" class="hp-filter-chip active" data-val="ALL">Todos (<span id="hpBadgeCountAll" class="hp-count">0</span>)</button>
+                        <button type="button" class="hp-filter-chip chip-quantico" data-val="QUANTICO">Quánticos (<span id="hpBadgeCountQuantico" class="hp-count">0</span>)</button>
+                        <button type="button" class="hp-filter-chip chip-critico" data-val="CRITICO">Críticos (<span id="hpBadgeCountCritico" class="hp-count">0</span>)</button>
+                    </div>
+                    <div id="hpActiveSedContainer" style="display: none; align-items: center; gap: 6px;">
+                        <span class="hp-active-sed-badge">
+                            <span>SED: <b id="hpActiveSedText">--</b></span>
+                            <button type="button" id="btnRemoveSedFilter" title="Quitar filtro de SED">✕</button>
+                        </span>
+                    </div>
                 </div>
             </div>
 
-            <!-- Conteo de Resultados -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <span style="font-size: 12px; font-weight: 700; color: #475569;">
-                    Mostrando <b id="hpFilteredCount" style="color: var(--pluz-blue);">0</b> tickets con seguimiento
-                </span>
-                <span style="font-size: 11px; color: #64748b;">
-                    💡 Haz clic en cualquier tarjeta para desplegar su historial cronológico.
-                </span>
+            <!-- Barra de Conteo y Acciones Globales -->
+            <div class="hp-results-bar">
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <span style="font-size: 12.5px; font-weight: 700; color: #334155;">
+                        Mostrando <b id="hpFilteredCount" style="color: var(--pluz-blue);">0</b> tickets con seguimiento
+                    </span>
+                    <span style="font-size: 11px; color: #64748b;">
+                        • Haz clic en la cabecera de cualquier tarjeta para desplegar su historial.
+                    </span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <button type="button" id="btnToggleExpandAllHistorialPluz" class="hp-btn-toggle-all">
+                        <span id="hpToggleAllIcon">▼</span>
+                        <span id="hpToggleAllLabel">Expandir Todo</span>
+                    </button>
+                </div>
             </div>
 
             <!-- Contenedor de Tarjetas de Tickets e Historial -->
@@ -896,7 +906,7 @@
     <script src="assets/js/30-llamadas.js?v=20260912-facets"></script>
     <script src="assets/js/35-critical-panel.js?v=20260930-pillbars"></script>
     <script src="assets/js/40-tecnicos.js?v=20260930-v3"></script>
-    <script src="assets/js/45-historial-pluz.js?v=20261022-1"></script>
+    <script src="assets/js/45-historial-pluz.js?v=20261022-historial"></script>
     <script src="assets/js/50-navigation.js?v=20260912-facets"></script>
     <script src="assets/js/60-auth.js?v=20260930-v3"></script>
     <script src="assets/js/70-admin.js"></script>

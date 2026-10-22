@@ -179,3 +179,11 @@ test('00-core.js y 60-auth.js indexan novedades por SED y por Ticket', () => {
     assert.ok(dashCode.includes('cleanHoraIniVal'), '20-dashboard.js debe capturar cleanHoraIniVal');
     assert.ok(authCode.includes('supervisorRecordsBySedMap'), '60-auth.js debe poblar supervisorRecordsBySedMap');
 });
+
+test('45-historial-pluz.js restringe la lista exclusivamente a Quánticos y Críticos, descartando Vencidos o normales', () => {
+    const hpCode = fs.readFileSync(path.join(root, 'assets', 'js', '45-historial-pluz.js'), 'utf-8');
+    assert.ok(hpCode.includes('isTicketQuanticoOrCritico'), 'Debe incluir función de filtrado para Quánticos y Críticos');
+    assert.ok(hpCode.includes('isEntryQuantico'), 'Debe validar si la entrada es Quántica');
+    assert.ok(hpCode.includes('isEntryCritico'), 'Debe validar si la entrada es Crítica');
+    assert.ok(!hpCode.includes("data-val=\"VENCIDO\""), 'No debe contener chip de Vencidos');
+});

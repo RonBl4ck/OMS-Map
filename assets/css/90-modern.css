@@ -1783,8 +1783,144 @@ body:not([data-primary-view="map"]) .map-legend { display: none !important; }
 }
 
 /* ==========================================================================
-   ESTILOS HISTORIAL DE SUPERVISIÓN PLUZ (VISTA DEDICADA & COMPONENTES)
+   ESTILOS HISTORIAL DE SUPERVISIÓN PLUZ (DESIGN ENGINEERING AUDIT / EMIL KOWALSKI)
    ========================================================================== */
+
+/* 1. KPI Cards Grid */
+.hp-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.hp-kpi-item {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 10px);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.hp-kpi-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+.hp-kpi-accent-blue { border-left: 4px solid #0284c7; }
+.hp-kpi-accent-sky { border-left: 4px solid #38bdf8; }
+.hp-kpi-accent-magenta { border-left: 4px solid #ec4899; }
+.hp-kpi-accent-red { border-left: 4px solid #ef4444; }
+
+.hp-kpi-num {
+  font-family: Outfit, Inter, sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.hp-kpi-lbl {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* 2. Toolbar y Búsqueda */
+.hp-toolbar-card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 10px);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+.hp-toolbar-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.hp-search-wrapper {
+  flex: 1;
+  min-width: 280px;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.hp-search-icon {
+  position: absolute;
+  left: 12px;
+  font-size: 13px;
+  color: #94a3b8;
+  pointer-events: none;
+  user-select: none;
+}
+.hp-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 34px 9px 36px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #0f172a;
+  background: #f8fafc;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 160ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.hp-search-input:focus {
+  background: #ffffff;
+  border-color: #0284c7;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.12);
+}
+.hp-search-clear {
+  position: absolute;
+  right: 10px;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 13px;
+  padding: 4px;
+  cursor: pointer;
+  border-radius: 4px;
+  line-height: 1;
+  transition: color 120ms ease-out;
+}
+.hp-search-clear:hover {
+  color: #475569;
+}
+.hp-btn-reset {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 9px 15px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 120ms ease-out, background 120ms ease-out, border-color 120ms ease-out;
+}
+.hp-btn-reset:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+}
+.hp-btn-reset:active {
+  transform: scale(0.97);
+}
+
+.hp-filters-subrow {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+}
 .hp-filter-chip {
   background: #ffffff;
   border: 1px solid #cbd5e1;
@@ -1796,8 +1932,8 @@ body:not([data-primary-view="map"]) .map-legend { display: none !important; }
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  transition: all 140ms cubic-bezier(0.16, 1, 0.3, 1);
+  gap: 6px;
+  transition: transform 120ms ease-out, border-color 120ms ease-out, background-color 120ms ease-out, color 120ms ease-out, box-shadow 120ms ease-out;
   user-select: none;
 }
 .hp-filter-chip:hover {
@@ -1805,51 +1941,326 @@ body:not([data-primary-view="map"]) .map-legend { display: none !important; }
   color: #0284c7;
   background: #f0f9ff;
 }
+.hp-filter-chip:active {
+  transform: scale(0.97);
+}
 .hp-filter-chip.active {
   background: #0284c7;
   color: #ffffff;
   border-color: #0284c7;
   box-shadow: 0 2px 6px rgba(2, 132, 199, 0.25);
 }
+.hp-filter-chip.chip-quantico.active {
+  background: #be185d;
+  border-color: #be185d;
+  box-shadow: 0 2px 6px rgba(190, 24, 93, 0.25);
+}
+.hp-filter-chip.chip-critico.active {
+  background: #b91c1c;
+  border-color: #b91c1c;
+  box-shadow: 0 2px 6px rgba(185, 28, 28, 0.25);
+}
 .hp-filter-chip span.hp-count {
   background: rgba(0, 0, 0, 0.08);
   padding: 1px 6px;
   border-radius: 10px;
   font-size: 10px;
+  font-variant-numeric: tabular-nums;
 }
 .hp-filter-chip.active span.hp-count {
   background: rgba(255, 255, 255, 0.25);
   color: #ffffff;
 }
-.hp-sed-pill:hover {
-  background: #bae6fd !important;
-  transform: translateY(-1px);
+
+/* Badge de Filtro Activo por SED */
+.hp-active-sed-badge {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #7dd3fc;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 1px 2px rgba(3, 105, 161, 0.08);
+  animation: fadeIn 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.hp-active-sed-badge button {
+  background: transparent;
+  border: none;
+  color: #0284c7;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 2px;
+  line-height: 1;
+  font-weight: 800;
+  border-radius: 2px;
+  transition: transform 120ms ease-out, color 120ms ease-out;
+}
+.hp-active-sed-badge button:hover {
+  color: #b91c1c;
+  transform: scale(1.15);
+}
+
+/* Barra de Conteo y Acciones Globales */
+.hp-results-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.hp-btn-toggle-all {
+  background: #ffffff;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: transform 120ms ease-out, background 120ms ease-out, border-color 120ms ease-out;
+}
+.hp-btn-toggle-all:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+.hp-btn-toggle-all:active {
+  transform: scale(0.97);
+}
+
+/* 3. Tarjeta de Ticket Reestructurada */
+.hp-ticket-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  overflow: hidden;
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 160ms cubic-bezier(0.23, 1, 0.32, 1), border-color 160ms ease-out;
 }
 .hp-ticket-card:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
 }
-.hp-kpi-item {
+.hp-ticket-card.is-critico {
+  border-left: 4px solid #ef4444;
+}
+.hp-ticket-card.is-quantico {
+  border-left: 4px solid #ec4899;
+}
+.hp-ticket-card.is-vencido {
+  border-left: 4px solid #f97316;
+}
+.hp-ticket-card.is-impedimento {
+  border-left: 4px solid #ea580c;
+}
+.hp-ticket-card.is-ejecucion {
+  border-left: 4px solid #3b82f6;
+}
+.hp-ticket-card.is-normal {
+  border-left: 4px solid #94a3b8;
+}
+
+.hp-card-header {
+  padding: 12px 16px;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   background: #ffffff;
+  transition: background-color 120ms ease-out;
+}
+.hp-card-header:hover {
+  background: #fafafa;
+}
+.hp-card-header:active {
+  background: #f1f5f9;
+}
+
+.hp-card-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.hp-ticket-id {
+  font-family: Outfit, Inter, sans-serif;
+  font-size: 15px;
+  font-weight: 800;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: -0.01em;
+}
+.hp-chevron {
+  font-size: 11px;
+  font-weight: 700;
+  color: #0284c7;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 120ms ease-out;
+}
+
+.hp-card-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: #475569;
+}
+.hp-sed-pill {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #7dd3fc;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 120ms ease-out, background 120ms ease-out;
+}
+.hp-sed-pill:hover {
+  background: #bae6fd;
+  transform: translateY(-1px);
+}
+.hp-sed-pill:active {
+  transform: scale(0.96);
+}
+
+/* 4. Acordeón con Transición CSS Grid (Emil Kowalski) */
+.hp-card-collapse-wrapper {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 220ms cubic-bezier(0.23, 1, 0.32, 1);
+  border-top: 1px solid #f1f5f9;
+}
+.hp-card-collapse-wrapper.expanded {
+  grid-template-rows: 1fr;
+  border-top-color: #e2e8f0;
+}
+.hp-card-collapse-inner {
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 180ms ease-out, transform 180ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.hp-card-collapse-wrapper.expanded .hp-card-collapse-inner {
+  opacity: 1;
+  transform: translateY(0);
+}
+.hp-card-body-content {
+  background: #ffffff;
+  padding: 14px 16px;
+}
+
+/* 5. Acciones Internas de la Tarjeta */
+.hp-card-actions-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.hp-btn-primary {
+  background: #0284c7;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  box-shadow: 0 1px 2px rgba(2, 132, 199, 0.15);
+  transition: transform 120ms ease-out, background-color 120ms ease-out, box-shadow 120ms ease-out;
+}
+.hp-btn-primary:hover {
+  background: #0369a1;
+  box-shadow: 0 2px 4px rgba(2, 132, 199, 0.25);
+}
+.hp-btn-primary:active {
+  transform: scale(0.97);
+}
+.hp-btn-ghost {
+  background: #ffffff;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: transform 120ms ease-out, background-color 120ms ease-out, border-color 120ms ease-out;
+}
+.hp-btn-ghost:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+.hp-btn-ghost:active {
+  transform: scale(0.97);
+}
+
+/* 6. Timeline Refinado */
+.hp-timeline-list {
+  position: relative;
+  padding-left: 24px;
+  border-left: 2px solid #e2e8f0;
+  margin-left: 10px;
+  margin-top: 8px;
+}
+.hp-timeline-item {
+  position: relative;
+  margin-bottom: 14px;
+}
+.hp-timeline-item:last-child {
+  margin-bottom: 4px;
+}
+.hp-timeline-bullet {
+  position: absolute;
+  left: -31px;
+  top: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #94a3b8;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 1px #cbd5e1;
+  transition: transform 140ms ease-out;
+}
+.hp-timeline-item:first-child .hp-timeline-bullet {
+  background: var(--pluz-blue, #0284c7);
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2);
+}
+.hp-timeline-box {
+  background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   padding: 10px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  transition: border-color 140ms ease-out, background-color 140ms ease-out;
 }
-.hp-kpi-num {
-  font-size: 20px;
-  font-weight: 800;
-  color: #0f172a;
-  line-height: 1;
-}
-.hp-kpi-lbl {
-  font-size: 10px;
-  font-weight: 700;
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
+.hp-timeline-item:first-child .hp-timeline-box {
+  background: #fdfdfe;
+  border-color: #cbd5e1;
 }
 
 
