@@ -1026,29 +1026,30 @@
             const inDetCrit = document.getElementById("supInputDetalleCritico");
             const feedback = document.getElementById("supSaveFeedback");
 
-            if (tNum) tNum.textContent = cleanTicket;
-            if (bEmp) bEmp.textContent = rec.empresa || 'N/A';
-            if (bEst) bEst.textContent = rec.estado || 'PENDIENTE';
-            if (sSed) sSed.textContent = rec.sed || 'N/A';
-            if (sAli) sAli.textContent = rec.alimentador || 'N/A';
-            if (sFal) sFal.textContent = rec.falla || 'Sin falla especificada';
-
-            if (feedback) feedback.style.display = 'none';
-
             const supData = (typeof getSupervisorDataForTicket === 'function') ? getSupervisorDataForTicket(cleanTicket) : null;
             const supLatest = supData ? supData.latest : null;
+            const clean = (typeof cleanSupVal === 'function') ? cleanSupVal : (v => (!v || /^n\/?a$/i.test(String(v).trim()) || String(v).trim() === '--' || String(v).trim() === 'null') ? '' : String(v).trim());
+
+            if (tNum) tNum.textContent = cleanTicket;
+            if (bEmp) bEmp.textContent = clean(rec.empresa) || clean(supLatest ? supLatest.empresa : '') || 'N/A';
+            if (bEst) bEst.textContent = clean(rec.estado) || (supLatest ? clean(supLatest.estadoOperativo || supLatest.estado) : '') || 'PENDIENTE';
+            if (sSed) sSed.textContent = clean(rec.sed) || clean(supLatest ? supLatest.sed : '') || 'N/A';
+            if (sAli) sAli.textContent = clean(rec.alimentador) || clean(supLatest ? supLatest.alimentador : '') || 'N/A';
+            if (sFal) sFal.textContent = clean(rec.falla) || 'Sin falla especificada';
+
+            if (feedback) feedback.style.display = 'none';
 
             // HERO CARD: Mostrar última novedad arriba si existe historial
             const heroEl = document.getElementById("supHeroLatestContainer");
             if (heroEl) {
                 if (supLatest) {
-                    const opEst = supLatest.estadoOperativo || supLatest.estado || 'PENDIENTE';
-                    const critEst = supLatest.estadoCritico || '';
+                    const opEst = clean(supLatest.estadoOperativo || supLatest.estado) || 'PENDIENTE';
+                    const critEst = clean(supLatest.estadoCritico);
                     const opBadgeClass = getSupervisorBadgeClass(opEst);
                     const critBadgeClass = critEst ? getCriticoBadgeClass(critEst) : '';
-                    const jcVal = supLatest.jefeCuadrilla || '';
-                    const opDet = supLatest.detalleOperativo || supLatest.detalle || '';
-                    const critDet = supLatest.detalleCritico || '';
+                    const jcVal = clean(supLatest.jefeCuadrilla);
+                    const opDet = clean(supLatest.detalleOperativo || supLatest.detalle);
+                    const critDet = clean(supLatest.detalleCritico);
 
                     let borderClass = 'is-en-ejecucion';
                     const critNorm = String(critEst).toLowerCase();
@@ -1070,7 +1071,7 @@
                             </div>
                             ${jcVal ? `<div style="font-size: 11px; color: #0f172a; margin-bottom: 4px; font-weight: 700;">JC: <span style="font-weight: 600; color: #1e293b;">${escapeHtml(jcVal)}</span></div>` : ''}
                             ${opDet ? `<div style="font-size: 11px; color: #334155; line-height: 1.35; margin-bottom: 3px;"><b>Operativo:</b> ${escapeHtml(opDet)}</div>` : ''}
-                            ${critDet && !/^n\/?a$/i.test(critDet) ? `<div style="font-size: 11px; color: #9d174d; line-height: 1.35;"><b>Criticidad:</b> ${escapeHtml(critDet)}</div>` : ''}
+                            ${critDet ? `<div style="font-size: 11px; color: #9d174d; line-height: 1.35;"><b>Criticidad:</b> ${escapeHtml(critDet)}</div>` : ''}
                         </div>
                     `;
                     heroEl.style.display = "block";
@@ -1079,15 +1080,12 @@
                 }
             }
 
-            // Heredar JC, estados seleccionados y detalle de criticidad previo (la nueva novedad operativa sí inicia limpia)
-            if (inJc) inJc.value = supLatest ? (supLatest.jefeCuadrilla || '') : '';
-            if (inEstOp) inEstOp.value = supLatest ? (supLatest.estadoOperativo || supLatest.estado || 'PENDIENTE') : 'PENDIENTE';
+            // Heredar JC, estados seleccionados y detalle de criticidad previo (la nueva novedad operativa sí inicia limpia, nunca 'N/A')
+            if (inJc) inJc.value = clean(supLatest ? supLatest.jefeCuadrilla : '');
+            if (inEstOp) inEstOp.value = clean(supLatest ? (supLatest.estadoOperativo || supLatest.estado) : '') || 'PENDIENTE';
             if (inDetOp) inDetOp.value = '';
-            if (inEstCrit) inEstCrit.value = supLatest ? (supLatest.estadoCritico || '') : '';
-            if (inDetCrit) {
-                const prevCrit = supLatest ? (supLatest.detalleCritico || '') : '';
-                inDetCrit.value = /^n\/?a$/i.test(prevCrit.trim()) ? '' : prevCrit;
-            }
+            if (inEstCrit) inEstCrit.value = clean(supLatest ? supLatest.estadoCritico : '');
+            if (inDetCrit) inDetCrit.value = clean(supLatest ? supLatest.detalleCritico : '');
 
             updateSupervisorOperativoChipSelection(inEstOp ? inEstOp.value : '');
             updateSupervisorCriticoChipSelection(inEstCrit ? inEstCrit.value : '');
@@ -1153,11 +1151,16 @@
                 return;
             }
 
+            const clean = (typeof cleanSupVal === 'function') ? cleanSupVal : (v => (!v || /^n\/?a$/i.test(String(v).trim()) || String(v).trim() === '--' || String(v).trim() === 'null') ? '' : String(v).trim());
+
             container.innerHTML = history.map(entry => {
-                const opEst = entry.estadoOperativo || entry.estado || 'PENDIENTE';
-                const critEst = entry.estadoCritico || '';
+                const opEst = clean(entry.estadoOperativo || entry.estado) || 'PENDIENTE';
+                const critEst = clean(entry.estadoCritico);
                 const opBadgeClass = getSupervisorBadgeClass(opEst);
                 const critBadgeClass = critEst ? getCriticoBadgeClass(critEst) : '';
+                const jcVal = clean(entry.jefeCuadrilla);
+                const opDet = clean(entry.detalleOperativo || entry.detalle);
+                const critDet = clean(entry.detalleCritico);
 
                 let cardModifier = '';
                 const opNorm = String(opEst).toLowerCase();
@@ -1180,19 +1183,19 @@
                             </div>
                             <span style="font-size: 10px; color: #64748b; font-weight: 600;">🕒 ${escapeHtml(entry.fecha || '')}</span>
                         </div>
-                        ${entry.jefeCuadrilla ? `
+                        ${jcVal ? `
                             <div style="font-size: 11px; color: #0f172a; margin-bottom: 3px; font-weight: 700;">
-                                JC: <span style="font-weight: 600; color: #1e293b;">${escapeHtml(entry.jefeCuadrilla)}</span>
+                                JC: <span style="font-weight: 600; color: #1e293b;">${escapeHtml(jcVal)}</span>
                             </div>
                         ` : ''}
-                        ${(entry.detalleOperativo || entry.detalle) ? `
+                        ${opDet ? `
                             <div style="font-size: 11px; color: #1e293b; line-height: 1.35; margin-bottom: 4px;">
-                                <b>Operativo:</b> ${escapeHtml(entry.detalleOperativo || entry.detalle)}
+                                <b>Operativo:</b> ${escapeHtml(opDet)}
                             </div>
                         ` : ''}
-                        ${entry.detalleCritico ? `
+                        ${critDet ? `
                             <div style="font-size: 11px; color: #9d174d; line-height: 1.35; margin-bottom: 4px;">
-                                <b>Criticidad:</b> ${escapeHtml(entry.detalleCritico)}
+                                <b>Criticidad:</b> ${escapeHtml(critDet)}
                             </div>
                         ` : ''}
                         <div style="font-size: 9.5px; color: #94a3b8; text-align: right;">
@@ -1213,11 +1216,13 @@
             const btnSave = document.getElementById("btnSaveSupervisorLog");
             const feedback = document.getElementById("supSaveFeedback");
 
-            const jefeCuadrilla = inJc ? inJc.value.trim().toUpperCase() : "";
-            const estadoOperativo = inEstOp ? inEstOp.value.trim().toUpperCase() : "";
-            const detalleOperativo = inDetOp ? inDetOp.value.trim() : "";
-            const estadoCritico = inEstCrit ? inEstCrit.value.trim().toUpperCase() : "";
-            const detalleCritico = inDetCrit ? inDetCrit.value.trim() : "";
+            const clean = (typeof cleanSupVal === 'function') ? cleanSupVal : (v => (!v || /^n\/?a$/i.test(String(v).trim()) || String(v).trim() === '--' || String(v).trim() === 'null') ? '' : String(v).trim());
+
+            const jefeCuadrilla = clean(inJc ? inJc.value : "").toUpperCase();
+            const estadoOperativo = clean(inEstOp ? inEstOp.value : "").toUpperCase();
+            const detalleOperativo = clean(inDetOp ? inDetOp.value : "");
+            const estadoCritico = clean(inEstCrit ? inEstCrit.value : "").toUpperCase();
+            const detalleCritico = clean(inDetCrit ? inDetCrit.value : "");
 
             if (!estadoOperativo && !estadoCritico && !jefeCuadrilla) {
                 if (feedback) {
@@ -1246,17 +1251,20 @@
             const targetRec = (typeof tdOmsRecords !== 'undefined' && Array.isArray(tdOmsRecords) ? tdOmsRecords.find(r => String(r.ticket || '').trim().toLowerCase() === currentSupervisorTicket.toLowerCase()) : null) ||
                               (typeof mapLocations !== 'undefined' && Array.isArray(mapLocations) ? mapLocations.find(l => String(l.ticket || '').trim().toLowerCase() === currentSupervisorTicket.toLowerCase()) : null) || {};
 
-            const sedRaw = (targetRec.sed && targetRec.sed !== 'N/A' ? targetRec.sed : '') || (document.getElementById("supModalSed") ? document.getElementById("supModalSed").textContent.trim() : '');
-            const cleanSedVal = (sedRaw === '--' || sedRaw === 'N/A') ? '' : sedRaw;
+            const supDataCurrent = (typeof getSupervisorDataForTicket === 'function') ? getSupervisorDataForTicket(currentSupervisorTicket) : null;
+            const supLatestCurrent = supDataCurrent ? supDataCurrent.latest : null;
 
-            const horaIniRaw = targetRec.hora_inicio || targetRec.fecha_inicio || '';
-            const cleanHoraIniVal = (horaIniRaw === '--' || horaIniRaw === 'N/A') ? '' : horaIniRaw;
+            const sedRaw = clean(targetRec.sed) || clean(supLatestCurrent ? supLatestCurrent.sed : '') || clean(document.getElementById("supModalSed") ? document.getElementById("supModalSed").textContent : '');
+            const cleanSedVal = sedRaw;
 
-            const aliRaw = (targetRec.alimentador && targetRec.alimentador !== 'N/A' && targetRec.alimentador !== '--' ? targetRec.alimentador : '') || (document.getElementById("supModalAlimentador") ? document.getElementById("supModalAlimentador").textContent.trim() : '');
-            const cleanAliVal = (aliRaw === '--' || aliRaw === 'N/A') ? '' : aliRaw;
+            const horaIniRaw = clean(targetRec.hora_inicio || targetRec.fecha_inicio) || clean(supLatestCurrent ? supLatestCurrent.horaInicio : '');
+            const cleanHoraIniVal = horaIniRaw;
 
-            const empRaw = (targetRec.empresa && targetRec.empresa !== 'N/A' && targetRec.empresa !== '--' ? targetRec.empresa : '') || (document.getElementById("supModalBadgeEmpresa") ? document.getElementById("supModalBadgeEmpresa").textContent.trim() : '');
-            const cleanEmpVal = (empRaw === '--' || empRaw === 'N/A') ? '' : empRaw;
+            const aliRaw = clean(targetRec.alimentador) || clean(supLatestCurrent ? supLatestCurrent.alimentador : '') || clean(document.getElementById("supModalAlimentador") ? document.getElementById("supModalAlimentador").textContent : '');
+            const cleanAliVal = aliRaw;
+
+            const empRaw = clean(targetRec.empresa) || clean(supLatestCurrent ? supLatestCurrent.empresa : '') || clean(document.getElementById("supModalBadgeEmpresa") ? document.getElementById("supModalBadgeEmpresa").textContent : '');
+            const cleanEmpVal = empRaw;
 
             const optimisticEntry = {
                 fecha: localTimestamp,

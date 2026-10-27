@@ -157,16 +157,23 @@
                                     const tKey = String(ticketVal || '').trim().toLowerCase();
                                     if (!tKey) return;
 
-                                    const sedVal = getProp(r, 'SED', 'sed', 'Sed', 'Subestacion', 'subestacion') || '';
-                                    const horaIniVal = getProp(r, 'Hora_Inicio', 'hora_inicio', 'Hora Inicio', 'Fecha_Inicio', 'fecha_inicio', 'HoraInicio') || '';
-                                    const alimentadorVal = getProp(r, 'Alimentador', 'alimentador', 'ALIMENTADOR') || '';
-                                    const empresaVal = getProp(r, 'Empresa', 'empresa', 'Contratista', 'contratista') || '';
+                                    const cleanProp = (...keys) => {
+                                        const raw = getProp(r, ...keys);
+                                        if (!raw) return '';
+                                        const s = String(raw).trim();
+                                        return (/^n\/?a$/i.test(s) || s === '--' || s === 'null' || s === 'undefined') ? '' : s;
+                                    };
 
-                                    const estadoOperativo = getProp(r, 'Estado_Operativo', 'estado_operativo', 'Estado_Supervisor', 'estado_supervisor', 'Estado', 'estado') || '';
-                                    const detalleOperativo = getProp(r, 'Detalle_Operativo', 'detalle_operativo', 'Detalle', 'detalle', 'Observaciones', 'observaciones', 'novedad') || '';
-                                    const jefeCuadrilla = getProp(r, 'Jefe_Cuadrilla', 'jefe_cuadrilla', 'JC', 'jc', 'JefeCuadrilla') || '';
-                                    const estadoCritico = getProp(r, 'Estado_Critico', 'estado_critico', 'Criticidad', 'criticidad') || '';
-                                    const detalleCritico = getProp(r, 'Detalle_Critico', 'detalle_critico') || '';
+                                    const sedVal = cleanProp('SED', 'sed', 'Sed', 'Subestacion', 'subestacion');
+                                    const horaIniVal = cleanProp('Hora_Inicio', 'hora_inicio', 'Hora Inicio', 'Fecha_Inicio', 'fecha_inicio', 'HoraInicio');
+                                    const alimentadorVal = cleanProp('Alimentador', 'alimentador', 'ALIMENTADOR');
+                                    const empresaVal = cleanProp('Empresa', 'empresa', 'Contratista', 'contratista');
+
+                                    const estadoOperativo = cleanProp('Estado_Operativo', 'estado_operativo', 'Estado_Supervisor', 'estado_supervisor', 'Estado', 'estado');
+                                    const detalleOperativo = cleanProp('Detalle_Operativo', 'detalle_operativo', 'Detalle', 'detalle', 'Observaciones', 'observaciones', 'novedad');
+                                    const jefeCuadrilla = cleanProp('Jefe_Cuadrilla', 'jefe_cuadrilla', 'JC', 'jc', 'JefeCuadrilla');
+                                    const estadoCritico = cleanProp('Estado_Critico', 'estado_critico', 'Criticidad', 'criticidad');
+                                    const detalleCritico = cleanProp('Detalle_Critico', 'detalle_critico');
 
                                     // Compatibilidad si vino guardado con la versión previa (donde 'estado' podía ser 'QUANTICO' o 'CRITICO')
                                     let resolvedOperativo = estadoOperativo;
@@ -182,12 +189,12 @@
                                     }
 
                                     const entry = {
-                                        fecha: getProp(r, 'Fecha_Hora', 'fecha_hora', 'Fecha', 'fecha', 'Timestamp', 'timestamp') || '',
+                                        fecha: cleanProp('Fecha_Hora', 'fecha_hora', 'Fecha', 'fecha', 'Timestamp', 'timestamp'),
                                         ticket: String(ticketVal).trim(),
-                                        sed: String(sedVal).trim(),
-                                        horaInicio: String(horaIniVal).trim(),
-                                        alimentador: String(alimentadorVal).trim(),
-                                        empresa: String(empresaVal).trim(),
+                                        sed: sedVal,
+                                        horaInicio: horaIniVal,
+                                        alimentador: alimentadorVal,
+                                        empresa: empresaVal,
                                         estadoOperativo: resolvedOperativo,
                                         detalleOperativo: resolvedDetalleOp,
                                         jefeCuadrilla: jefeCuadrilla,
@@ -196,7 +203,7 @@
                                         // Legacy aliases
                                         estado: resolvedOperativo || resolvedCritico,
                                         detalle: resolvedDetalleOp || resolvedDetalleCrit,
-                                        usuario: getProp(r, 'Usuario', 'usuario', 'perfil') || 'PLUZ'
+                                        usuario: cleanProp('Usuario', 'usuario', 'perfil') || 'PLUZ'
                                     };
 
                                     let record = supervisorRecordsMap.get(tKey);

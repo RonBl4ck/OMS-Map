@@ -69,24 +69,31 @@
             return Array.isArray(list) ? list : [];
         }
 
+        function cleanSupVal(val) {
+            if (!val) return '';
+            const s = String(val).trim();
+            return (/^n\/?a$/i.test(s) || s === '--' || s === 'null' || s === 'undefined') ? '' : s;
+        }
+
         function addSupervisorLogOptimistic(entry) {
             if (!entry || !entry.ticket) return;
             const key = String(entry.ticket).trim().toLowerCase();
             let data = supervisorRecordsMap.get(key);
+            const clean = cleanSupVal;
             const normalizedEntry = {
                 fecha: entry.fecha || '',
                 ticket: String(entry.ticket).trim(),
-                sed: entry.sed || '',
-                horaInicio: entry.horaInicio || entry.hora_inicio || '',
-                alimentador: entry.alimentador || '',
-                empresa: entry.empresa || '',
-                estadoOperativo: entry.estadoOperativo || entry.estado || '',
-                detalleOperativo: entry.detalleOperativo || entry.detalle || '',
-                jefeCuadrilla: entry.jefeCuadrilla || entry.jc || '',
-                estadoCritico: entry.estadoCritico || '',
-                detalleCritico: entry.detalleCritico || '',
-                estado: entry.estadoOperativo || entry.estado || entry.estadoCritico || '',
-                detalle: entry.detalleOperativo || entry.detalle || entry.detalleCritico || '',
+                sed: clean(entry.sed),
+                horaInicio: clean(entry.horaInicio || entry.hora_inicio),
+                alimentador: clean(entry.alimentador),
+                empresa: clean(entry.empresa),
+                estadoOperativo: clean(entry.estadoOperativo || entry.estado),
+                detalleOperativo: clean(entry.detalleOperativo || entry.detalle),
+                jefeCuadrilla: clean(entry.jefeCuadrilla || entry.jc),
+                estadoCritico: clean(entry.estadoCritico),
+                detalleCritico: clean(entry.detalleCritico),
+                estado: clean(entry.estadoOperativo || entry.estado || entry.estadoCritico),
+                detalle: clean(entry.detalleOperativo || entry.detalle || entry.detalleCritico),
                 usuario: entry.usuario || 'PLUZ'
             };
             if (!data) {
@@ -109,6 +116,7 @@
             }
         }
         if (typeof window !== 'undefined') {
+            window.cleanSupVal = cleanSupVal;
             window.getSupervisorDataForTicket = getSupervisorDataForTicket;
             window.getSupervisorLogsForSed = getSupervisorLogsForSed;
             window.addSupervisorLogOptimistic = addSupervisorLogOptimistic;

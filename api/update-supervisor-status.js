@@ -76,19 +76,25 @@ module.exports = async (req, res) => {
         }
 
         const cleanTicket = String(ticket || '').trim();
-        const cleanSed = String(sed || '').trim();
-        const cleanHoraInicio = String(horaInicio || hora_inicio || fechaInicio || fecha_inicio || '').trim();
-        const cleanAlimentador = String(alimentador || '').trim();
-        const cleanEmpresa = String(empresa || contratista || '').trim();
+        const sanitize = (val) => {
+            if (!val) return '';
+            const s = String(val).trim();
+            return (/^n\/?a$/i.test(s) || s === '--' || s === 'null' || s === 'undefined') ? '' : s;
+        };
+
+        const cleanSed = sanitize(sed);
+        const cleanHoraInicio = sanitize(horaInicio || hora_inicio || fechaInicio || fecha_inicio);
+        const cleanAlimentador = sanitize(alimentador);
+        const cleanEmpresa = sanitize(empresa || contratista);
 
         // Compatibilidad hacia adelante y hacia atrás:
         // Operativo: estadoOperativo || estado
         // Detalle Operativo: detalleOperativo || detalle
-        const cleanEstadoOperativo = String(estadoOperativo !== undefined ? estadoOperativo : (estado || '')).trim().toUpperCase();
-        const cleanDetalleOperativo = String(detalleOperativo !== undefined ? detalleOperativo : (detalle || '')).trim();
-        const cleanJefeCuadrilla = String(jefeCuadrilla !== undefined ? jefeCuadrilla : (jc || '')).trim();
-        const cleanEstadoCritico = String(estadoCritico || '').trim().toUpperCase();
-        const cleanDetalleCritico = String(detalleCritico || '').trim();
+        const cleanEstadoOperativo = sanitize(estadoOperativo !== undefined ? estadoOperativo : (estado || '')).toUpperCase();
+        const cleanDetalleOperativo = sanitize(detalleOperativo !== undefined ? detalleOperativo : (detalle || ''));
+        const cleanJefeCuadrilla = sanitize(jefeCuadrilla !== undefined ? jefeCuadrilla : (jc || '')).toUpperCase();
+        const cleanEstadoCritico = sanitize(estadoCritico || '').toUpperCase();
+        const cleanDetalleCritico = sanitize(detalleCritico || '');
 
         if (!cleanTicket) {
             const payload = JSON.stringify({ success: false, message: 'El número de ticket es obligatorio.' });
