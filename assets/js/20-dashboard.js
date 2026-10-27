@@ -1079,12 +1079,15 @@
                 }
             }
 
-            // Heredar JC y estados seleccionados, pero dejar las notas limpias para la nueva novedad
+            // Heredar JC, estados seleccionados y detalle de criticidad previo (la nueva novedad operativa sí inicia limpia)
             if (inJc) inJc.value = supLatest ? (supLatest.jefeCuadrilla || '') : '';
             if (inEstOp) inEstOp.value = supLatest ? (supLatest.estadoOperativo || supLatest.estado || 'PENDIENTE') : 'PENDIENTE';
             if (inDetOp) inDetOp.value = '';
             if (inEstCrit) inEstCrit.value = supLatest ? (supLatest.estadoCritico || '') : '';
-            if (inDetCrit) inDetCrit.value = '';
+            if (inDetCrit) {
+                const prevCrit = supLatest ? (supLatest.detalleCritico || '') : '';
+                inDetCrit.value = /^n\/?a$/i.test(prevCrit.trim()) ? '' : prevCrit;
+            }
 
             updateSupervisorOperativoChipSelection(inEstOp ? inEstOp.value : '');
             updateSupervisorCriticoChipSelection(inEstCrit ? inEstCrit.value : '');
