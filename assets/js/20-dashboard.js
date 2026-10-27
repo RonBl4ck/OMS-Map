@@ -988,7 +988,7 @@
             if (s.includes('falla')) return 'sup-status-buscando-falla';
             if (s.includes('maniobra')) return 'sup-status-maniobras';
             if (s.includes('material')) return 'sup-status-materiales';
-            if (s.includes('normaliz') || s.includes('resuelt') || s.includes('cerrad')) return 'sup-status-normalizado';
+            if (s.includes('normaliz') || s.includes('resuelt') || s.includes('cerrad') || s.includes('c. campo') || s.includes('c.campo') || s.includes('campo')) return 'sup-status-normalizado';
             return 'sup-status-generic';
         }
 
@@ -1058,6 +1058,7 @@
                     else if (critNorm.includes('quant')) borderClass = 'has-quantico';
                     else if (critNorm.includes('vencid')) borderClass = 'has-vencido';
                     else if (opNorm.includes('impedid')) borderClass = 'has-impedido';
+                    else if (opNorm.includes('normaliz') || opNorm.includes('cerrad') || opNorm.includes('campo')) borderClass = 'has-normalizado';
 
                     heroEl.innerHTML = `
                         <div class="sup-hero-card ${borderClass}">
@@ -1110,7 +1111,11 @@
             const clean = String(selectedState || '').trim().toUpperCase();
             chips.forEach(btn => {
                 const val = String(btn.getAttribute("data-val") || '').trim().toUpperCase();
-                if (val && clean === val) {
+                const isMatch = val && (
+                    clean === val ||
+                    (val === 'C. CAMPO' && (clean === 'C.CAMPO' || clean === 'C. CAMPO' || clean.includes('CERRADO') || clean.includes('CAMPO')))
+                );
+                if (isMatch) {
                     btn.classList.add("active");
                 } else {
                     btn.classList.remove("active");
@@ -1172,7 +1177,7 @@
                 else if (opNorm.includes('derivad')) cardModifier = 'is-derivado';
                 else if (opNorm.includes('ejecuc')) cardModifier = 'is-en-ejecucion';
                 else if (opNorm.includes('camino')) cardModifier = 'is-en-camino';
-                else if (opNorm.includes('normaliz')) cardModifier = 'is-normalizado';
+                else if (opNorm.includes('normaliz') || opNorm.includes('cerrad') || opNorm.includes('campo')) cardModifier = 'is-normalizado';
 
                 return `
                     <div class="sup-timeline-card ${cardModifier}">
@@ -1314,6 +1319,7 @@
                     else if (critNorm.includes('quant')) borderClass = 'has-quantico';
                     else if (critNorm.includes('vencid')) borderClass = 'has-vencido';
                     else if (opNorm.includes('impedid')) borderClass = 'has-impedido';
+                    else if (opNorm.includes('normaliz') || opNorm.includes('cerrad') || opNorm.includes('campo')) borderClass = 'has-normalizado';
 
                     heroEl.innerHTML = `
                         <div class="sup-hero-card ${borderClass}">

@@ -1626,6 +1626,12 @@ body:not([data-primary-view="map"]) .map-legend { display: none !important; }
   border-color: #0284c7;
   box-shadow: 0 2px 4px rgba(2, 132, 199, 0.3);
 }
+.sup-chip-btn.active[data-val="C. CAMPO"] {
+  background: #059669 !important;
+  color: #ffffff !important;
+  border-color: #059669 !important;
+  box-shadow: 0 2px 4px rgba(5, 150, 105, 0.35);
+}
 
 .sup-status-badge {
   display: inline-flex;
@@ -1751,6 +1757,7 @@ body:not([data-primary-view="map"]) .map-legend { display: none !important; }
 .sup-hero-card.has-quantico { border-left-color: #ec4899; }
 .sup-hero-card.has-vencido { border-left-color: #f97316; }
 .sup-hero-card.has-impedido { border-left-color: #dc2626; }
+.sup-hero-card.has-normalizado { border-left-color: #10b981; }
 
 /* Microinteracciones activas estilo Emil Kowalski */
 .sup-chip-btn:active,
