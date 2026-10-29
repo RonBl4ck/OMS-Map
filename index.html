@@ -368,6 +368,10 @@
                             📋 Casos Pendientes — Detalle (<span id="tableCasesCount">0</span>)
                         </h3>
                         <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <button type="button" id="btnOpenBulkPluzEnEjecucion" class="btn-export-table" style="background: #059669; display: none;" title="Registrar masivamente estado EN EJECUCIÓN en Supervisión PLUZ">
+                                <span>⚡</span>
+                                <span>EJECUCION (PLUZ)</span>
+                            </button>
                             <button type="button" id="btnOpenHistorialPluzFromTdOms" class="btn-export-table" style="background: #0284c7; display: none;" title="Abrir historial completo de supervisión PLUZ">
                                 <span>🛡️</span>
                                 <span>Historial Pluz</span>
@@ -613,6 +617,67 @@
 
             <!-- Contenedor de Tarjetas de Tickets e Historial -->
             <div id="historialPluzListContainer"></div>
+        </div>
+    </div>
+
+    <!-- MODAL DE REGISTRO MASIVO A EN EJECUCIÓN (SUPERVISIÓN PLUZ) -->
+    <div id="bulkPluzModalOverlay" class="tech-modal-overlay" style="display: none;">
+        <div class="tech-detail-dialog" style="max-width: 580px;">
+            <div class="tech-detail-header" style="background: linear-gradient(135deg, #064e3b 0%, #022c22 100%); border-bottom: 2px solid #10b981;">
+                <div>
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: #34d399; display: flex; align-items: center; gap: 6px;">
+                        ⚡ Registrar EN EJECUCIÓN (Supervisión PLUZ)
+                    </h3>
+                    <p style="margin: 4px 0 0; color: #a7f3d0; font-size: 11px;">
+                        Actualiza la supervisión PLUZ en lote y sincroniza con Google Sheets sin alterar el estado OMS.
+                    </p>
+                </div>
+                <button id="btnCloseBulkPluzModal" class="btn-close-modal" title="Cerrar (Esc)" type="button">✕</button>
+            </div>
+            
+            <div class="tech-detail-body" style="padding: 16px;">
+                <div style="margin-bottom: 12px;">
+                    <label for="bulkPluzTicketsInput" style="font-size: 12px; font-weight: 700; color: #1e293b; display: block; margin-bottom: 4px;">
+                        📋 Lista de Tickets (copia y pega desde Excel o texto):
+                    </label>
+                    <textarea id="bulkPluzTicketsInput" rows="5" placeholder="Ejemplo:&#10;1234567&#10;1234568&#10;1234569&#10;(Acepta números separados por saltos de línea, comas o espacios)" style="width: 100%; box-sizing: border-box; padding: 10px; font-family: monospace; font-size: 12px; border: 1.5px solid #cbd5e1; border-radius: 6px; resize: vertical; outline: none;"></textarea>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                        <span id="bulkPluzDetectionCount" style="font-size: 11px; font-weight: 700; color: #047857; background: #ecfdf5; padding: 2px 8px; border-radius: 4px; border: 1px solid #a7f3d0;">
+                            🔍 0 tickets detectados
+                        </span>
+                        <span id="bulkPluzMatchedCount" style="font-size: 11px; color: #64748b;">
+                            (0 activos en tabla OMS)
+                        </span>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
+                    <div>
+                        <label for="bulkPluzJcInput" style="font-size: 11px; font-weight: 700; color: #334155; display: block; margin-bottom: 3px;">
+                            👷 Jefe de Cuadrilla (JC) - Opcional:
+                        </label>
+                        <input type="text" id="bulkPluzJcInput" placeholder="Nombre JC / Cuadrilla..." style="width: 100%; box-sizing: border-box; padding: 7px 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 5px; outline: none;">
+                    </div>
+                    <div>
+                        <label for="bulkPluzDetalleInput" style="font-size: 11px; font-weight: 700; color: #334155; display: block; margin-bottom: 3px;">
+                            📝 Detalle / Observación:
+                        </label>
+                        <input type="text" id="bulkPluzDetalleInput" placeholder="Detalle u observación opcional..." style="width: 100%; box-sizing: border-box; padding: 7px 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 5px; outline: none;">
+                    </div>
+                </div>
+
+                <div id="bulkPluzAlert" style="display: none; padding: 10px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; margin-bottom: 12px;"></div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 10px; align-items: center;">
+                    <button type="button" id="btnCancelBulkPluzModal" style="padding: 8px 14px; background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">
+                        Cancelar
+                    </button>
+                    <button type="button" id="btnSubmitBulkPluz" style="padding: 8px 18px; background: linear-gradient(135deg, #059669 0%, #047857 100%); color: #ffffff; border: none; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(5, 150, 105, 0.3);">
+                        <span id="bulkPluzSubmitSpinner" style="display: none;">⏳</span>
+                        <span id="bulkPluzSubmitText">🚀 Registrar en Supervisión PLUZ</span>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 

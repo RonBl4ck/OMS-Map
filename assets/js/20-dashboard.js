@@ -1404,6 +1404,213 @@
             }
         }
 
+
+        // ========================================================
+        // REGISTRO MASIVO A EN EJECUCIÓN (SUPERVISIÓN PLUZ)
+        // ========================================================
+        function parseBulkTickets(rawText) {
+            if (!rawText || typeof rawText !== 'string') return [];
+            const matches = rawText.match(/\b\d{5,12}\b/g) || [];
+            return Array.from(new Set(matches.map(t => t.trim())));
+        }
+
+        function openBulkPluzModal() {
+            if (typeof isCurrentUserAdmin === 'function' && !isCurrentUserAdmin()) return;
+            const modal = document.getElementById('bulkPluzModalOverlay');
+            if (!modal) return;
+
+            const inputTickets = document.getElementById('bulkPluzTicketsInput');
+            const inputJc = document.getElementById('bulkPluzJcInput');
+            const inputDetalle = document.getElementById('bulkPluzDetalleInput');
+            const alertEl = document.getElementById('bulkPluzAlert');
+
+            if (inputTickets) inputTickets.value = '';
+            if (inputJc) inputJc.value = '';
+            if (inputDetalle) inputDetalle.value = '';
+            if (alertEl) {
+                alertEl.style.display = 'none';
+                alertEl.textContent = '';
+            }
+
+            updateBulkPluzCounter();
+            modal.style.display = 'flex';
+            if (inputTickets) {
+                setTimeout(() => inputTickets.focus(), 80);
+            }
+        }
+
+        function closeBulkPluzModal() {
+            const modal = document.getElementById('bulkPluzModalOverlay');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function updateBulkPluzCounter() {
+            const inputTickets = document.getElementById('bulkPluzTicketsInput');
+            const countEl = document.getElementById('bulkPluzDetectionCount');
+            const matchedEl = document.getElementById('bulkPluzMatchedCount');
+            if (!countEl) return;
+
+            const raw = inputTickets ? inputTickets.value : '';
+            const tickets = parseBulkTickets(raw);
+            const total = tickets.length;
+
+            const activeSet = new Set();
+            if (Array.isArray(tdOmsRecords)) {
+                tdOmsRecords.forEach(r => {
+                    const tk = String(r.ticket || '').trim().toLowerCase();
+                    if (tk) activeSet.add(tk);
+                });
+            }
+
+            let matched = 0;
+            tickets.forEach(t => {
+                if (activeSet.has(t.toLowerCase())) matched++;
+            });
+
+            countEl.textContent = `🔍 ${total} ticket${total === 1 ? '' : 's'} detectado${total === 1 ? '' : 's'}`;
+            if (matchedEl) {
+                matchedEl.textContent = `(${matched} activo${matched === 1 ? '' : 's'} en OMS)`;
+            }
+        }
+
+        async function executeBulkPluzEnEjecucion() {
+            const inputTickets = document.getElementById('bulkPluzTicketsInput');
+            const inputJc = document.getElementById('bulkPluzJcInput');
+            const inputDetalle = document.getElementById('bulkPluzDetalleInput');
+            const alertEl = document.getElementById('bulkPluzAlert');
+            const btnSubmit = document.getElementById('btnSubmitBulkPluz');
+            const spinner = document.getElementById('bulkPluzSubmitSpinner');
+            const textEl = document.getElementById('bulkPluzSubmitText');
+
+            const rawText = inputTickets ? inputTickets.value : '';
+            const tickets = parseBulkTickets(rawText);
+
+            if (tickets.length === 0) {
+                if (alertEl) {
+                    alertEl.style.display = 'block';
+                    alertEl.style.background = '#fef2f2';
+                    alertEl.style.color = '#991b1b';
+                    alertEl.style.border = '1px solid #fecaca';
+                    alertEl.textContent = '⚠️ Ingresa o pega al menos un número de ticket válido.';
+                }
+                return;
+            }
+
+            const clean = (typeof cleanSupVal === 'function') ? cleanSupVal : (v => (!v || /^n\/?a$/i.test(String(v).trim()) || String(v).trim() === '--' || String(v).trim() === 'null') ? '' : String(v).trim());
+            const jcVal = clean(inputJc ? inputJc.value : '').toUpperCase();
+            const detalleVal = clean(inputDetalle ? inputDetalle.value : '');
+
+            const now = new Date();
+            const pad = n => String(n).padStart(2, '0');
+            const localTimestamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+            const entries = [];
+            tickets.forEach(t => {
+                const targetRec = (typeof tdOmsRecords !== 'undefined' && Array.isArray(tdOmsRecords) ? tdOmsRecords.find(r => String(r.ticket || '').trim().toLowerCase() === t.toLowerCase()) : null) ||
+                                  (typeof mapLocations !== 'undefined' && Array.isArray(mapLocations) ? mapLocations.find(l => String(l.ticket || '').trim().toLowerCase() === t.toLowerCase()) : null) || {};
+
+                const supData = (typeof getSupervisorDataForTicket === 'function') ? getSupervisorDataForTicket(t) : null;
+                const supLatest = supData ? supData.latest : null;
+
+                const sedVal = clean(targetRec.sed) || clean(supLatest ? supLatest.sed : '');
+                const horaIniVal = clean(targetRec.hora_inicio || targetRec.fecha_inicio) || clean(supLatest ? supLatest.horaInicio : '');
+                const aliVal = clean(targetRec.alimentador) || clean(supLatest ? supLatest.alimentador : '');
+                const empVal = clean(targetRec.empresa) || clean(supLatest ? supLatest.empresa : '');
+
+                const optEntry = {
+                    fecha: localTimestamp,
+                    ticket: t,
+                    sed: sedVal,
+                    horaInicio: horaIniVal,
+                    alimentador: aliVal,
+                    empresa: empVal,
+                    estadoOperativo: 'EN EJECUCION',
+                    detalleOperativo: detalleVal,
+                    jefeCuadrilla: jcVal,
+                    estadoCritico: supLatest ? clean(supLatest.estadoCritico) : '',
+                    detalleCritico: supLatest ? clean(supLatest.detalleCritico) : '',
+                    estado: 'EN EJECUCION',
+                    detalle: detalleVal,
+                    usuario: 'PLUZ'
+                };
+
+                entries.push(optEntry);
+                if (typeof addSupervisorLogOptimistic === 'function') {
+                    addSupervisorLogOptimistic(optEntry);
+                }
+            });
+
+            renderTdOmsTable(getFilteredTdOms());
+            if (typeof renderMapMarkers === 'function') {
+                renderMapMarkers();
+            }
+
+            if (btnSubmit) btnSubmit.disabled = true;
+            if (spinner) spinner.style.display = 'inline-block';
+            if (textEl) textEl.textContent = 'Sincronizando con Google Sheets...';
+            if (alertEl) {
+                alertEl.style.display = 'block';
+                alertEl.style.background = '#eff6ff';
+                alertEl.style.color = '#1e40af';
+                alertEl.style.border = '1px solid #bfdbfe';
+                alertEl.textContent = `⏳ Sincronizando ${entries.length} tickets con Google Sheets...`;
+            }
+
+            try {
+                const userRole = (typeof sessionStorage !== 'undefined') ? sessionStorage.getItem('oms_user_role') : 'admin';
+                const resp = await fetch('/api/update-supervisor-status', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-user-role': userRole || 'admin'
+                    },
+                    body: JSON.stringify({
+                        tickets: entries,
+                        jefeCuadrilla: jcVal,
+                        detalleOperativo: detalleVal,
+                        estadoOperativo: 'EN EJECUCION',
+                        role: userRole || 'admin'
+                    })
+                });
+
+                const data = await resp.json();
+
+                if (resp.ok && data.success) {
+                    if (alertEl) {
+                        alertEl.style.background = '#ecfdf5';
+                        alertEl.style.color = '#065f46';
+                        alertEl.style.border = '1px solid #a7f3d0';
+                        alertEl.textContent = `✅ ${data.message || `${entries.length} tickets guardados exitosamente.`}`;
+                    }
+                    if (typeof showAppNotification === 'function') {
+                        showAppNotification(`Se registraron ${entries.length} tickets en EN EJECUCIÓN (PLUZ)`, 'success');
+                    }
+                    setTimeout(() => {
+                        closeBulkPluzModal();
+                    }, 1200);
+                } else {
+                    if (alertEl) {
+                        alertEl.style.background = '#fef2f2';
+                        alertEl.style.color = '#991b1b';
+                        alertEl.style.border = '1px solid #fecaca';
+                        alertEl.textContent = `⚠️ Guardado en memoria. Sincronización: ${data.message || 'Error desconocido'}`;
+                    }
+                }
+            } catch (err) {
+                console.error('Error sincronizando lote:', err);
+                if (alertEl) {
+                    alertEl.style.background = '#fef2f2';
+                    alertEl.style.color = '#991b1b';
+                    alertEl.style.border = '1px solid #fecaca';
+                    alertEl.textContent = `⚠️ Guardado en memoria. Error de red: ${err.message}`;
+                }
+            } finally {
+                if (btnSubmit) btnSubmit.disabled = false;
+                if (spinner) spinner.style.display = 'none';
+                if (textEl) textEl.textContent = '🚀 Registrar en Supervisión PLUZ';
+            }
+        }
+
         function initSupervisorModalEvents() {
             if (typeof document === 'undefined') return;
 
@@ -1427,6 +1634,10 @@
 
             if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
                 window.addEventListener('keydown', (e) => {
+                    const mBulk = document.getElementById('bulkPluzModalOverlay');
+                    if (e.key === 'Escape' && mBulk && mBulk.style.display !== 'none') {
+                        closeBulkPluzModal();
+                    }
                     if (e.key === 'Escape' && modal && modal.style.display !== 'none') {
                         closeSupervisorModal();
                     }
@@ -1495,6 +1706,30 @@
                     exportFilteredTdOmsTable();
                 });
             }
+
+            // Eventos para el Modal Masivo de PLUZ
+            const btnOpenBulk = document.getElementById('btnOpenBulkPluzEnEjecucion');
+            const btnCloseBulk = document.getElementById('btnCloseBulkPluzModal');
+            const btnCancelBulk = document.getElementById('btnCancelBulkPluzModal');
+            const modalBulk = document.getElementById('bulkPluzModalOverlay');
+            const inputBulkTickets = document.getElementById('bulkPluzTicketsInput');
+            const btnSubmitBulk = document.getElementById('btnSubmitBulkPluz');
+
+            if (btnOpenBulk) btnOpenBulk.addEventListener('click', openBulkPluzModal);
+            if (btnCloseBulk) btnCloseBulk.addEventListener('click', closeBulkPluzModal);
+            if (btnCancelBulk) btnCancelBulk.addEventListener('click', closeBulkPluzModal);
+            if (modalBulk) {
+                modalBulk.addEventListener('click', (e) => {
+                    if (e.target === modalBulk) closeBulkPluzModal();
+                });
+            }
+            if (inputBulkTickets) {
+                inputBulkTickets.addEventListener('input', updateBulkPluzCounter);
+                inputBulkTickets.addEventListener('paste', () => setTimeout(updateBulkPluzCounter, 50));
+            }
+            if (btnSubmitBulk) {
+                btnSubmitBulk.addEventListener('click', executeBulkPluzEnEjecucion);
+            }
         }
 
         if (typeof window !== 'undefined' && typeof document !== 'undefined') {
@@ -1508,6 +1743,10 @@
         if (typeof window !== 'undefined') {
             window.openSupervisorModal = openSupervisorModal;
             window.closeSupervisorModal = closeSupervisorModal;
+            window.openBulkPluzModal = openBulkPluzModal;
+            window.closeBulkPluzModal = closeBulkPluzModal;
+            window.parseBulkTickets = parseBulkTickets;
+            window.executeBulkPluzEnEjecucion = executeBulkPluzEnEjecucion;
             window.getSupervisorBadgeClass = getSupervisorBadgeClass;
             window.getCriticoBadgeClass = getCriticoBadgeClass;
             window.exportFilteredTdOmsTable = exportFilteredTdOmsTable;

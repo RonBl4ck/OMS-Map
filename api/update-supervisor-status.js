@@ -44,6 +44,7 @@ module.exports = async (req, res) => {
         }
         const { 
             ticket, 
+            tickets,
             sed,
             horaInicio,
             hora_inicio,
@@ -75,35 +76,34 @@ module.exports = async (req, res) => {
             return res.end(payload);
         }
 
-        const cleanTicket = String(ticket || '').trim();
         const sanitize = (val) => {
             if (!val) return '';
             const s = String(val).trim();
             return (/^n\/?a$/i.test(s) || s === '--' || s === 'null' || s === 'undefined') ? '' : s;
         };
 
+        const cleanTicket = sanitize(ticket);
         const cleanSed = sanitize(sed);
         const cleanHoraInicio = sanitize(horaInicio || hora_inicio || fechaInicio || fecha_inicio);
         const cleanAlimentador = sanitize(alimentador);
         const cleanEmpresa = sanitize(empresa || contratista);
 
-        // Compatibilidad hacia adelante y hacia atrás:
-        // Operativo: estadoOperativo || estado
-        // Detalle Operativo: detalleOperativo || detalle
         const cleanEstadoOperativo = sanitize(estadoOperativo !== undefined ? estadoOperativo : (estado || '')).toUpperCase();
         const cleanDetalleOperativo = sanitize(detalleOperativo !== undefined ? detalleOperativo : (detalle || ''));
         const cleanJefeCuadrilla = sanitize(jefeCuadrilla !== undefined ? jefeCuadrilla : (jc || '')).toUpperCase();
         const cleanEstadoCritico = sanitize(estadoCritico || '').toUpperCase();
         const cleanDetalleCritico = sanitize(detalleCritico || '');
 
-        if (!cleanTicket) {
+        const isBatch = Array.isArray(tickets) && tickets.length > 0;
+
+        if (!isBatch && !cleanTicket) {
             const payload = JSON.stringify({ success: false, message: 'El número de ticket es obligatorio.' });
             if (typeof res.status === 'function') return res.status(400).send(payload);
             res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
             return res.end(payload);
         }
 
-        if (!cleanEstadoOperativo && !cleanEstadoCritico && !cleanJefeCuadrilla) {
+        if (!isBatch && !cleanEstadoOperativo && !cleanEstadoCritico && !cleanJefeCuadrilla) {
             const payload = JSON.stringify({ success: false, message: 'Debe ingresar al menos un estado operativo o nivel de criticidad.' });
             if (typeof res.status === 'function') return res.status(400).send(payload);
             res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -111,23 +111,66 @@ module.exports = async (req, res) => {
         }
 
         const timestampStr = getPeruDateTimeString();
-        const logEntry = {
-            fecha: timestampStr,
-            ticket: cleanTicket,
-            sed: cleanSed,
-            horaInicio: cleanHoraInicio,
-            alimentador: cleanAlimentador,
-            empresa: cleanEmpresa,
-            estadoOperativo: cleanEstadoOperativo,
-            detalleOperativo: cleanDetalleOperativo,
-            jefeCuadrilla: cleanJefeCuadrilla,
-            estadoCritico: cleanEstadoCritico,
-            detalleCritico: cleanDetalleCritico,
-            // Campos de compatibilidad con versiones previas:
-            estado: cleanEstadoOperativo || cleanEstadoCritico,
-            detalle: cleanDetalleOperativo || cleanDetalleCritico,
-            usuario: 'PLUZ'
-        };
+        let logEntries = [];
+
+        if (isBatch) {
+            tickets.forEach(item => {
+                const tNum = sanitize(typeof item === 'object' && item !== null ? item.ticket : item);
+                if (!tNum) return;
+
+                const itemSed = sanitize(typeof item === 'object' && item !== null ? item.sed : '') || cleanSed;
+                const itemHoraIni = sanitize(typeof item === 'object' && item !== null ? (item.horaInicio || item.hora_inicio || item.fechaInicio || item.fecha_inicio) : '') || cleanHoraInicio;
+                const itemAli = sanitize(typeof item === 'object' && item !== null ? item.alimentador : '') || cleanAlimentador;
+                const itemEmp = sanitize(typeof item === 'object' && item !== null ? (item.empresa || item.contratista) : '') || cleanEmpresa;
+
+                const itemEstOp = sanitize(typeof item === 'object' && item !== null ? (item.estadoOperativo || item.estado) : '').toUpperCase() || cleanEstadoOperativo || 'EN EJECUCION';
+                const itemDetOp = sanitize(typeof item === 'object' && item !== null ? (item.detalleOperativo || item.detalle) : '') || cleanDetalleOperativo;
+                const itemJc = sanitize(typeof item === 'object' && item !== null ? (item.jefeCuadrilla || item.jc) : '').toUpperCase() || cleanJefeCuadrilla;
+                const itemEstCrit = sanitize(typeof item === 'object' && item !== null ? item.estadoCritico : '').toUpperCase() || cleanEstadoCritico;
+                const itemDetCrit = sanitize(typeof item === 'object' && item !== null ? item.detalleCritico : '') || cleanDetalleCritico;
+
+                logEntries.push({
+                    fecha: timestampStr,
+                    ticket: tNum,
+                    sed: itemSed,
+                    horaInicio: itemHoraIni,
+                    alimentador: itemAli,
+                    empresa: itemEmp,
+                    estadoOperativo: itemEstOp,
+                    detalleOperativo: itemDetOp,
+                    jefeCuadrilla: itemJc,
+                    estadoCritico: itemEstCrit,
+                    detalleCritico: itemDetCrit,
+                    estado: itemEstOp || itemEstCrit,
+                    detalle: itemDetOp || itemDetCrit,
+                    usuario: 'PLUZ'
+                });
+            });
+
+            if (logEntries.length === 0) {
+                const payload = JSON.stringify({ success: false, message: 'No se detectaron tickets válidos en la lista enviada.' });
+                if (typeof res.status === 'function') return res.status(400).send(payload);
+                res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+                return res.end(payload);
+            }
+        } else {
+            logEntries.push({
+                fecha: timestampStr,
+                ticket: cleanTicket,
+                sed: cleanSed,
+                horaInicio: cleanHoraInicio,
+                alimentador: cleanAlimentador,
+                empresa: cleanEmpresa,
+                estadoOperativo: cleanEstadoOperativo,
+                detalleOperativo: cleanDetalleOperativo,
+                jefeCuadrilla: cleanJefeCuadrilla,
+                estadoCritico: cleanEstadoCritico,
+                detalleCritico: cleanDetalleCritico,
+                estado: cleanEstadoOperativo || cleanEstadoCritico,
+                detalle: cleanDetalleOperativo || cleanDetalleCritico,
+                usuario: 'PLUZ'
+            });
+        }
 
         let webhookUrl = process.env.GOOGLE_SCRIPT_SUPERVISOR_URL || 
                          process.env.GOOGLE_SCRIPT_USERS_URL || 
@@ -147,32 +190,45 @@ module.exports = async (req, res) => {
             webhookUrl = "https://script.google.com/macros/s/AKfycbyUkkCUBRkPU6q0mM36l43LPWc5vUiKVlB2uz0d8p942T37B7YEz75w2YIl8K_O9X__/exec";
         }
 
-        let syncSuccess = false;
+        let syncSuccessCount = 0;
         let syncMsg = '';
 
-        // 1. Envío al Webhook de Google Apps Script para anexar fila en Google Sheets
-        if (webhookUrl && webhookUrl.startsWith('http')) {
+        // Helper para despachar peticiones a Google Apps Script con concurrencia controlada
+        async function sendToGoogleScript(entry) {
+            if (!webhookUrl || !webhookUrl.startsWith('http')) return false;
             try {
                 const gasResp = await fetch(webhookUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         action: 'append_supervisor_log',
-                        ...logEntry
+                        ...entry
                     }),
                     redirect: 'follow'
                 });
-
-                if (gasResp.ok) {
-                    syncSuccess = true;
-                    syncMsg = 'Novedad registrada exitosamente en Google Sheets.';
-                } else {
-                    const text = await gasResp.text();
-                    syncMsg = `Google Apps Script respondió con estado ${gasResp.status}: ${text}`;
-                }
+                return gasResp.ok;
             } catch (err) {
-                console.error("Error sincronizando con Google Apps Script:", err);
-                syncMsg = `Error al conectar con Google Sheets: ${err.message}`;
+                console.error(`Error enviando ticket ${entry.ticket} a Google Apps Script:`, err);
+                return false;
+            }
+        }
+
+        // 1. Envío al Webhook de Google Apps Script para anexar filas en Google Sheets
+        if (webhookUrl && webhookUrl.startsWith('http')) {
+            const chunkSize = 3; // Lotes de hasta 3 concurrentes para no saturar Apps Script
+            for (let i = 0; i < logEntries.length; i += chunkSize) {
+                const chunk = logEntries.slice(i, i + chunkSize);
+                const results = await Promise.allSettled(chunk.map(entry => sendToGoogleScript(entry)));
+                results.forEach(res => {
+                    if (res.status === 'fulfilled' && res.value === true) {
+                        syncSuccessCount++;
+                    }
+                });
+            }
+            if (syncSuccessCount > 0) {
+                syncMsg = `${syncSuccessCount} de ${logEntries.length} novedades sincronizadas con Google Sheets.`;
+            } else {
+                syncMsg = 'No se pudo conectar con Google Sheets (guardado localmente).';
             }
         }
 
@@ -186,7 +242,7 @@ module.exports = async (req, res) => {
                     if (!Array.isArray(logs)) logs = [];
                 } catch(e) { logs = []; }
             }
-            logs.push(logEntry);
+            logEntries.forEach(entry => logs.push(entry));
             fs.writeFileSync(backupPath, JSON.stringify(logs, null, 2), 'utf-8');
         } catch (e) {
             console.warn("No se pudo escribir en el respaldo local data_supervisor_logs.json:", e);
@@ -194,9 +250,12 @@ module.exports = async (req, res) => {
 
         const payload = JSON.stringify({
             success: true,
-            syncedToSheets: syncSuccess,
-            message: syncSuccess ? syncMsg : (syncMsg || 'Registrado localmente.'),
-            logEntry: logEntry
+            batch: isBatch,
+            count: logEntries.length,
+            syncedToSheets: syncSuccessCount > 0,
+            message: syncMsg || `${logEntries.length} tickets registrados exitosamente en Supervisión PLUZ.`,
+            entries: logEntries,
+            logEntry: logEntries[0]
         });
 
         if (typeof res.status === 'function') return res.status(200).send(payload);
