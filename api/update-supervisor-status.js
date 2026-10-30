@@ -61,6 +61,9 @@ module.exports = async (req, res) => {
             detalleCritico, 
             jefeCuadrilla,
             jc,
+            finEstimado,
+            horaFinEstimada,
+            fechaFinEstimada,
             role, 
             scriptUrl 
         } = body || {};
@@ -91,6 +94,7 @@ module.exports = async (req, res) => {
         const cleanEstadoOperativo = sanitize(estadoOperativo !== undefined ? estadoOperativo : (estado || '')).toUpperCase();
         const cleanDetalleOperativo = sanitize(detalleOperativo !== undefined ? detalleOperativo : (detalle || ''));
         const cleanJefeCuadrilla = sanitize(jefeCuadrilla !== undefined ? jefeCuadrilla : (jc || '')).toUpperCase();
+        const cleanFinEstimado = sanitize(finEstimado || horaFinEstimada || fechaFinEstimada || '');
         const cleanEstadoCritico = sanitize(estadoCritico || '').toUpperCase();
         const cleanDetalleCritico = sanitize(detalleCritico || '');
 
@@ -126,6 +130,7 @@ module.exports = async (req, res) => {
                 const itemEstOp = sanitize(typeof item === 'object' && item !== null ? (item.estadoOperativo || item.estado) : '').toUpperCase() || cleanEstadoOperativo || 'EN EJECUCION';
                 const itemDetOp = sanitize(typeof item === 'object' && item !== null ? (item.detalleOperativo || item.detalle) : '') || cleanDetalleOperativo;
                 const itemJc = sanitize(typeof item === 'object' && item !== null ? (item.jefeCuadrilla || item.jc) : '').toUpperCase() || cleanJefeCuadrilla;
+                const itemFinEst = sanitize(typeof item === 'object' && item !== null ? (item.finEstimado || item.horaFinEstimada || item.fechaFinEstimada) : '') || cleanFinEstimado;
                 const itemEstCrit = sanitize(typeof item === 'object' && item !== null ? item.estadoCritico : '').toUpperCase() || cleanEstadoCritico;
                 const itemDetCrit = sanitize(typeof item === 'object' && item !== null ? item.detalleCritico : '') || cleanDetalleCritico;
 
@@ -139,6 +144,12 @@ module.exports = async (req, res) => {
                     estadoOperativo: itemEstOp,
                     detalleOperativo: itemDetOp,
                     jefeCuadrilla: itemJc,
+                    jc: itemJc,
+                    finEstimado: itemFinEst,
+                    Fin_Estimado: itemFinEst,
+                    horaFinEstimada: itemFinEst,
+                    Hora_Fin_Estimada: itemFinEst,
+                    fechaFinEstimada: itemFinEst,
                     estadoCritico: itemEstCrit,
                     detalleCritico: itemDetCrit,
                     estado: itemEstOp || itemEstCrit,
@@ -164,6 +175,12 @@ module.exports = async (req, res) => {
                 estadoOperativo: cleanEstadoOperativo,
                 detalleOperativo: cleanDetalleOperativo,
                 jefeCuadrilla: cleanJefeCuadrilla,
+                jc: cleanJefeCuadrilla,
+                finEstimado: cleanFinEstimado,
+                Fin_Estimado: cleanFinEstimado,
+                horaFinEstimada: cleanFinEstimado,
+                Hora_Fin_Estimada: cleanFinEstimado,
+                fechaFinEstimada: cleanFinEstimado,
                 estadoCritico: cleanEstadoCritico,
                 detalleCritico: cleanDetalleCritico,
                 estado: cleanEstadoOperativo || cleanEstadoCritico,

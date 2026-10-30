@@ -335,6 +335,10 @@
                             <input type="checkbox" id="chkCriticaModal" style="cursor: pointer; accent-color: #d97706; width: 15px; height: 15px;">
                             <span>🚨 Top Críticas</span>
                         </label>
+                        <label id="lblFilterOverdue" class="checkbox-filter-label" style="display: none; align-items: center; gap: 6px; padding: 6px 12px; background: #fffbeb; border: 1px solid #fcd34d; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700; color: #b45309; user-select: none;" title="Filtrar únicamente tickets cuyo tiempo estimado de fin ha vencido">
+                            <input type="checkbox" id="checkFilterOverdue" style="cursor: pointer; accent-color: #d97706; width: 15px; height: 15px;">
+                            <span>⏱️ Excedidos de tiempo</span>
+                        </label>
                         <label id="lblFilterQuanticoCritico" class="checkbox-filter-label" style="display: none; align-items: center; gap: 6px; padding: 6px 12px; background: #fdf2f8; border: 1px solid #f472b6; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700; color: #9d174d; user-select: none;" title="Filtrar únicamente tickets con criticidad Quántico o Crítico">
                             <input type="checkbox" id="checkFilterQuanticoCritico" style="cursor: pointer; accent-color: #db2777; width: 15px; height: 15px;">
                             <span>Quántico / Crítico</span>
@@ -651,7 +655,7 @@
                     </div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
                     <div>
                         <label for="bulkPluzJcInput" style="font-size: 11px; font-weight: 700; color: #334155; display: block; margin-bottom: 3px;">
                             👷 Jefe de Cuadrilla (JC) - Opcional:
@@ -659,7 +663,14 @@
                         <input type="text" id="bulkPluzJcInput" placeholder="Nombre JC / Cuadrilla..." style="width: 100%; box-sizing: border-box; padding: 7px 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 5px; outline: none;">
                     </div>
                     <div>
-                        <label for="bulkPluzDetalleInput" style="font-size: 11px; font-weight: 700; color: #334155; display: block; margin-bottom: 3px;">
+                        <label for="bulkPluzFinEstimadoInput" style="font-size: 11px; font-weight: 700; color: #b45309; display: block; margin-bottom: 3px;">
+                            ⏱️ Fin Estimado (Fecha y Hora) - Opcional:
+                        </label>
+                        <input type="datetime-local" id="bulkPluzFinEstimadoInput" style="width: 100%; box-sizing: border-box; padding: 6px 10px; font-size: 11px; border: 1px solid #fcd34d; border-radius: 5px; background: #fffdf5; outline: none; color: #1e293b;">
+                    </div>
+                </div>
+                <div style="margin-bottom: 14px;">
+                    <label for="bulkPluzDetalleInput" style="font-size: 11px; font-weight: 700; color: #334155; display: block; margin-bottom: 3px;">
                             📝 Detalle / Observación:
                         </label>
                         <input type="text" id="bulkPluzDetalleInput" placeholder="Detalle u observación opcional..." style="width: 100%; box-sizing: border-box; padding: 7px 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 5px; outline: none;">
@@ -725,15 +736,19 @@
                             <button type="button" class="sup-chip-btn" data-val="DERIVADO">↗️ DERIVADO</button>
                             <button type="button" class="sup-chip-btn" data-val="C. CAMPO" style="border-color: #10b981; color: #047857;">✅ C. CAMPO</button>
                         </div>
-                        <div style="display: grid; grid-template-columns: 140px 1fr; gap: 8px; margin-bottom: 6px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 6px;">
                             <div>
                                 <label for="supInputJefeCuadrilla" style="font-size: 10px; font-weight: 700; color: #475569; display: block; margin-bottom: 3px;">JC:</label>
                                 <input type="text" id="supInputJefeCuadrilla" placeholder="Nombre JC..." style="width: 100%; box-sizing: border-box; padding: 6px 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 4px; outline: none;">
                             </div>
                             <div>
-                                <label for="supInputEstadoOperativo" style="font-size: 10px; font-weight: 700; color: #475569; display: block; margin-bottom: 3px;">Estado libre / Otro:</label>
-                                <input type="text" id="supInputEstadoOperativo" placeholder="O escribe otro estado..." style="width: 100%; box-sizing: border-box; padding: 6px 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 4px; outline: none;">
+                                <label for="supInputFinEstimado" style="font-size: 10px; font-weight: 700; color: #b45309; display: block; margin-bottom: 3px;">⏱️ Fin Estimado (Fecha y Hora):</label>
+                                <input type="datetime-local" id="supInputFinEstimado" style="width: 100%; box-sizing: border-box; padding: 5px 8px; font-size: 11px; border: 1px solid #fcd34d; border-radius: 4px; background: #fffdf5; outline: none; color: #1e293b;">
                             </div>
+                        </div>
+                        <div style="margin-bottom: 6px;">
+                            <label for="supInputEstadoOperativo" style="font-size: 10px; font-weight: 700; color: #475569; display: block; margin-bottom: 3px;">Estado libre / Otro:</label>
+                            <input type="text" id="supInputEstadoOperativo" placeholder="O escribe otro estado..." style="width: 100%; box-sizing: border-box; padding: 6px 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 4px; outline: none;">
                         </div>
                         <textarea id="supInputDetalleOperativo" rows="2" placeholder="Nueva novedad u observación operativa..." style="width: 100%; box-sizing: border-box; padding: 6px 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 4px; outline: none; resize: vertical; font-family: inherit;"></textarea>
                     </div>

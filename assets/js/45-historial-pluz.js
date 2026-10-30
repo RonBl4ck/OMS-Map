@@ -361,6 +361,7 @@
                                                             <span class="sup-status-badge ${hOpClass}" style="font-size: 10px; padding: 2px 7px;">⚙️ ${escapeHtml(hOp)}</span>
                                                             ${hCrit ? `<span class="sup-status-badge ${hCritClass}" style="font-size: 10px; padding: 2px 7px;">${escapeHtml(hCrit)}</span>` : ''}
                                                             ${hJc ? `<span style="font-size: 10.5px; font-weight: 700; color: #1e293b;">JC: ${escapeHtml(hJc)}</span>` : ''}
+                                                            ${h.finEstimado ? `<span style="font-size: 10px; font-weight: 700; color: #b45309; background: #fef3c7; border: 1px solid #fde68a; padding: 1px 6px; border-radius: 4px;">⏱️ Fin Est: ${escapeHtml(h.finEstimado)}</span>` : ''}
                                                         </div>
                                                         <span style="font-size: 10.5px; color: #64748b; font-weight: 600;">
                                                             🕒 ${escapeHtml(h.fecha || '')} • por <b>${escapeHtml(h.usuario || 'PLUZ')}</b>
@@ -542,6 +543,7 @@
                     "Usuario": h.usuario || 'PLUZ',
                     "Estado_Operativo": h.estadoOperativo || h.estado || '',
                     "JC": h.jefeCuadrilla || '',
+                    "Fin_Estimado": h.finEstimado || '',
                     "Detalle_Operativo": h.detalleOperativo || h.detalle || '',
                     "Estado_Critico": h.estadoCritico || '',
                     "Detalle_Critico": h.detalleCritico || ''

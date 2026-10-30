@@ -174,6 +174,7 @@
                                     const estadoOperativo = cleanProp('Estado_Operativo', 'estado_operativo', 'Estado_Supervisor', 'estado_supervisor', 'Estado', 'estado');
                                     const detalleOperativo = cleanProp('Detalle_Operativo', 'detalle_operativo', 'Detalle', 'detalle', 'Observaciones', 'observaciones', 'novedad');
                                     const jefeCuadrilla = cleanProp('Jefe_Cuadrilla', 'jefe_cuadrilla', 'JC', 'jc', 'JefeCuadrilla');
+                                    const finEstimado = cleanProp('Fin_Estimado', 'fin_estimado', 'FinEstimado', 'Hora_Fin_Estimada', 'hora_fin_estimada', 'Fecha_Fin_Estimada', 'fecha_fin_estimada');
                                     const estadoCritico = cleanProp('Estado_Critico', 'estado_critico', 'Criticidad', 'criticidad');
                                     const detalleCritico = cleanProp('Detalle_Critico', 'detalle_critico');
 
@@ -200,6 +201,7 @@
                                         estadoOperativo: resolvedOperativo,
                                         detalleOperativo: resolvedDetalleOp,
                                         jefeCuadrilla: jefeCuadrilla,
+                                        finEstimado: finEstimado,
                                         estadoCritico: resolvedCritico,
                                         detalleCritico: resolvedDetalleCrit,
                                         // Legacy aliases

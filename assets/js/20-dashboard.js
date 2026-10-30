@@ -17,6 +17,8 @@
             const onlyCritModal = isAdmin && chkCritModal ? chkCritModal.checked : false;
             const chkQuantCrit = document.getElementById("checkFilterQuanticoCritico");
             const onlyQuanticoCritico = isAdmin && chkQuantCrit ? chkQuantCrit.checked : false;
+            const chkOverdue = document.getElementById("checkFilterOverdue");
+            const onlyOverdue = isAdmin && chkOverdue ? chkOverdue.checked : false;
 
             return tdOmsRecords.filter(r => {
                 const numLlamadas = parseInt(r.llamadas || 0, 10) || 0;
@@ -33,6 +35,11 @@
                     matchQuanticoCritico = cState.includes('QUANT') || cState.includes('CRIT') || cState.includes('VENCID');
                 }
 
+                let matchOverdue = true;
+                if (onlyOverdue) {
+                    matchOverdue = (typeof isSupervisorLogOverdue === 'function') ? isSupervisorLogOverdue(r) : false;
+                }
+
                 return (
                     matchesMultiSelection(r.intervalo, selIntervalos) &&
                     matchesMultiSelection(r.empresa, selEmps) &&
@@ -43,7 +50,8 @@
                     matchSum &&
                     matchCrit &&
                     matchDia &&
-                    matchQuanticoCritico
+                    matchQuanticoCritico &&
+                    matchOverdue
                 );
             });
         }
@@ -292,6 +300,72 @@
             return text;
         }
 
+        function formatForDateTimeLocal(val) {
+            if (!val) return '';
+            const ts = parseTdOmsDate(val);
+            if (!ts) return '';
+            const d = new Date(ts);
+            const pad = n => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        }
+
+        function isSupervisorLogOverdue(record) {
+            if (!record) return false;
+            const supData = (typeof getSupervisorDataForTicket === 'function') ? getSupervisorDataForTicket(record.ticket) : null;
+            const latest = supData ? supData.latest : null;
+            if (!latest || !latest.finEstimado) return false;
+
+            const opEst = String(latest.estadoOperativo || latest.estado || '').toUpperCase();
+            const omsEst = String(record.estado || '').toUpperCase();
+
+            const isDone = opEst.includes('C. CAMPO') || opEst.includes('CAMPO') || opEst.includes('EJECUTAD') || 
+                           opEst.includes('FINALIZ') || opEst.includes('CERRAD') || opEst.includes('RESTABL') ||
+                           omsEst.includes('EJECUTAD') || omsEst.includes('FINALIZ') || omsEst.includes('CERRAD') || omsEst.includes('RESTABL');
+            if (isDone) return false;
+
+            const finTimestamp = parseTdOmsDate(latest.finEstimado);
+            if (!finTimestamp) return false;
+
+            return Date.now() > finTimestamp;
+        }
+
+        function getSupervisorFinEstimadoInfo(record) {
+            if (!record) return null;
+            const supData = (typeof getSupervisorDataForTicket === 'function') ? getSupervisorDataForTicket(record.ticket) : null;
+            const latest = supData ? supData.latest : null;
+            if (!latest || !latest.finEstimado) return null;
+
+            const opEst = String(latest.estadoOperativo || latest.estado || '').toUpperCase();
+            const omsEst = String(record.estado || '').toUpperCase();
+            const isDone = opEst.includes('C. CAMPO') || opEst.includes('CAMPO') || opEst.includes('EJECUTAD') || 
+                           opEst.includes('FINALIZ') || opEst.includes('CERRAD') || opEst.includes('RESTABL') ||
+                           omsEst.includes('EJECUTAD') || omsEst.includes('FINALIZ') || omsEst.includes('CERRAD') || omsEst.includes('RESTABL');
+
+            const finTimestamp = parseTdOmsDate(latest.finEstimado);
+            if (!finTimestamp) return null;
+
+            const isOverdue = !isDone && (Date.now() > finTimestamp);
+            const diffMs = Math.abs(Date.now() - finTimestamp);
+            const diffMins = Math.floor(diffMs / 60000);
+            const hours = Math.floor(diffMins / 60);
+            const mins = diffMins % 60;
+            const timeLabel = hours > 0 ? `+${hours}h ${mins}m` : `+${diffMins}m`;
+
+            const d = new Date(finTimestamp);
+            const pad = n => String(n).padStart(2, '0');
+            const shortTime = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+            return {
+                finEstimadoRaw: latest.finEstimado,
+                finTimestamp,
+                isDone,
+                isOverdue,
+                timeLabel,
+                shortTime,
+                fullLabel: `${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${shortTime}`
+            };
+        }
+
         function sortTdOmsTable(key) {
             if (currentSortCol === key) {
                 currentSortDir = currentSortDir === 'asc' ? 'desc' : 'asc';
@@ -326,10 +400,12 @@
             const thSupOp = document.getElementById("thSupervisorOperativoCol");
             const thSupCrit = document.getElementById("thSupervisorCriticoCol");
             const lblFilterQC = document.getElementById("lblFilterQuanticoCritico");
+            const lblFilterOverdue = document.getElementById("lblFilterOverdue");
 
             if (thSupOp) thSupOp.style.display = isPluz ? "" : "none";
             if (thSupCrit) thSupCrit.style.display = isPluz ? "" : "none";
             if (lblFilterQC) lblFilterQC.style.display = isPluz ? "inline-flex" : "none";
+            if (lblFilterOverdue) lblFilterOverdue.style.display = isPluz ? "inline-flex" : "none";
 
             if (!tableBody) return;
 
@@ -423,6 +499,11 @@
                 const stateClass = getOmsStatusClass(r.estado);
 
                 const bg = idx % 2 === 0 ? "#ffffff" : "#f8fafc";
+                const overdueInfo = (isPluz && typeof getSupervisorFinEstimadoInfo === 'function') ? getSupervisorFinEstimadoInfo(r) : null;
+                const isOverdue = !!(overdueInfo && overdueInfo.isOverdue);
+                const rowBg = isOverdue ? "#fffbeb" : bg;
+                const rowBorderLeft = isOverdue ? "border-left: 4px solid #f59e0b;" : "";
+                const rowClass = isOverdue ? "row-sup-overdue" : "";
                 const horaIni = r.hora_inicio || r.fecha_inicio || 'N/A';
                 const horaIniShort = formatShortDate(horaIni);
                 const latVal = r.latitud !== undefined && r.latitud !== null ? r.latitud : (r.lat !== undefined ? r.lat : 'N/A');
@@ -455,6 +536,19 @@
                                     </button>
                                 </div>
                                 ${opJc ? `<div style="font-size: 10px; font-weight: 700; color: #1e293b; line-height: 1.2;">JC: ${escapeHtml(opJc)}</div>` : ''}
+                                ${overdueInfo ? (
+                                    overdueInfo.isOverdue ? `
+                                        <div class="sup-eta-tag overdue" style="margin-top: 3px;" title="Fin estimado: ${escapeHtml(overdueInfo.fullLabel)} (vencido hace ${escapeHtml(overdueInfo.timeLabel)})">
+                                            <span>⚠️</span>
+                                            <span>VENCIDO (${escapeHtml(overdueInfo.timeLabel)})</span>
+                                        </div>
+                                    ` : (!overdueInfo.isDone ? `
+                                        <div class="sup-eta-tag pending" style="margin-top: 3px;" title="Fin estimado: ${escapeHtml(overdueInfo.fullLabel)}">
+                                            <span>⏱️</span>
+                                            <span>Fin: ${escapeHtml(overdueInfo.shortTime)}</span>
+                                        </div>
+                                    ` : '')
+                                ) : ''}
                                 ${opSnippet ? `<div style="font-size: 10px; color: #475569; font-style: italic; line-height: 1.2;" title="${escapeHtml(opDetalle)}">"${opSnippet}"</div>` : ''}
                             </td>
                         `;
@@ -495,7 +589,7 @@
                 }
 
                 return `
-                    <tr style="background: ${bg}; border-bottom: 1px solid #e2e8f0;">
+                    <tr class="${rowClass}" style="background: ${rowBg}; border-bottom: 1px solid #e2e8f0; ${rowBorderLeft}">
                         <td data-label="Ticket" style="padding: 7px 10px; white-space: nowrap;">
                             <div class="ticket-cell">
                                 <span class="ticket-number">${escapeHtml(r.ticket)}</span>
@@ -737,6 +831,8 @@
         if (chkModalCrit) chkModalCrit.addEventListener("change", refreshDashboard);
         const chkModalQuantCrit = document.getElementById("checkFilterQuanticoCritico");
         if (chkModalQuantCrit) chkModalQuantCrit.addEventListener("change", refreshDashboard);
+        const chkModalOverdue = document.getElementById("checkFilterOverdue");
+        if (chkModalOverdue) chkModalOverdue.addEventListener("change", refreshDashboard);
 
         document.getElementById("btnResetFilters").addEventListener("click", () => {
             tdFilterDia = null;
@@ -750,6 +846,8 @@
             if (chkCritMod) chkCritMod.checked = false;
             const chkQCMod = document.getElementById("checkFilterQuanticoCritico");
             if (chkQCMod) chkQCMod.checked = false;
+            const chkOverdueMod = document.getElementById("checkFilterOverdue");
+            if (chkOverdueMod) chkOverdueMod.checked = false;
 
             if (tdCtrlIntervalo) tdCtrlIntervalo.reset();
             if (tdCtrlEmpresa) tdCtrlEmpresa.reset();
@@ -906,6 +1004,7 @@
                 if (isPluz) {
                     row["Estado Operativo (PLUZ)"] = latest ? (latest.estadoOperativo || latest.estado || "") : "";
                     row["JC"] = latest ? (latest.jefeCuadrilla || "") : "";
+                    row["Fin Estimado (PLUZ)"] = latest ? (latest.finEstimado || "") : "";
                     row["Detalle Operativo (PLUZ)"] = latest ? (latest.detalleOperativo || latest.detalle || "") : "";
                     row["Criticidad (PLUZ)"] = latest ? (latest.estadoCritico || "") : "";
                     row["Detalle Criticidad (PLUZ)"] = latest ? (latest.detalleCritico || "") : "";
@@ -1020,6 +1119,7 @@
             const sFal = document.getElementById("supModalFalla");
             
             const inJc = document.getElementById("supInputJefeCuadrilla");
+            const inFinEst = document.getElementById("supInputFinEstimado");
             const inEstOp = document.getElementById("supInputEstadoOperativo");
             const inDetOp = document.getElementById("supInputDetalleOperativo");
             const inEstCrit = document.getElementById("supInputEstadoCritico");
@@ -1038,6 +1138,7 @@
             if (sFal) sFal.textContent = clean(rec.falla) || 'Sin falla especificada';
 
             if (feedback) feedback.style.display = 'none';
+            if (inFinEst) inFinEst.value = (supLatest && supLatest.finEstimado) ? formatForDateTimeLocal(supLatest.finEstimado) : '';
 
             // HERO CARD: Mostrar última novedad arriba si existe historial
             const heroEl = document.getElementById("supHeroLatestContainer");
@@ -1071,6 +1172,20 @@
                                 <span style="font-size: 10px; color: #64748b; font-weight: 600;">🕒 ${escapeHtml(supLatest.fecha || '')} • por <b>${escapeHtml(supLatest.usuario || 'PLUZ')}</b></span>
                             </div>
                             ${jcVal ? `<div style="font-size: 11px; color: #0f172a; margin-bottom: 4px; font-weight: 700;">JC: <span style="font-weight: 600; color: #1e293b;">${escapeHtml(jcVal)}</span></div>` : ''}
+                            ${supLatest && supLatest.finEstimado ? (() => {
+                                const fInfo = getSupervisorFinEstimadoInfo(rec);
+                                if (!fInfo) return `<div style="font-size: 11px; color: #b45309; margin-bottom: 4px; font-weight: 600;">⏱️ Fin Estimado: ${escapeHtml(supLatest.finEstimado)}</div>`;
+                                return fInfo.isOverdue ? `
+                                    <div style="font-size: 11px; color: #92400e; margin-bottom: 4px; font-weight: 700; background: #fef3c7; padding: 3px 8px; border-radius: 4px; border: 1px solid #fde68a; display: inline-flex; align-items: center; gap: 4px;">
+                                        <span>⚠️</span>
+                                        <span>Fin Estimado VENCIDO: <b>${escapeHtml(fInfo.fullLabel)}</b> (${escapeHtml(fInfo.timeLabel)})</span>
+                                    </div>
+                                ` : `
+                                    <div style="font-size: 11px; color: #0369a1; margin-bottom: 4px; font-weight: 600;">
+                                        ⏱️ Fin Estimado: <b>${escapeHtml(fInfo.fullLabel)}</b>
+                                    </div>
+                                `;
+                            })() : ''}
                             ${opDet ? `<div style="font-size: 11px; color: #334155; line-height: 1.35; margin-bottom: 3px;"><b>Operativo:</b> ${escapeHtml(opDet)}</div>` : ''}
                             ${critDet ? `<div style="font-size: 11px; color: #9d174d; line-height: 1.35;"><b>Criticidad:</b> ${escapeHtml(critDet)}</div>` : ''}
                         </div>
@@ -1193,6 +1308,11 @@
                                 JC: <span style="font-weight: 600; color: #1e293b;">${escapeHtml(jcVal)}</span>
                             </div>
                         ` : ''}
+                        ${entry.finEstimado ? `
+                            <div style="font-size: 10.5px; color: #b45309; margin-bottom: 3px; font-weight: 600;">
+                                ⏱️ Fin Estimado: <span>${escapeHtml(formatShortDate(entry.finEstimado) || entry.finEstimado)}</span>
+                            </div>
+                        ` : ''}
                         ${opDet ? `
                             <div style="font-size: 11px; color: #1e293b; line-height: 1.35; margin-bottom: 4px;">
                                 <b>Operativo:</b> ${escapeHtml(opDet)}
@@ -1214,6 +1334,7 @@
         async function saveSupervisorLog() {
             if (!currentSupervisorTicket) return;
             const inJc = document.getElementById("supInputJefeCuadrilla");
+            const inFinEst = document.getElementById("supInputFinEstimado");
             const inEstOp = document.getElementById("supInputEstadoOperativo");
             const inDetOp = document.getElementById("supInputDetalleOperativo");
             const inEstCrit = document.getElementById("supInputEstadoCritico");
@@ -1224,12 +1345,13 @@
             const clean = (typeof cleanSupVal === 'function') ? cleanSupVal : (v => (!v || /^n\/?a$/i.test(String(v).trim()) || String(v).trim() === '--' || String(v).trim() === 'null') ? '' : String(v).trim());
 
             const jefeCuadrilla = clean(inJc ? inJc.value : "").toUpperCase();
+            const finEstimado = clean(inFinEst ? inFinEst.value : "");
             const estadoOperativo = clean(inEstOp ? inEstOp.value : "").toUpperCase();
             const detalleOperativo = clean(inDetOp ? inDetOp.value : "");
             const estadoCritico = clean(inEstCrit ? inEstCrit.value : "").toUpperCase();
             const detalleCritico = clean(inDetCrit ? inDetCrit.value : "");
 
-            if (!estadoOperativo && !estadoCritico && !jefeCuadrilla) {
+            if (!estadoOperativo && !estadoCritico && !jefeCuadrilla && !finEstimado) {
                 if (feedback) {
                     feedback.style.color = "#dc2626";
                     feedback.textContent = "⚠️ Debes ingresar al menos un estado operativo, JC o nivel de criticidad.";
@@ -1281,6 +1403,7 @@
                 estadoOperativo: estadoOperativo,
                 detalleOperativo: detalleOperativo,
                 jefeCuadrilla: jefeCuadrilla,
+                finEstimado: finEstimado,
                 estadoCritico: estadoCritico,
                 detalleCritico: detalleCritico,
                 estado: estadoOperativo || estadoCritico,
@@ -1362,6 +1485,7 @@
                         estadoOperativo: estadoOperativo,
                         detalleOperativo: detalleOperativo,
                         jefeCuadrilla: jefeCuadrilla,
+                        finEstimado: finEstimado,
                         estadoCritico: estadoCritico,
                         detalleCritico: detalleCritico,
                         role: userRole || 'admin'
@@ -1421,11 +1545,13 @@
 
             const inputTickets = document.getElementById('bulkPluzTicketsInput');
             const inputJc = document.getElementById('bulkPluzJcInput');
+            const inputFinEst = document.getElementById('bulkPluzFinEstimadoInput');
             const inputDetalle = document.getElementById('bulkPluzDetalleInput');
             const alertEl = document.getElementById('bulkPluzAlert');
 
             if (inputTickets) inputTickets.value = '';
             if (inputJc) inputJc.value = '';
+            if (inputFinEst) inputFinEst.value = '';
             if (inputDetalle) inputDetalle.value = '';
             if (alertEl) {
                 alertEl.style.display = 'none';
@@ -1476,6 +1602,7 @@
         async function executeBulkPluzEnEjecucion() {
             const inputTickets = document.getElementById('bulkPluzTicketsInput');
             const inputJc = document.getElementById('bulkPluzJcInput');
+            const inputFinEst = document.getElementById('bulkPluzFinEstimadoInput');
             const inputDetalle = document.getElementById('bulkPluzDetalleInput');
             const alertEl = document.getElementById('bulkPluzAlert');
             const btnSubmit = document.getElementById('btnSubmitBulkPluz');
@@ -1497,6 +1624,7 @@
             }
 
             const clean = (typeof cleanSupVal === 'function') ? cleanSupVal : (v => (!v || /^n\/?a$/i.test(String(v).trim()) || String(v).trim() === '--' || String(v).trim() === 'null') ? '' : String(v).trim());
+            const finEstVal = clean(inputFinEst ? inputFinEst.value : '');
             const jcVal = clean(inputJc ? inputJc.value : '').toUpperCase();
             const detalleVal = clean(inputDetalle ? inputDetalle.value : '');
 
@@ -1527,6 +1655,7 @@
                     estadoOperativo: 'EN EJECUCION',
                     detalleOperativo: detalleVal,
                     jefeCuadrilla: jcVal,
+                    finEstimado: finEstVal,
                     estadoCritico: supLatest ? clean(supLatest.estadoCritico) : '',
                     detalleCritico: supLatest ? clean(supLatest.detalleCritico) : '',
                     estado: 'EN EJECUCION',
@@ -1567,6 +1696,7 @@
                     body: JSON.stringify({
                         tickets: entries,
                         jefeCuadrilla: jcVal,
+                        finEstimado: finEstVal,
                         detalleOperativo: detalleVal,
                         estadoOperativo: 'EN EJECUCION',
                         role: userRole || 'admin'
@@ -1751,3 +1881,14 @@
             window.getCriticoBadgeClass = getCriticoBadgeClass;
             window.exportFilteredTdOmsTable = exportFilteredTdOmsTable;
         }
+
+
+        // Refresco periódico cada 60s para actualizar automáticamente alertas de tiempo vencido sin recargar
+        setInterval(() => {
+            if (typeof isCurrentUserAdmin === 'function' && isCurrentUserAdmin()) {
+                const hasRecords = typeof tdOmsRecords !== 'undefined' && Array.isArray(tdOmsRecords) && tdOmsRecords.length > 0;
+                if (hasRecords && typeof renderTdOmsTable === 'function' && typeof getFilteredTdOms === 'function') {
+                    renderTdOmsTable(getFilteredTdOms());
+                }
+            }
+        }, 60000);

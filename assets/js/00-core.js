@@ -90,6 +90,7 @@
                 estadoOperativo: clean(entry.estadoOperativo || entry.estado),
                 detalleOperativo: clean(entry.detalleOperativo || entry.detalle),
                 jefeCuadrilla: clean(entry.jefeCuadrilla || entry.jc),
+                finEstimado: clean(entry.finEstimado || entry.horaFinEstimada || entry.fechaFinEstimada),
                 estadoCritico: clean(entry.estadoCritico),
                 detalleCritico: clean(entry.detalleCritico),
                 estado: clean(entry.estadoOperativo || entry.estado || entry.estadoCritico),
