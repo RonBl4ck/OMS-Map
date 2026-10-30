@@ -85,6 +85,32 @@ async function runTests() {
         console.log("✅ Test 3 Aprobado: Registro masivo (Batch) funciona al 100%");
     }
 
+    // Test 4: Registro masivo con JCs individuales por ticket (Copiado de Excel en pares)
+    {
+        const req = {
+            method: 'POST',
+            headers: { 'x-user-role': 'admin' },
+            body: { 
+                tickets: [
+                    { ticket: '300001', sed: 'SED-01', alimentador: 'ALI-A', empresa: 'CAM', jefeCuadrilla: 'JUAN PEREZ' },
+                    { ticket: '300002', sed: 'SED-02', alimentador: 'ALI-B', empresa: 'LARI', jefeCuadrilla: 'CARLOS RAMOS' },
+                    { ticket: '300003', sed: 'SED-03', alimentador: 'ALI-C', empresa: 'CAM' } // sin JC explícito
+                ]
+            }
+        };
+        const res = mockResponse();
+        await handler(req, res);
+        const data = JSON.parse(res.body);
+        console.assert(res.statusCode === 200, `Test 4 Falló: esperaba 200, obtuvo ${res.statusCode}`);
+        console.assert(data.success === true, "Test 4 Falló: success debe ser true");
+        console.assert(data.count === 3, `Test 4 Falló: esperaba count 3, obtuvo ${data.count}`);
+        console.assert(data.entries[0].jefeCuadrilla === 'JUAN PEREZ', "Test 4 Falló: JC 1 debe ser JUAN PEREZ");
+        console.assert(data.entries[1].jefeCuadrilla === 'CARLOS RAMOS', "Test 4 Falló: JC 2 debe ser CARLOS RAMOS");
+        console.assert(data.entries[2].jefeCuadrilla === '', "Test 4 Falló: JC 3 debe ser vacio");
+        console.assert(data.entries[0].estadoOperativo === 'EN EJECUCION', "Test 4 Falló: estadoOperativo debe ser EN EJECUCION");
+        console.log("✅ Test 4 Aprobado: Registro masivo con JCs individuales por par Excel funciona al 100%");
+    }
+
     console.log("\n🎉 TODAS LAS PRUEBAS DEL ENDPOINT PASARON EXITOSAMENTE!");
 }
 

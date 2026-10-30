@@ -1532,10 +1532,62 @@
         // ========================================================
         // REGISTRO MASIVO A EN EJECUCIÓN (SUPERVISIÓN PLUZ)
         // ========================================================
-        function parseBulkTickets(rawText) {
+        function parseBulkTicketsWithJc(rawText) {
             if (!rawText || typeof rawText !== 'string') return [];
-            const matches = rawText.match(/\b\d{5,12}\b/g) || [];
-            return Array.from(new Set(matches.map(t => t.trim())));
+            
+            const lines = rawText.split(/\r?\n/);
+            const resultMap = new Map();
+
+            lines.forEach(rawLine => {
+                const line = rawLine.trim();
+                if (!line) return;
+
+                // Si la línea contiene tabulación (copiado clásico de 2+ columnas de Excel)
+                if (line.includes('\t')) {
+                    const parts = line.split('\t').map(p => p.trim()).filter(Boolean);
+                    if (parts.length >= 2) {
+                        const t0 = (parts[0].match(/\b\d{5,12}\b/) || [])[0];
+                        const t1 = (parts[1].match(/\b\d{5,12}\b/) || [])[0];
+
+                        if (t0 && !t1) {
+                            const jcVal = parts.slice(1).join(' ').trim().toUpperCase();
+                            resultMap.set(t0, { ticket: t0, jc: jcVal });
+                            return;
+                        } else if (t1 && !t0) {
+                            const jcVal = parts[0].trim().toUpperCase();
+                            resultMap.set(t1, { ticket: t1, jc: jcVal });
+                            return;
+                        }
+                    }
+                }
+
+                // Si hay múltiples tickets en la misma línea (ej: "12345, 67890" o texto libre)
+                const allTicketMatches = line.match(/\b\d{5,12}\b/g) || [];
+                if (allTicketMatches.length > 1) {
+                    allTicketMatches.forEach(t => {
+                        if (!resultMap.has(t)) {
+                            resultMap.set(t, { ticket: t, jc: '' });
+                        }
+                    });
+                    return;
+                }
+
+                // Si hay exactamente un ticket en la línea
+                if (allTicketMatches.length === 1) {
+                    const ticket = allTicketMatches[0];
+                    let rest = line.replace(ticket, '').trim();
+                    // Limpiar separadores comunes como guiones, comas, dos puntos, barras
+                    rest = rest.replace(/^[\s,;\-|:]+|[\s,;\-|:]+$/g, '').trim();
+                    const jcVal = rest ? rest.toUpperCase() : '';
+                    resultMap.set(ticket, { ticket, jc: jcVal });
+                }
+            });
+
+            return Array.from(resultMap.values());
+        }
+
+        function parseBulkTickets(rawText) {
+            return parseBulkTicketsWithJc(rawText).map(item => item.ticket);
         }
 
         function openBulkPluzModal() {
@@ -1544,15 +1596,13 @@
             if (!modal) return;
 
             const inputTickets = document.getElementById('bulkPluzTicketsInput');
-            const inputJc = document.getElementById('bulkPluzJcInput');
-            const inputFinEst = document.getElementById('bulkPluzFinEstimadoInput');
-            const inputDetalle = document.getElementById('bulkPluzDetalleInput');
             const alertEl = document.getElementById('bulkPluzAlert');
+            const previewContainer = document.getElementById('bulkPluzPreviewContainer');
+            const previewList = document.getElementById('bulkPluzPreviewList');
 
             if (inputTickets) inputTickets.value = '';
-            if (inputJc) inputJc.value = '';
-            if (inputFinEst) inputFinEst.value = '';
-            if (inputDetalle) inputDetalle.value = '';
+            if (previewList) previewList.innerHTML = '';
+            if (previewContainer) previewContainer.style.display = 'none';
             if (alertEl) {
                 alertEl.style.display = 'none';
                 alertEl.textContent = '';
@@ -1574,11 +1624,14 @@
             const inputTickets = document.getElementById('bulkPluzTicketsInput');
             const countEl = document.getElementById('bulkPluzDetectionCount');
             const matchedEl = document.getElementById('bulkPluzMatchedCount');
+            const previewContainer = document.getElementById('bulkPluzPreviewContainer');
+            const previewList = document.getElementById('bulkPluzPreviewList');
+            const previewSummary = document.getElementById('bulkPluzPreviewSummary');
             if (!countEl) return;
 
             const raw = inputTickets ? inputTickets.value : '';
-            const tickets = parseBulkTickets(raw);
-            const total = tickets.length;
+            const items = parseBulkTicketsWithJc(raw);
+            const total = items.length;
 
             const activeSet = new Set();
             if (Array.isArray(tdOmsRecords)) {
@@ -1589,51 +1642,82 @@
             }
 
             let matched = 0;
-            tickets.forEach(t => {
-                if (activeSet.has(t.toLowerCase())) matched++;
+            let assignedJcCount = 0;
+            items.forEach(it => {
+                if (activeSet.has(it.ticket.toLowerCase())) matched++;
+                if (it.jc) assignedJcCount++;
             });
 
-            countEl.textContent = `🔍 ${total} ticket${total === 1 ? '' : 's'} detectado${total === 1 ? '' : 's'}`;
+            countEl.textContent = `🔍 ${total} ticket${total === 1 ? '' : 's'} detectado${total === 1 ? '' : 's'}${assignedJcCount > 0 ? ` (${assignedJcCount} con JC)` : ''}`;
             if (matchedEl) {
                 matchedEl.textContent = `(${matched} activo${matched === 1 ? '' : 's'} en OMS)`;
+            }
+
+            // Renderizar Vista Previa de Asignaciones (Ticket ➔ JC)
+            if (previewContainer && previewList) {
+                if (total === 0) {
+                    previewContainer.style.display = 'none';
+                    previewList.innerHTML = '';
+                } else {
+                    previewContainer.style.display = 'block';
+                    if (previewSummary) {
+                        previewSummary.textContent = `${total} total | ${assignedJcCount} con JC | ${matched} en OMS`;
+                    }
+                    previewList.innerHTML = items.map(it => {
+                        const inOms = activeSet.has(it.ticket.toLowerCase());
+                        const omsBadge = inOms
+                            ? `<span style="display: inline-block; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; border-radius: 3px; padding: 0 4px; font-size: 9px; font-weight: 700;">OMS ✓</span>`
+                            : `<span style="display: inline-block; background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; border-radius: 3px; padding: 0 4px; font-size: 9px;">no en vista</span>`;
+                        const jcBadge = it.jc
+                            ? `<span style="font-weight: 700; color: #0369a1; background: #e0f2fe; padding: 2px 6px; border-radius: 4px; border: 1px solid #bae6fd;">👷 ${it.jc}</span>`
+                            : `<span style="font-style: italic; color: #94a3b8; font-size: 10px;">(Sin JC)</span>`;
+                        
+                        return `
+                            <div style="display: flex; justify-content: space-between; align-items: center; background: #ffffff; padding: 4px 8px; border-radius: 4px; border: 1px solid #e2e8f0;">
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span style="font-weight: 700; color: #1e293b; font-family: monospace;">#${it.ticket}</span>
+                                    ${omsBadge}
+                                </div>
+                                <div>${jcBadge}</div>
+                            </div>
+                        `;
+                    }).join('');
+                }
             }
         }
 
         async function executeBulkPluzEnEjecucion() {
             const inputTickets = document.getElementById('bulkPluzTicketsInput');
-            const inputJc = document.getElementById('bulkPluzJcInput');
-            const inputFinEst = document.getElementById('bulkPluzFinEstimadoInput');
-            const inputDetalle = document.getElementById('bulkPluzDetalleInput');
             const alertEl = document.getElementById('bulkPluzAlert');
             const btnSubmit = document.getElementById('btnSubmitBulkPluz');
             const spinner = document.getElementById('bulkPluzSubmitSpinner');
             const textEl = document.getElementById('bulkPluzSubmitText');
 
             const rawText = inputTickets ? inputTickets.value : '';
-            const tickets = parseBulkTickets(rawText);
+            const items = parseBulkTicketsWithJc(rawText);
 
-            if (tickets.length === 0) {
+            if (items.length === 0) {
                 if (alertEl) {
                     alertEl.style.display = 'block';
                     alertEl.style.background = '#fef2f2';
                     alertEl.style.color = '#991b1b';
                     alertEl.style.border = '1px solid #fecaca';
-                    alertEl.textContent = '⚠️ Ingresa o pega al menos un número de ticket válido.';
+                    alertEl.textContent = '⚠️ Ingresa o pega al menos un número de ticket válido con o sin JC.';
                 }
                 return;
             }
 
             const clean = (typeof cleanSupVal === 'function') ? cleanSupVal : (v => (!v || /^n\/?a$/i.test(String(v).trim()) || String(v).trim() === '--' || String(v).trim() === 'null') ? '' : String(v).trim());
-            const finEstVal = clean(inputFinEst ? inputFinEst.value : '');
-            const jcVal = clean(inputJc ? inputJc.value : '').toUpperCase();
-            const detalleVal = clean(inputDetalle ? inputDetalle.value : '');
 
             const now = new Date();
             const pad = n => String(n).padStart(2, '0');
             const localTimestamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 
             const entries = [];
-            tickets.forEach(t => {
+            items.forEach(it => {
+                const t = it.ticket;
+                const jcVal = clean(it.jc).toUpperCase();
+
                 const targetRec = (typeof tdOmsRecords !== 'undefined' && Array.isArray(tdOmsRecords) ? tdOmsRecords.find(r => String(r.ticket || '').trim().toLowerCase() === t.toLowerCase()) : null) ||
                                   (typeof mapLocations !== 'undefined' && Array.isArray(mapLocations) ? mapLocations.find(l => String(l.ticket || '').trim().toLowerCase() === t.toLowerCase()) : null) || {};
 
@@ -1653,13 +1737,14 @@
                     alimentador: aliVal,
                     empresa: empVal,
                     estadoOperativo: 'EN EJECUCION',
-                    detalleOperativo: detalleVal,
-                    jefeCuadrilla: jcVal,
-                    finEstimado: finEstVal,
+                    detalleOperativo: '',
+                    jefeCuadrilla: jcVal || (supLatest ? clean(supLatest.jefeCuadrilla) : ''),
+                    jc: jcVal || (supLatest ? clean(supLatest.jefeCuadrilla) : ''),
+                    finEstimado: supLatest ? clean(supLatest.finEstimado) : '',
                     estadoCritico: supLatest ? clean(supLatest.estadoCritico) : '',
                     detalleCritico: supLatest ? clean(supLatest.detalleCritico) : '',
                     estado: 'EN EJECUCION',
-                    detalle: detalleVal,
+                    detalle: '',
                     usuario: 'PLUZ'
                 };
 
@@ -1695,9 +1780,6 @@
                     },
                     body: JSON.stringify({
                         tickets: entries,
-                        jefeCuadrilla: jcVal,
-                        finEstimado: finEstVal,
-                        detalleOperativo: detalleVal,
                         estadoOperativo: 'EN EJECUCION',
                         role: userRole || 'admin'
                     })
@@ -1876,6 +1958,7 @@
             window.openBulkPluzModal = openBulkPluzModal;
             window.closeBulkPluzModal = closeBulkPluzModal;
             window.parseBulkTickets = parseBulkTickets;
+            window.parseBulkTicketsWithJc = parseBulkTicketsWithJc;
             window.executeBulkPluzEnEjecucion = executeBulkPluzEnEjecucion;
             window.getSupervisorBadgeClass = getSupervisorBadgeClass;
             window.getCriticoBadgeClass = getCriticoBadgeClass;
@@ -1884,7 +1967,8 @@
 
 
         // Refresco periódico cada 60s para actualizar automáticamente alertas de tiempo vencido sin recargar
-        setInterval(() => {
+        if (typeof setInterval !== 'undefined') {
+            setInterval(() => {
             if (typeof isCurrentUserAdmin === 'function' && isCurrentUserAdmin()) {
                 const hasRecords = typeof tdOmsRecords !== 'undefined' && Array.isArray(tdOmsRecords) && tdOmsRecords.length > 0;
                 if (hasRecords && typeof renderTdOmsTable === 'function' && typeof getFilteredTdOms === 'function') {
@@ -1892,3 +1976,4 @@
                 }
             }
         }, 60000);
+        }
