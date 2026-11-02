@@ -19,14 +19,30 @@
    Mantiene reglas de especificidad y soporte para componentes integrados.
    ========================================================================== */
 
-/* Botones de configuración y sesión táctiles (Apple HIG / 44px standard) */
+/* Botones de configuración y sesión en desktop: compactos y centrados con flexbox */
 #btnOpenConfig, #btnLogout {
-  width: 44px;
-  height: 44px;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 26px !important;
+  height: 26px !important;
   padding: 0 !important;
-  font-size: 20px !important;
-  line-height: 44px !important;
+  font-size: 13px !important;
+  line-height: 1 !important;
+  border-radius: 6px;
+  vertical-align: middle;
   text-align: center;
+}
+
+/* En móvil (max-width: 620px), expandir a tamaño táctil Apple HIG 44px */
+@media (max-width: 620px) {
+  #btnOpenConfig, #btnLogout {
+    width: 44px;
+    height: 44px;
+    padding: 0 !important;
+    font-size: 20px !important;
+    line-height: 44px !important;
+  }
 }
 
 /* Contrato de animación y marcador para SED Crítica */
