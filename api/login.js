@@ -1,5 +1,7 @@
 // api/login.js
-// Endpoint Serverless compatible con Vercel y Node.js
+// Endpoint Serverless compatible con Vercel y Node.js para autenticación con tokens HMAC-SHA256
+
+const { createAuthToken } = require('./_lib/auth-token');
 
 module.exports = async (req, res) => {
     // Cabeceras CORS
@@ -85,24 +87,30 @@ module.exports = async (req, res) => {
             } catch(e) {}
         }
 
-        // Fallback para desarrollo local si la hoja de Google Sheets no está en entorno local
+        const cleanUser = String(user).trim().toUpperCase();
+        const cleanPass = String(password).trim();
+
+        // 3. Cuando no hay usuarios configurados en Sheets ni config.json
         if (!users || users.length === 0) {
-            const cleanUser = String(user).trim().toUpperCase();
-            const devProfiles = ['PLUZ', 'COBRA', 'DOMINION', 'INMEL', 'LARI', 'PA', 'ALFACO', 'FACO'];
-            if (devProfiles.includes(cleanUser)) {
-                if ((cleanUser === 'ALFACO' || cleanUser === 'FACO') && String(password).trim() !== 'alfaco-2026') {
+            // Perfil de desarrollo ALFACO / FACO con contraseña estricta
+            if (cleanUser === 'ALFACO' || cleanUser === 'FACO') {
+                if (cleanPass !== 'alfaco-2026') {
                     const payload = JSON.stringify({ success: false, message: 'Usuario o contraseña incorrectos' });
                     if (typeof res.status === 'function') return res.status(401).send(payload);
                     res.writeHead(401, { 'Content-Type': 'application/json; charset=utf-8' });
                     return res.end(payload);
                 }
-                const canonicalUser = cleanUser === 'FACO' ? 'ALFACO' : cleanUser;
+                const canonicalUser = 'ALFACO';
+                const resolvedRole = 'contractor';
+                const token = createAuthToken({ user: canonicalUser, role: resolvedRole });
                 const resObj = {
                     success: true,
                     user: canonicalUser,
-                    contractor: cleanUser === 'PLUZ' ? '*' : canonicalUser,
-                    role: cleanUser === 'PLUZ' ? 'admin' : 'contractor',
-                    cartoApiKey: resolvedCartoKey
+                    contractor: canonicalUser,
+                    role: resolvedRole,
+                    cartoApiKey: resolvedCartoKey,
+                    token: token,
+                    config: buildUserConfig(resolvedRole, resolvedCartoKey)
                 };
                 const payload = JSON.stringify(resObj);
                 if (typeof res.status === 'function') return res.status(200).send(payload);
@@ -110,6 +118,7 @@ module.exports = async (req, res) => {
                 return res.end(payload);
             }
 
+            // Se elimina el fallback vulnerable donde perfiles entraban sin contraseña
             const payload = JSON.stringify({
                 success: false,
                 message: 'No hay accesos configurados. Configura SHEETS_URL_USERS en Vercel.'
@@ -119,9 +128,7 @@ module.exports = async (req, res) => {
             return res.end(payload);
         }
 
-        const cleanUser = String(user).trim().toUpperCase();
-        const cleanPass = String(password).trim();
-
+        // 4. Validación contra usuarios registrados
         const match = users.find(u => 
             String(u.user || '').trim().toUpperCase() === cleanUser &&
             String(u.password || '').trim() === cleanPass &&
@@ -129,12 +136,19 @@ module.exports = async (req, res) => {
         );
 
         if (match) {
+            const resolvedUser = match.user;
+            const resolvedRole = match.role || (match.user.toUpperCase() === 'PLUZ' ? 'admin' : 'contractor');
+            const resolvedContractor = match.contractor || (match.user.toUpperCase() === 'PLUZ' ? '*' : match.user);
+            const token = createAuthToken({ user: resolvedUser, role: resolvedRole });
+
             const resObj = {
                 success: true,
-                user: match.user,
-                contractor: match.contractor || (match.user.toUpperCase() === 'PLUZ' ? '*' : match.user),
-                role: match.role || (match.user.toUpperCase() === 'PLUZ' ? 'admin' : 'contractor'),
-                cartoApiKey: resolvedCartoKey
+                user: resolvedUser,
+                contractor: resolvedContractor,
+                role: resolvedRole,
+                cartoApiKey: resolvedCartoKey,
+                token: token,
+                config: buildUserConfig(resolvedRole, resolvedCartoKey)
             };
             const payload = JSON.stringify(resObj);
             if (typeof res.status === 'function') return res.status(200).send(payload);
@@ -157,6 +171,58 @@ module.exports = async (req, res) => {
         return res.end(payload);
     }
 };
+
+function buildUserConfig(role, cartoApiKey) {
+    const isAdmin = role === 'admin';
+    let sheetsUrl = process.env.SHEETS_URL_BASE || process.env.SHEETS_URL || "";
+    let sheetsUrlEjecutados = process.env.SHEETS_URL_EJECUTADOS || "";
+    let sheetsUrlLlamadas = process.env.SHEETS_URL_LLAMADAS || "";
+    let sheetsUrlTecnicos = process.env.SHEETS_URL_TECNICOS || "";
+    let sheetsUrlSedCriticas = process.env.SHEETS_URL_SED_CRITICAS || "";
+    let sheetsUrlSupervisor = process.env.SHEETS_URL_SUPERVISOR || "";
+
+    if (!sheetsUrl || !sheetsUrlEjecutados || !sheetsUrlLlamadas || !sheetsUrlTecnicos || !sheetsUrlSedCriticas || !sheetsUrlSupervisor) {
+        try {
+            const fs = require('fs');
+            const path = require('path');
+            const configPath = path.join(process.cwd(), 'config.json');
+            if (fs.existsSync(configPath)) {
+                const cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+                if (!sheetsUrl && cfg.sheets_url) sheetsUrl = cfg.sheets_url;
+                if (!sheetsUrlEjecutados && cfg.sheets_url_ejecutados) sheetsUrlEjecutados = cfg.sheets_url_ejecutados;
+                if (!sheetsUrlLlamadas && cfg.sheets_url_llamadas) sheetsUrlLlamadas = cfg.sheets_url_llamadas;
+                if (!sheetsUrlTecnicos && cfg.sheets_url_tecnicos) sheetsUrlTecnicos = cfg.sheets_url_tecnicos;
+                if (!sheetsUrlSedCriticas && cfg.sheets_url_sed_criticas) sheetsUrlSedCriticas = cfg.sheets_url_sed_criticas;
+                if (!sheetsUrlSupervisor && cfg.sheets_url_supervisor) sheetsUrlSupervisor = cfg.sheets_url_supervisor;
+            }
+        } catch (_) {}
+    }
+
+    if (!sheetsUrlSupervisor && sheetsUrl && sheetsUrl.includes('docs.google.com/spreadsheets') && !sheetsUrl.includes('/d/e/')) {
+        const match = sheetsUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+        if (match && match[1] !== 'e') {
+            sheetsUrlSupervisor = `https://docs.google.com/spreadsheets/d/${match[1]}/gviz/tq?tqx=out:csv&sheet=SEGUIMIENTO_SUPERVISOR`;
+        }
+    }
+
+    if (!sheetsUrlSedCriticas) {
+        sheetsUrlSedCriticas = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRzHH9n7otRwazt1x3iWe9qDNVHeHBo0oMGM4i9LiO-Y3VM504bgNx7GihLR0Yb81DtqoiLt3QIRrmY/pub?output=csv&single=true&gid=1398943131";
+    }
+
+    if (!sheetsUrlSupervisor) {
+        sheetsUrlSupervisor = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRzHH9n7otRwazt1x3iWe9qDNVHeHBo0oMGM4i9LiO-Y3VM504bgNx7GihLR0Yb81DtqoiLt3QIRrmY/pub?output=csv&single=true&gid=143086031";
+    }
+
+    return {
+        sheets_url: sheetsUrl,
+        sheets_url_ejecutados: sheetsUrlEjecutados,
+        sheets_url_llamadas: isAdmin ? sheetsUrlLlamadas : "",
+        sheets_url_tecnicos: sheetsUrlTecnicos,
+        sheets_url_sed_criticas: isAdmin ? sheetsUrlSedCriticas : "",
+        sheets_url_supervisor: isAdmin ? sheetsUrlSupervisor : "",
+        carto_api_key: cartoApiKey
+    };
+}
 
 function parseUsersCsv(csvText) {
     if (!csvText) return [];

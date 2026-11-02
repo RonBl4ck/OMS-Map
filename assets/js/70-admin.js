@@ -30,18 +30,22 @@
                 }
 
                 try {
-                    const resp = await fetch('/api/verify-config-pin', {
+                    const resp = await fetch('/api/get-users-admin', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'x-config-pin': pinVal
+                        },
                         body: JSON.stringify({ pin: pinVal })
                     });
                     const data = await resp.json();
 
-                    if (resp.ok && data.success) {
+                    if (resp.ok && data.success && Array.isArray(data.users)) {
                         currentAdminPin = pinVal;
                         if (pinModal) pinModal.style.display = "none";
                         if (adminModal) adminModal.style.display = "block";
-                        loadAdminUsers(currentAdminPin);
+                        currentAdminUsers = data.users;
+                        renderAdminUsersTable(currentAdminUsers);
                     } else {
                         if (pinErrMsg) {
                             pinErrMsg.innerText = "❌ " + (data.message || "Clave incorrecta");
@@ -100,7 +104,10 @@
             try {
                 const resp = await fetch('/api/get-users-admin', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-config-pin': pin
+                    },
                     body: JSON.stringify({ pin: pin })
                 });
                 const data = await resp.json();

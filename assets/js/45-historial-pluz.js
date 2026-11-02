@@ -18,23 +18,37 @@
     function enrichSupervisorRecordsWithOmsData() {
         if (typeof supervisorRecordsMap === 'undefined' || !supervisorRecordsMap.size) return;
 
-        const allSources = [
-            ...(typeof tdOmsRecords !== 'undefined' && Array.isArray(tdOmsRecords) ? tdOmsRecords : []),
-            ...(typeof ejecutadosRecords !== 'undefined' && Array.isArray(ejecutadosRecords) ? ejecutadosRecords : []),
-            ...(typeof llamadasRecords !== 'undefined' && Array.isArray(llamadasRecords) ? llamadasRecords : [])
-        ];
+        let ticketMap = null;
+        if (typeof window !== 'undefined' && window.omsRecordsByTicketMap instanceof Map && window.omsRecordsByTicketMap.size > 0) {
+            ticketMap = window.omsRecordsByTicketMap;
+        } else {
+            ticketMap = new Map();
+            const sources = [
+                ...(typeof tdOmsRecords !== 'undefined' && Array.isArray(tdOmsRecords) ? tdOmsRecords : []),
+                ...(typeof ejecutadosRecords !== 'undefined' && Array.isArray(ejecutadosRecords) ? ejecutadosRecords : []),
+                ...(typeof llamadasRecords !== 'undefined' && Array.isArray(llamadasRecords) ? llamadasRecords : [])
+            ];
+            for (let i = 0; i < sources.length; i++) {
+                const s = sources[i];
+                if (!s) continue;
+                const rawTicket = s.ticket || s.Ticket || s.aviso || s.AVISO;
+                if (rawTicket) {
+                    const clean = String(rawTicket).trim().toLowerCase();
+                    if (!ticketMap.has(clean)) {
+                        ticketMap.set(clean, s);
+                    }
+                }
+            }
+        }
 
-        if (!allSources.length) return;
+        if (!ticketMap.size) return;
 
         for (const [tKey, record] of supervisorRecordsMap.entries()) {
             if (!record) continue;
-            const ticket = String(record.latest?.ticket || tKey).trim().toLowerCase();
+            const cleanTicket = String(record.latest?.ticket || tKey).trim().toLowerCase();
 
-            // Buscar coincidencia en OMS
-            const match = allSources.find(s => {
-                const st = String(s.ticket || s.Ticket || s.aviso || '').trim().toLowerCase();
-                return st === ticket;
-            });
+            // Buscar coincidencia en OMS en O(1)
+            const match = ticketMap.get(cleanTicket) || ticketMap.get(cleanTicket.toUpperCase()) || ticketMap.get(String(record.latest?.ticket || tKey).trim());
 
             if (match) {
                 const foundSed = match.sed || match.SED || match.SED_CANONICA || '';

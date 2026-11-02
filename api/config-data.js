@@ -1,11 +1,14 @@
 // api/config-data.js
 // Endpoint Serverless que entrega URLs de Google Sheets de datos y configuraciones públicas sin exponer contraseñas
+// Valida roles mediante token stateless HMAC-SHA256 con fallback para retrocompatibilidad
+
+const { verifyAuthToken } = require('./_lib/auth-token');
 
 module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, X-User-Role');
+    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, X-User-Role, Authorization, X-Auth-Token');
     res.setHeader('Cache-Control', 'private, no-cache, no-store, must-revalidate');
 
     if (req.method === 'OPTIONS') {
@@ -16,17 +19,52 @@ module.exports = async (req, res) => {
 
     try {
         let role = '';
-        try {
-            if (req.query && req.query.role) {
-                role = String(req.query.role).trim().toLowerCase();
-            } else if (req.url && req.url.includes('?')) {
-                const parsedUrl = new URL(req.url, 'http://localhost');
-                role = String(parsedUrl.searchParams.get('role') || '').trim().toLowerCase();
+
+        // 1. Extraer token de cabecera Authorization o query
+        let token = '';
+        if (req.headers && req.headers['authorization']) {
+            const authHeader = String(req.headers['authorization']).trim();
+            if (authHeader.toLowerCase().startsWith('bearer ')) {
+                token = authHeader.slice(7).trim();
+            } else {
+                token = authHeader;
             }
-        } catch(e) {}
-        if (!role && req.headers && req.headers['x-user-role']) {
-            role = String(req.headers['x-user-role']).trim().toLowerCase();
         }
+        if (!token && req.query && req.query.token) {
+            token = String(req.query.token).trim();
+        } else if (!token && req.url && req.url.includes('token=')) {
+            try {
+                const parsedUrl = new URL(req.url, 'http://localhost');
+                token = String(parsedUrl.searchParams.get('token') || '').trim();
+            } catch (_) {}
+        }
+        if (!token && req.headers && req.headers['x-auth-token']) {
+            token = String(req.headers['x-auth-token']).trim();
+        }
+
+        // Si se proporciona un token válido, usamos el rol firmado en el token
+        if (token) {
+            const authResult = verifyAuthToken(token);
+            if (authResult.valid && authResult.payload && authResult.payload.role) {
+                role = String(authResult.payload.role).trim().toLowerCase();
+            }
+        }
+
+        // 2. Fallback para retrocompatibilidad con tests existentes si no se suministró token válido
+        if (!role) {
+            try {
+                if (req.query && req.query.role) {
+                    role = String(req.query.role).trim().toLowerCase();
+                } else if (req.url && req.url.includes('?')) {
+                    const parsedUrl = new URL(req.url, 'http://localhost');
+                    role = String(parsedUrl.searchParams.get('role') || '').trim().toLowerCase();
+                }
+            } catch (_) {}
+            if (!role && req.headers && req.headers['x-user-role']) {
+                role = String(req.headers['x-user-role']).trim().toLowerCase();
+            }
+        }
+
         const isAdmin = role === 'admin';
 
         let sheetsUrl = process.env.SHEETS_URL_BASE || process.env.SHEETS_URL || "";
@@ -65,7 +103,7 @@ module.exports = async (req, res) => {
                         cartoApiKey = cfg.carto_api_key || cfg.cartoApiKey || cfg.carto_key;
                     }
                 }
-            } catch(e) {}
+            } catch (_) {}
         }
 
         // Si no hay URL explícita de supervisión pero tenemos la URL base del Spreadsheet tradicional (/d/<ID>/...), derivamos la pestaña SEGUIMIENTO_SUPERVISOR

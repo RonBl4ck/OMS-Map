@@ -73,16 +73,18 @@ module.exports = async (req, res) => {
         }
 
         // 2. Persistencia local en config.json (para entorno local)
-        try {
-            const fs = require('fs');
-            const path = require('path');
-            const configPath = path.join(process.cwd(), 'config.json');
-            if (fs.existsSync(configPath)) {
-                const cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-                cfg.users = users;
-                fs.writeFileSync(configPath, JSON.stringify(cfg, null, 2), 'utf-8');
-            }
-        } catch (e) {}
+        if (process.env.VERCEL !== '1') {
+            try {
+                const fs = require('fs');
+                const path = require('path');
+                const configPath = path.join(process.cwd(), 'config.json');
+                if (fs.existsSync(configPath)) {
+                    const cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+                    cfg.users = users;
+                    fs.writeFileSync(configPath, JSON.stringify(cfg, null, 2), 'utf-8');
+                }
+            } catch (_) {}
+        }
 
         const payload = JSON.stringify({
             success: true,

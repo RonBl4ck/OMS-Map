@@ -162,9 +162,18 @@
                 }
 
                 const allStates = [...new Set(records.map(r => r.estado))].sort((a,b) => String(a).localeCompare(String(b), 'es'));
+                const matrixCounts = {};
+                allStates.forEach(st => { matrixCounts[st] = {}; categories.forEach(cat => { matrixCounts[st][cat] = 0; }); });
+                records.forEach(r => {
+                    const st = r.estado;
+                    const cat = r[field];
+                    if (matrixCounts[st] && matrixCounts[st][cat] !== undefined) {
+                        matrixCounts[st][cat]++;
+                    }
+                });
                 const series = allStates.map(st => ({
                     name: st,
-                    values: categories.map(cat => records.filter(r => r[field] === cat && r.estado === st).length)
+                    values: categories.map(cat => matrixCounts[st][cat] || 0)
                 }));
 
                 const maxVal = Math.max(1, ...series.flatMap(s => s.values));
@@ -1030,6 +1039,17 @@
         const downloadExecutedBase = async () => {
                 let downloaded = false;
 
+                if (Array.isArray(window.ejecutadosRecords) && window.ejecutadosRecords.length > 0) {
+                    const assignedContractor = sessionStorage.getItem("oms_assigned_contractor") || "*";
+                    const filteredData = filterRecordsForAssignedContractor(window.ejecutadosRecords, assignedContractor);
+                    if (filteredData.length === 0) {
+                        alert('⚠️ No hay registros ejecutados para tu empresa en este período.');
+                        return;
+                    }
+                    downloadExcel(filteredData, 'base_ejecutados');
+                    return;
+                }
+
                 // 1. Intentar descargar directamente desde Google Sheets (pestaña BASE_EJECUTADOS)
                 if (GOOGLE_SHEET_EJECUTADOS_URL || GOOGLE_SHEET_CSV_URL) {
                     let targetUrl = GOOGLE_SHEET_EJECUTADOS_URL;
@@ -1421,9 +1441,7 @@
             }
             renderSupervisorTimeline(currentSupervisorTicket);
             renderTdOmsTable(getFilteredTdOms());
-            if (typeof renderMapMarkers === 'function') {
-                renderMapMarkers();
-            }
+            if (typeof setupMapMarkers === 'function') setupMapMarkers(); else if (typeof renderMapMarkers === 'function') renderMapMarkers();
 
             // Actualizar la Hero Card superior con el nuevo estado recién guardado
             const heroEl = document.getElementById("supHeroLatestContainer");
@@ -1925,9 +1943,7 @@
             });
 
             renderTdOmsTable(getFilteredTdOms());
-            if (typeof renderMapMarkers === 'function') {
-                renderMapMarkers();
-            }
+            if (typeof setupMapMarkers === 'function') setupMapMarkers(); else if (typeof renderMapMarkers === 'function') renderMapMarkers();
 
             if (btnSubmit) btnSubmit.disabled = true;
             if (spinner) spinner.style.display = 'inline-block';
@@ -2140,11 +2156,15 @@
         // Refresco periódico cada 60s para actualizar automáticamente alertas de tiempo vencido sin recargar
         if (typeof setInterval !== 'undefined') {
             setInterval(() => {
-            if (typeof isCurrentUserAdmin === 'function' && isCurrentUserAdmin()) {
-                const hasRecords = typeof tdOmsRecords !== 'undefined' && Array.isArray(tdOmsRecords) && tdOmsRecords.length > 0;
-                if (hasRecords && typeof renderTdOmsTable === 'function' && typeof getFilteredTdOms === 'function') {
-                    renderTdOmsTable(getFilteredTdOms());
+                if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+                const modal = typeof document !== 'undefined' ? document.getElementById('tdOmsModalOverlay') : null;
+                if (modal && modal.classList && modal.classList.contains('hidden')) return;
+
+                if (typeof isCurrentUserAdmin === 'function' && isCurrentUserAdmin()) {
+                    const hasRecords = typeof tdOmsRecords !== 'undefined' && Array.isArray(tdOmsRecords) && tdOmsRecords.length > 0;
+                    if (hasRecords && typeof renderTdOmsTable === 'function' && typeof getFilteredTdOms === 'function') {
+                        renderTdOmsTable(getFilteredTdOms());
+                    }
                 }
-            }
-        }, 60000);
+            }, 60000);
         }

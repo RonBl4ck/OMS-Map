@@ -20,10 +20,10 @@
         const CALL_FILTER_FIELDS = { frequency: 'callsRepeatFilter', estado: 'callsStatusFilter' };
 
         function getCallGroupKey(row) {
-            const ticket = String(row?.ticket || '').trim();
-            if (isValidCallEntityId(ticket)) return `TICKET:${ticket}`;
             const odm = String(row?.odm || '').trim();
             if (isValidCallEntityId(odm)) return `ODM:${odm}`;
+            const ticket = String(row?.ticket || '').trim();
+            if (isValidCallEntityId(ticket)) return `TICKET:${ticket}`;
             const aviso = String(row?.aviso || '').trim();
             if (isValidCallEntityId(aviso)) return `AVISO:${aviso}`;
             const suministro = String(row?.suministro || '').trim();
@@ -74,8 +74,8 @@
             if (Number(count) >= 2) return { key: 'repeated', label: 'Reiterado' };
             return { key: 'normal', label: 'Contacto único' };
         }
-        function summarizeCallRecords(records) {
-            const counts = Object.values(getCallCounts(records));
+        function summarizeCallRecords(records, precomputedCounts) {
+            const counts = Object.values(precomputedCounts || getCallCounts(records));
             return {
                 totalCalls: (records || []).length,
                 incidents: counts.length,
@@ -83,8 +83,9 @@
                 critical: counts.filter(count => count >= 7).length
             };
         }
-        function updateCallsSummary() {
-            const summary = summarizeCallRecords(llamadasRecords);
+        function updateCallsSummary(records, counts) {
+            const recs = records || llamadasRecords;
+            const summary = summarizeCallRecords(recs, counts);
             const values = { callsKpiTotal: summary.totalCalls, callsKpiIncidents: summary.incidents, callsKpiRepeated: summary.repeated, callsKpiCritical: summary.critical };
             Object.entries(values).forEach(([id, value]) => { const element = document.getElementById(id); if (element) element.textContent = value; });
         }
@@ -120,16 +121,18 @@
                 header.innerHTML = `${label}${icon}`;
             });
         }
-        function renderLlamadasTable() {
+        function renderLlamadasTable(records) {
             const body = document.getElementById('llamadasTableBody'), count = document.getElementById('tableLlamadasCount'), input = document.getElementById('inputFilterLlamadas');
             if (!body) return;
+            const targetRecords = records || llamadasRecords;
             const query = String(input ? input.value : '').trim().toLowerCase();
             const repeatFilter = callsRepeatCtrl?.getSelected() || [];
             const statusFilter = callsStatusCtrl?.getSelected() || [];
-            const callCounts = getCallCounts(llamadasRecords);
-            let rows = llamadasRecords.filter(row => !query || Object.values(row).some(value => String(value || '').toLowerCase().includes(query)));
+            const counts = getCallCounts(targetRecords);
+            const callCounts = counts;
+            let rows = targetRecords.filter(row => !query || Object.values(row).some(value => String(value || '').toLowerCase().includes(query)));
             rows = rows.filter(row => {
-                const frequency = (row.conteoLlamadas && row.conteoLlamadas > 0) ? row.conteoLlamadas : (callCounts[getCallGroupKey(row)] || 1);
+                const frequency = (row.conteoLlamadas && row.conteoLlamadas > 0) ? row.conteoLlamadas : (counts[getCallGroupKey(row)] || 1);
                 const pressure = callPressure(row.presionLlamadas || frequency).key;
                 const matchesFrequency = matchesMultiSelection(pressure, repeatFilter);
                 const matchesStatus = matchesMultiSelection(row.estado, statusFilter);
@@ -146,7 +149,7 @@
                 });
             }
             updateLlamadasSortHeaderIcons();
-            updateCallsSummary();
+            updateCallsSummary(targetRecords, counts);
             if (count) count.innerText = rows.length;
             visibleLlamadasRecords = rows;
             const renderedRows = rows.slice(0, callsRenderLimit);
@@ -399,6 +402,7 @@
                 console.error('Error cargando llamadas:', error);
                 return;
             }
+            if (typeof window.rebuildOmsTicketIndex === 'function') window.rebuildOmsTicketIndex();
             document.getElementById('llamadasModalOverlay')?.setAttribute('aria-busy', 'false');
             renderLlamadasTable();
         }

@@ -504,7 +504,14 @@
                 const updated = tecnicosRecords[0]?.FECHA_ACTUALIZACION_SISTEMA || '--';
                 status.innerText = `${tecnicosRecords.length} registros · Actualizado: ${updated}`;
                 renderTecnicos();
-                if (!techRefreshTimer) techRefreshTimer = setInterval(renderTecnicos, 60000);
+                if (!techRefreshTimer) {
+                    techRefreshTimer = setInterval(() => {
+                        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+                        const view = typeof document !== 'undefined' ? document.getElementById('seguimientoView') : null;
+                        if (view && view.classList && view.classList.contains('hidden')) return;
+                        renderTecnicos();
+                    }, 60000);
+                }
             } catch (error) {
                 status.innerText = 'No se pudo cargar SEGUIMIENTO_TECNICOS desde Google Sheets.';
                 console.error(error);

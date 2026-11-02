@@ -468,7 +468,9 @@
             if (typeof checkAndNotifyCriticalSedsOnLoad === 'function') {
                 checkAndNotifyCriticalSedsOnLoad();
             }
+            window.renderMapMarkers = setupMapMarkers;
         }
+        window.renderMapMarkers = setupMapMarkers;
 
         let addressSearchMarker = null;
         let addressSearchLayer = null;
@@ -478,13 +480,14 @@
         let userLocationAccuracy = null;
         const ADDRESS_SEARCH_RADIUS_METERS = 500;
 
-        function showMapNotice(message, tone = 'info') {
+        function showMapNotice(message, tone = 'warning') {
             const resBox = document.getElementById('addressResultBox');
             if (!resBox) return;
             syncAddressResultPosition();
-            const color = tone === 'error' ? '#f87171' : '#7dd3fc';
+            const safeMsg = typeof escapeHtml === 'function' ? escapeHtml(String(message ?? '')) : String(message ?? '');
+            const color = tone === 'error' ? '#f87171' : (tone === 'warning' ? '#fbbf24' : '#7dd3fc');
             resBox.style.display = 'block';
-            resBox.innerHTML = `<span style="color:${color}; font-weight:700;">${message}</span>`;
+            resBox.innerHTML = `<span style="color:${color}; font-weight:700;">${safeMsg}</span>`;
         }
 
         function getMapToolbarBottom() {
@@ -1025,7 +1028,7 @@
             }
         }
 
-        function filterMapMarkers() {
+        function filterMapMarkers(options = {}) {
             const searchType = document.getElementById("searchTypeMap") ? document.getElementById("searchTypeMap").value : "ticket";
             const query = document.getElementById("inputTicket").value.trim().toLowerCase();
             const selDias = mapCtrlDia ? mapCtrlDia.getSelected() : [];
@@ -1044,8 +1047,10 @@
 
             markersGroup.clearLayers();
             let count = 0;
-            const bounds = [];
+            const visibleBounds = [];
+            const bounds = visibleBounds;
             const visibleLocations = [];
+            const markersToAdd = [];
 
             function matchesCurrentMapFilter(item) {
                 let matchQuery = true;
@@ -1085,15 +1090,27 @@
             mapLocations.forEach(loc => {
                 if (matchesCurrentMapFilter(loc)) {
                     if (markerMap.has(loc.ticket.toLowerCase())) {
-                        markersGroup.addLayer(markerMap.get(loc.ticket.toLowerCase()).marker);
-                        bounds.push([loc.lat, loc.lon]);
+                        const markerObj = markerMap.get(loc.ticket.toLowerCase()).marker;
+                        markersToAdd.push(markerObj);
+                        visibleBounds.push([loc.lat, loc.lon]);
                         visibleLocations.push(loc);
                     }
                 }
             });
 
+            if (markersToAdd.length > 0) {
+                if (typeof markersGroup.addLayers === 'function') {
+                    markersGroup.addLayers(markersToAdd);
+                } else {
+                    markersToAdd.forEach(m => markersGroup.addLayer(m));
+                }
+            }
+
             if (bounds.length > 0 && (!query || searchType !== "ticket")) {
-                leafletMap.fitBounds(L.latLngBounds(bounds).pad(0.1));
+                if (visibleBounds.length > 0 && (!window._mapInitialBoundsFitted || options.forceFitBounds === true)) {
+                    leafletMap.fitBounds(visibleBounds, { padding: [50, 50], maxZoom: 16 });
+                    window._mapInitialBoundsFitted = true;
+                }
             }
 
             const topNavEl = document.getElementById("topNavCount");

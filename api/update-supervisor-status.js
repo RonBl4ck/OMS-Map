@@ -250,19 +250,19 @@ module.exports = async (req, res) => {
         }
 
         // 2. Persistencia local de respaldo (data_supervisor_logs.json)
-        try {
-            const backupPath = path.join(process.cwd(), 'data_supervisor_logs.json');
-            let logs = [];
-            if (fs.existsSync(backupPath)) {
-                try {
-                    logs = JSON.parse(fs.readFileSync(backupPath, 'utf-8'));
-                    if (!Array.isArray(logs)) logs = [];
-                } catch(e) { logs = []; }
-            }
-            logEntries.forEach(entry => logs.push(entry));
-            fs.writeFileSync(backupPath, JSON.stringify(logs, null, 2), 'utf-8');
-        } catch (e) {
-            console.warn("No se pudo escribir en el respaldo local data_supervisor_logs.json:", e);
+        if (process.env.VERCEL !== '1') {
+            try {
+                const backupPath = path.join(process.cwd(), 'data_supervisor_logs.json');
+                let logs = [];
+                if (fs.existsSync(backupPath)) {
+                    try {
+                        logs = JSON.parse(fs.readFileSync(backupPath, 'utf-8'));
+                        if (!Array.isArray(logs)) logs = [];
+                    } catch(e) { logs = []; }
+                }
+                logEntries.forEach(entry => logs.push(entry));
+                fs.writeFileSync(backupPath, JSON.stringify(logs, null, 2), 'utf-8');
+            } catch (_) {}
         }
 
         const payload = JSON.stringify({

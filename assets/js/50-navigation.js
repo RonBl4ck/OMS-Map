@@ -39,7 +39,7 @@
 
         function showMapView() {
             selectPrimaryView('map');
-            setTimeout(() => map?.invalidateSize?.(), 0);
+            setTimeout(() => leafletMap?.invalidateSize?.(), 0);
         }
 
         function showDashboardView() {

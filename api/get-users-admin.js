@@ -1,11 +1,11 @@
-﻿// api/get-users-admin.js
+// api/get-users-admin.js
 // Endpoint Serverless para obtener usuarios y contraseñas (requiere PIN maestro)
 
 module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
-    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, X-Config-Pin');
 
     if (req.method === 'OPTIONS') {
         if (typeof res.status === 'function') return res.status(200).end();
@@ -25,8 +25,9 @@ module.exports = async (req, res) => {
         if (typeof body === 'string') {
             try { body = JSON.parse(body); } catch(e) {}
         }
+        const headerPin = req.headers && (req.headers['x-config-pin'] || req.headers['x-pin']);
         const { pin } = body || {};
-        const inputPin = String(pin || '').trim();
+        const inputPin = String(headerPin || pin || '').trim();
 
         const masterPin = process.env.CONFIG_MASTER_PASSWORD || process.env.PLUZ_CONFIG_PIN || "PLUZ_2026_PLUZ";
 
