@@ -563,22 +563,29 @@
      */
     function getRawRecords() {
         let pendientes = [];
-        if (window.omsStore && typeof window.omsStore.get === 'function') {
-            pendientes = window.omsStore.get('tdOmsRecords') || window.omsStore.get('rawData') || [];
-        }
-        if ((!pendientes || !pendientes.length) && Array.isArray(window.tdOmsRecords)) {
-            pendientes = window.tdOmsRecords;
-        }
-        if ((!pendientes || !pendientes.length) && Array.isArray(window.rawData)) {
+        if (typeof window !== 'undefined' && Array.isArray(window.rawData) && window.rawData.length > 0) {
             pendientes = window.rawData;
+        } else if (typeof window !== 'undefined' && Array.isArray(window.tdOmsRecords) && window.tdOmsRecords.length > 0) {
+            pendientes = window.tdOmsRecords;
+        } else if (typeof rawData !== 'undefined' && Array.isArray(rawData) && rawData.length > 0) {
+            pendientes = rawData;
+        } else if (typeof tdOmsRecords !== 'undefined' && Array.isArray(tdOmsRecords) && tdOmsRecords.length > 0) {
+            pendientes = tdOmsRecords;
+        } else if (typeof omsStore !== 'undefined' && typeof omsStore.get === 'function') {
+            pendientes = omsStore.get('rawData') || omsStore.get('tdOmsRecords') || [];
+        } else if (typeof window !== 'undefined' && window.omsStore && typeof window.omsStore.get === 'function') {
+            pendientes = window.omsStore.get('rawData') || window.omsStore.get('tdOmsRecords') || [];
         }
 
         let ejecutados = [];
-        if (window.omsStore && typeof window.omsStore.get === 'function') {
-            ejecutados = window.omsStore.get('ejecutadosRecords') || [];
-        }
-        if ((!ejecutados || !ejecutados.length) && Array.isArray(window.ejecutadosRecords)) {
+        if (typeof window !== 'undefined' && Array.isArray(window.ejecutadosRecords) && window.ejecutadosRecords.length > 0) {
             ejecutados = window.ejecutadosRecords;
+        } else if (typeof ejecutadosRecords !== 'undefined' && Array.isArray(ejecutadosRecords) && ejecutadosRecords.length > 0) {
+            ejecutados = ejecutadosRecords;
+        } else if (typeof omsStore !== 'undefined' && typeof omsStore.get === 'function') {
+            ejecutados = omsStore.get('ejecutadosRecords') || [];
+        } else if (typeof window !== 'undefined' && window.omsStore && typeof window.omsStore.get === 'function') {
+            ejecutados = window.omsStore.get('ejecutadosRecords') || [];
         }
 
         return {
@@ -797,8 +804,9 @@
      * Normaliza respuestas heterogéneas del servicio para evitar discrepancias.
      */
     function normalizeProductivityResult(raw) {
-        const totalIngresos = raw.totalIngresos ?? raw.ingresos ?? 0;
-        const totalCierres = raw.totalCierres ?? raw.cierres ?? 0;
+        if (!raw) return null;
+        const totalIngresos = raw.totalIngresos ?? raw.ingresosTotal ?? raw.ingresos ?? 0;
+        const totalCierres = raw.totalCierres ?? raw.cierresTotal ?? raw.cierres ?? 0;
         const cierresIntradia = raw.cierresIntradia ?? raw.intradia ?? 0;
         const cierresBacklog = raw.cierresBacklog ?? raw.backlog ?? (totalCierres - cierresIntradia);
 
@@ -816,21 +824,21 @@
             pctBacklog *= 100;
         }
 
-        const balanceNeto = raw.balanceNeto ?? raw.balance ?? (totalIngresos - totalCierres);
-        const ttrPromedio = raw.ttrPromedio ?? raw.ttrAvg ?? raw.ttr ?? 0;
+        const balanceNeto = raw.balanceNeto ?? raw.balance ?? (totalCierres - totalIngresos);
+        const ttrPromedio = raw.ttrPromedio ?? raw.ttrPromedioHoras ?? raw.ttrAvg ?? raw.ttr ?? 0;
 
         // Horas
-        let hourly = raw.hourly || raw.hourlyBalance || raw.balanceHorario;
+        let hourly = raw.hourly || raw.hourlyDistribution || raw.hourlyBalance || raw.balanceHorario;
         if (!hourly || !Array.isArray(hourly.ingresos)) {
             const labels = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
             const ing = new Array(24).fill(0);
             const cie = new Array(24).fill(0);
             if (Array.isArray(hourly)) {
                 hourly.forEach((h, idx) => {
-                    const hIndex = h.hour ?? idx;
+                    const hIndex = (h && typeof h.hour === 'number') ? h.hour : idx;
                     if (hIndex >= 0 && hIndex < 24) {
-                        ing[hIndex] = h.ingresos || 0;
-                        cie[hIndex] = h.cierres || 0;
+                        ing[hIndex] = (h && typeof h.ingresos === 'number') ? h.ingresos : 0;
+                        cie[hIndex] = (h && typeof h.cierres === 'number') ? h.cierres : 0;
                     }
                 });
             }
@@ -940,11 +948,13 @@
      * Normaliza un registro de SED recurrente del servicio.
      */
     function normalizeSedItem(item) {
+        if (!item) return null;
         const sed = String(item.sed || item.sedCode || item.codigoSed || '').trim();
         const distrito = item.distrito || item.district || item.zona || '-';
         const alimentador = item.alimentador || item.feeder || item.ct || '-';
         const total7D = Number(item.total7D ?? item.eventos7D ?? item.count ?? item.total ?? 0);
-        const tienePendiente = Boolean(item.tienePendiente ?? item.hasPending ?? item.pendiente ?? false);
+        const pendientesActivos = Number(item.pendientesActivos ?? (item.tienePendiente ? 1 : 0));
+        const tienePendiente = Boolean(item.tienePendiente ?? item.hasPending ?? item.pendiente ?? (pendientesActivos > 0) ?? false);
 
         let estado = (item.estado || item.status || '').toUpperCase();
         if (!estado || (estado !== 'CRITICO' && estado !== 'ALERTA' && estado !== 'NORMAL')) {
@@ -958,6 +968,7 @@
             distrito,
             alimentador,
             total7D,
+            pendientesActivos,
             tienePendiente,
             estado
         };

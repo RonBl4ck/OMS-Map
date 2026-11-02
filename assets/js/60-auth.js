@@ -512,6 +512,14 @@ async function loadData() {
                         globalThis.ejecutadosRecords = filtered;
                     }
                     console.log(`📋 [Ejecutados 7D] ${filtered.length} registros cargados.`);
+                    if (typeof omsStore !== 'undefined' && typeof omsStore.setState === 'function') {
+                        omsStore.setState({ ejecutadosRecords: filtered });
+                    }
+                    if (typeof window !== 'undefined' && typeof window.renderSeguimientoDia === 'function') {
+                        if (typeof document !== 'undefined' && document.body && document.body.dataset.primaryView === 'productivity') {
+                            window.renderSeguimientoDia();
+                        }
+                    }
                     if (typeof window !== 'undefined' && typeof window.rebuildOmsTicketIndex === 'function') {
                         window.rebuildOmsTicketIndex();
                     } else if (typeof rebuildOmsTicketIndex === 'function') {

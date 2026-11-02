@@ -170,6 +170,19 @@
             const controls = { tdMultiDia: tdCtrlDia, tdMultiIntervalo: tdCtrlIntervalo, tdMultiEmpresa: tdCtrlEmpresa, tdMultiFalla: tdCtrlFalla, tdMultiEstado: tdCtrlEstado };
             refreshFacetedControls(tdOmsRecords, TD_FILTER_FIELDS, controls);
             refreshDashboard();
+
+            if (typeof window !== 'undefined') {
+                window.rawData = rawData;
+                window.tdOmsRecords = tdOmsRecords;
+            }
+            if (typeof omsStore !== 'undefined' && typeof omsStore.setState === 'function') {
+                omsStore.setState({ rawData, tdOmsRecords });
+            }
+            if (typeof window !== 'undefined' && typeof window.renderSeguimientoDia === 'function') {
+                if (document.body && document.body.dataset.primaryView === 'productivity') {
+                    window.renderSeguimientoDia();
+                }
+            }
         }
 
         function processRawData(data) {
@@ -328,6 +341,19 @@
             setupMapMarkers();
             filterMapMarkers();
             refreshDashboard();
+
+            if (typeof window !== 'undefined') {
+                window.rawData = rawData;
+                window.tdOmsRecords = tdOmsRecords;
+            }
+            if (typeof omsStore !== 'undefined' && typeof omsStore.setState === 'function') {
+                omsStore.setState({ rawData, tdOmsRecords });
+            }
+            if (typeof window !== 'undefined' && typeof window.renderSeguimientoDia === 'function') {
+                if (document.body && document.body.dataset.primaryView === 'productivity') {
+                    window.renderSeguimientoDia();
+                }
+            }
         }
 
         function setupMapMarkers() {
