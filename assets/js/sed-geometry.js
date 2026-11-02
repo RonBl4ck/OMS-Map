@@ -1,8 +1,38 @@
 (function (root, factory) {
-    const api = factory();
+    let geo = null;
+    if (typeof root !== 'undefined' && root.GeoUtils) {
+        geo = root.GeoUtils;
+    } else if (typeof GeoUtils !== 'undefined') {
+        geo = GeoUtils;
+    } else if (typeof require === 'function') {
+        try {
+            geo = require('./utils/geoUtils.js');
+        } catch (e) {}
+    }
+    const api = factory(geo);
     if (typeof module === 'object' && module.exports) module.exports = api;
-    else Object.assign(root, api);
-}(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+    if (root) {
+        root.SedGeometry = api;
+        Object.assign(root, api);
+        if (typeof window !== 'undefined' && window !== root) {
+            window.SedGeometry = api;
+            Object.assign(window, api);
+        }
+    }
+}(typeof globalThis !== 'undefined' ? globalThis : this, function (geo) {
+    if (geo && typeof geo.buildSedAreaShape === 'function') {
+        return {
+            buildSedAreaShape: geo.buildSedAreaShape,
+            buildSedCloudShape: geo.buildSedCloudShape,
+            getSedCloudFocusStyle: geo.getSedCloudFocusStyle,
+            shouldPersistSedCloudLabel: geo.shouldPersistSedCloudLabel,
+            convexHull: geo.convexHull,
+            buildSedBufferPolygon: geo.buildSedBufferPolygon,
+            computeMetrics: geo.computeMetrics,
+            GeoUtils: geo
+        };
+    }
+
     const METERS_PER_DEGREE = 111320;
 
     function convexHull(points) {

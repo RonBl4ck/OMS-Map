@@ -1,0 +1,261 @@
+/* ==========================================================================
+   PLUZ OMS - MAPA LEAFLET & CONTROLES (20-map-leaflet.css)
+   Estilos específicos de Leaflet, MarkerCluster, controles personalizados,
+   animaciones de marcadores de SEDs críticas y enlaces interactivos mapa/ticket.
+   ========================================================================== */
+
+/* --- CONTENEDOR PRINCIPAL DEL MAPA --- */
+#map {
+  width: 100vw;
+  height: 100vh;
+  z-index: 1;
+}
+
+/* --- CLUSTERS PERSONALIZADOS DE MARCADORES (MARKERCLUSTER) --- */
+.oms-marker-cluster {
+  display: grid;
+  place-items: center;
+  border: 3px solid rgba(255, 255, 255, .92);
+  border-radius: 50%;
+  background: var(--pluz-blue, #3c5a9f);
+  color: #fff;
+  font: 800 13px/1 Inter, sans-serif;
+  box-shadow: 0 6px 18px rgba(17, 28, 56, .3), 0 0 0 5px rgba(60, 90, 159, .18);
+}
+
+.oms-marker-cluster span {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.oms-marker-cluster--medium {
+  background: #294985;
+  box-shadow: 0 7px 20px rgba(17, 28, 56, .34), 0 0 0 6px rgba(60, 90, 159, .2);
+}
+
+.oms-marker-cluster--large {
+  background: #172b59;
+  box-shadow: 0 8px 22px rgba(17, 28, 56, .38), 0 0 0 7px rgba(251, 193, 64, .3);
+}
+
+/* --- CONTROLES DE MAPA Y BARRA DE BÚSQUEDA --- */
+.map-top-controls {
+  z-index: 3100;
+}
+
+/* Keep Leaflet actions below the fixed desktop shell and search toolbar */
+.leaflet-top .map-locate-control {
+  margin-top: 176px;
+}
+
+.search-container-map {
+  top: calc(var(--shell-height) + 12px);
+  border: 1px solid rgba(216, 225, 239, .95);
+  border-radius: 14px;
+  box-shadow: var(--shadow-lg);
+  background: var(--surface-raised);
+  backdrop-filter: blur(14px);
+}
+
+body:not([data-primary-view="map"]) .search-container-map,
+body:not([data-primary-view="map"]) .map-legend {
+  display: none !important;
+}
+
+/* --- SED CRÍTICA: ANIMACIÓN DE PULSO ROJO EN MAPA --- */
+@keyframes criticalMarkerPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.9), 0 0 10px rgba(220, 38, 38, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 0 16px rgba(220, 38, 38, 0), 0 0 20px rgba(220, 38, 38, 0.8);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0), 0 0 10px rgba(220, 38, 38, 0.6);
+  }
+}
+
+.marker-sla-badge.is-sed-critica-pulse {
+  border: 2.5px solid #dc2626 !important;
+  animation: criticalMarkerPulse 1.8s infinite cubic-bezier(0.4, 0, 0.6, 1) !important;
+  z-index: 999 !important;
+}
+
+/* --- EFECTO DE PULSO PARA MARCADORES LEAFLET ENFOCADOS --- */
+@keyframes markerHaloPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 16px rgba(37, 99, 235, 0);
+    transform: scale(1.15);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+    transform: scale(1);
+  }
+}
+
+.marker-highlight-pulse {
+  animation: markerHaloPulse 1s ease-out 3;
+  z-index: 99999 !important;
+}
+
+/* --- ENLACES INTERACTIVOS DE TICKETS A MAPA --- */
+.ticket-map-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #eff6ff;
+  color: var(--pluz-blue, #2563eb);
+  border: 1px solid #bfdbfe;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 140ms ease-out, border-color 140ms ease-out, transform 120ms ease-out, box-shadow 140ms ease-out;
+  user-select: none;
+}
+
+.ticket-map-link:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  box-shadow: 0 2px 5px rgba(37, 99, 235, 0.12);
+}
+
+.ticket-map-link:active {
+  transform: scale(0.96);
+}
+
+.ticket-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ticket-number {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 700;
+  font-size: 12px;
+  color: #1e293b;
+  user-select: text;
+  -webkit-user-select: text;
+  letter-spacing: -0.2px;
+}
+
+.btn-ticket-pin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: #eff6ff;
+  color: var(--pluz-blue, #2563eb);
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease, transform 120ms ease, box-shadow 140ms ease;
+  line-height: 1;
+  user-select: none;
+}
+
+.btn-ticket-pin:hover {
+  background: #dbeafe;
+  border-color: #60a5fa;
+  transform: scale(1.08);
+  box-shadow: 0 2px 5px rgba(37, 99, 235, 0.18);
+}
+
+.btn-ticket-pin:active {
+  transform: scale(0.95);
+}
+
+/* Badge Clickeable para SED Crítica */
+.sed-critical-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 800;
+  font-size: 10px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 140ms ease-out, border-color 140ms ease-out, transform 120ms ease-out;
+}
+
+.sed-critical-link:hover {
+  background: #fee2e2;
+  border-color: #f87171;
+}
+
+.sed-critical-link:active {
+  transform: scale(0.96);
+}
+
+/* Botón de Acción Ver en Mapa en el Drawer de Llamadas */
+.call-map-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, var(--pluz-blue, #2563eb) 0%, #1d4ed8 100%);
+  color: #ffffff;
+  border: 0;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+  transition: transform 140ms ease-out, box-shadow 140ms ease-out;
+}
+
+.call-map-action-btn:hover {
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+}
+
+.call-map-action-btn:active {
+  transform: scale(0.98);
+}
+
+.call-map-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #64748b;
+  border-radius: 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+/* --- RESPONSIVE MAP CONTROLS --- */
+@media (max-width: 900px) {
+  .leaflet-top .map-locate-control {
+    margin-top: 128px;
+  }
+  .leaflet-bottom.leaflet-right {
+    margin-bottom: 74px !important;
+    margin-right: 8px !important;
+    transition: margin-bottom 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .search-container-map {
+    top: auto;
+    border-radius: 18px 18px 0 0;
+  }
+}

@@ -1,35 +1,70 @@
-        let GOOGLE_SHEET_CSV_URL = "";
-        let GOOGLE_SHEET_EJECUTADOS_URL = "";
-        let GOOGLE_SHEET_LLAMADAS_URL = "";
-        let GOOGLE_SHEET_TECNICOS_URL = "";
-        let GOOGLE_SHEET_SED_CRITICAS_URL = "";
-        let GOOGLE_SHEET_SUPERVISOR_URL = "";
-        let supervisorRecordsMap = new Map();
-        let supervisorRecordsBySedMap = new Map();
+        // Load modular utilities if available in Node / CommonJS
+        if (typeof require === 'function') {
+            try {
+                if (typeof omsStore === 'undefined') {
+                    const storeMod = require('./state/store.js');
+                    if (storeMod && storeMod.omsStore) {
+                        if (typeof globalThis !== 'undefined') globalThis.omsStore = storeMod.omsStore;
+                    }
+                }
+                if (typeof DateUtils === 'undefined') {
+                    const dateMod = require('./utils/dateUtils.js');
+                    if (dateMod) {
+                        if (typeof globalThis !== 'undefined') globalThis.DateUtils = dateMod.DateUtils || dateMod;
+                    }
+                }
+                if (typeof DomUtils === 'undefined') {
+                    const domMod = require('./utils/domUtils.js');
+                    if (domMod) {
+                        if (typeof globalThis !== 'undefined') globalThis.DomUtils = domMod.DomUtils || domMod;
+                    }
+                }
+                if (typeof GeoUtils === 'undefined') {
+                    const geoMod = require('./utils/geoUtils.js');
+                    if (geoMod) {
+                        if (typeof globalThis !== 'undefined') globalThis.GeoUtils = geoMod.GeoUtils || geoMod;
+                    }
+                }
+            } catch (e) {
+                // Standalone execution in VM context without require
+            }
+        }
+
+        var GOOGLE_SHEET_CSV_URL = (typeof omsStore !== 'undefined') ? (omsStore.get('GOOGLE_SHEET_CSV_URL') || "") : "";
+        var GOOGLE_SHEET_EJECUTADOS_URL = (typeof omsStore !== 'undefined') ? (omsStore.get('GOOGLE_SHEET_EJECUTADOS_URL') || "") : "";
+        var GOOGLE_SHEET_LLAMADAS_URL = (typeof omsStore !== 'undefined') ? (omsStore.get('GOOGLE_SHEET_LLAMADAS_URL') || "") : "";
+        var GOOGLE_SHEET_TECNICOS_URL = (typeof omsStore !== 'undefined') ? (omsStore.get('GOOGLE_SHEET_TECNICOS_URL') || "") : "";
+        var GOOGLE_SHEET_SED_CRITICAS_URL = (typeof omsStore !== 'undefined') ? (omsStore.get('GOOGLE_SHEET_SED_CRITICAS_URL') || "") : "";
+        var GOOGLE_SHEET_SUPERVISOR_URL = (typeof omsStore !== 'undefined') ? (omsStore.get('GOOGLE_SHEET_SUPERVISOR_URL') || "") : "";
+        var supervisorRecordsMap = (typeof omsStore !== 'undefined' && omsStore.get('supervisorRecordsMap')) || new Map();
+        var supervisorRecordsBySedMap = (typeof omsStore !== 'undefined' && omsStore.get('supervisorRecordsBySedMap')) || new Map();
         if (typeof window !== 'undefined') {
             window.supervisorRecordsMap = supervisorRecordsMap;
             window.supervisorRecordsBySedMap = supervisorRecordsBySedMap;
         }
-        let sedCriticasSet = new Set();
-        let sedCriticasMap = new Map();
-        let mapLocations = [];
-        let tdOmsRecords = [];
-        let rawData = [];
-        let llamadasRecords = [];
-        let llamadasLoaded = false;
-        let tecnicosRecords = [];
-        let tecnicosLoaded = false;
-        let techRefreshTimer = null;
-        let ejecutadosRecords = [];
+        var sedCriticasSet = (typeof omsStore !== 'undefined' && omsStore.get('sedCriticasSet')) || new Set();
+        var sedCriticasMap = (typeof omsStore !== 'undefined' && omsStore.get('sedCriticasMap')) || new Map();
+        var mapLocations = (typeof omsStore !== 'undefined' && omsStore.get('mapLocations')) || [];
+        var tdOmsRecords = (typeof omsStore !== 'undefined' && omsStore.get('tdOmsRecords')) || [];
+        var rawData = (typeof omsStore !== 'undefined' && omsStore.get('rawData')) || [];
+        var llamadasRecords = (typeof omsStore !== 'undefined' && omsStore.get('llamadasRecords')) || [];
+        var llamadasLoaded = false;
+        var tecnicosRecords = (typeof omsStore !== 'undefined' && omsStore.get('tecnicosRecords')) || [];
+        var tecnicosLoaded = false;
+        var techRefreshTimer = null;
+        var ejecutadosRecords = (typeof omsStore !== 'undefined' && omsStore.get('ejecutadosRecords')) || [];
         if (typeof window !== 'undefined') window.ejecutadosRecords = ejecutadosRecords;
 
-        let leafletMap = null;
-        let markersGroup = null;
-        const markerMap = new Map();
+        var leafletMap = null;
+        var markersGroup = null;
+        const markerMap = (typeof omsStore !== 'undefined' && omsStore.get('markerMap')) || new Map();
         const MAP_CLUSTER_MAX_ZOOM = 12;
 
-        const escapeHtml = (val) => String(val || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
-        const OMS_STATUS_COLORS = Object.freeze({
+        const escapeHtml = (val) => (typeof DomUtils !== 'undefined' && typeof DomUtils.escapeHtml === 'function')
+            ? DomUtils.escapeHtml(val)
+            : String(val || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+
+        const OMS_STATUS_COLORS = (typeof DomUtils !== 'undefined' && DomUtils.OMS_STATUS_COLORS) || Object.freeze({
             pendiente: '#FBC13F',
             ejecucion: '#3B599F',
             ejecutado: '#6CAC5E',
@@ -37,6 +72,9 @@
         });
 
         function getOmsStatusClass(status) {
+            if (typeof DomUtils !== 'undefined' && typeof DomUtils.getOmsStatusClass === 'function') {
+                return DomUtils.getOmsStatusClass(status);
+            }
             const normalized = String(status || '')
                 .normalize('NFD')
                 .replace(/[\u0300-\u036f]/g, '')
@@ -48,6 +86,9 @@
         }
 
         function getOmsStatusColor(status) {
+            if (typeof DomUtils !== 'undefined' && typeof DomUtils.getOmsStatusColor === 'function') {
+                return DomUtils.getOmsStatusColor(status);
+            }
             return OMS_STATUS_COLORS[getOmsStatusClass(status)];
         }
 
@@ -115,6 +156,10 @@
                 }
                 sedList.unshift(normalizedEntry);
             }
+
+            if (typeof omsStore !== 'undefined') {
+                omsStore.setState({ supervisorRecordsMap, supervisorRecordsBySedMap });
+            }
         }
         if (typeof window !== 'undefined') {
             window.cleanSupVal = cleanSupVal;
@@ -126,6 +171,9 @@
         }
 
         function debounceUi(callback, wait = 120) {
+            if (typeof DomUtils !== 'undefined' && typeof DomUtils.debounceUi === 'function') {
+                return DomUtils.debounceUi(callback, wait);
+            }
             let timer = null;
             return function debounced(...args) {
                 clearTimeout(timer);
@@ -175,8 +223,8 @@
             return s || 'GENERAL';
         }
 
-        let topCriticalSedsSet = new Set();
-        let topCriticalSedsList = [];
+        var topCriticalSedsSet = (typeof omsStore !== 'undefined' && omsStore.get('topCriticalSedsSet')) || new Set();
+        var topCriticalSedsList = (typeof omsStore !== 'undefined' && omsStore.get('topCriticalSedsList')) || [];
 
         function isSedCritica(sedVal) {
             if (!sedVal || sedVal === 'N/A') return false;
@@ -236,6 +284,9 @@
                     if (base) topCriticalSedsSet.add(base);
                     topCriticalSedsSet.add(item.sed);
                 });
+                if (typeof omsStore !== 'undefined') {
+                    omsStore.setState({ topCriticalSedsList, topCriticalSedsSet });
+                }
                 console.log(`🔥 [Top 4 SEDs Críticas (DuckDB Precalculado)]`, topCriticalSedsList.map((s, idx) => `#${idx+1}: ${s.sed} (Score: ${s.score}, Activos: ${s.activeCount}, 7D: ${s.fallas7d}, 30D: ${s.fallas30d})`));
                 return;
             }
@@ -313,22 +364,37 @@
                 topCriticalSedsSet.add(item.sed);
             });
 
+            if (typeof omsStore !== 'undefined') {
+                omsStore.setState({ topCriticalSedsList, topCriticalSedsSet });
+            }
+
             console.log(`🔥 [Top 4 SEDs Críticas]`, topCriticalSedsList.map((s, idx) => `#${idx+1}: ${s.sed} (Score: ${s.score}, Activos: ${s.activeCount}, 7D: ${s.fallas7d}, 30D: ${s.fallas30d})`));
         }
 
         function getProp(obj, ...keys) {
+            if (typeof DomUtils !== 'undefined' && typeof DomUtils.getProp === 'function') {
+                return DomUtils.getProp(obj, ...keys);
+            }
             if (!obj) return 'N/A';
-            for (const key of keys) {
-                if (obj[key] !== undefined && obj[key] !== null && String(obj[key]).trim() !== '') {
-                    return String(obj[key]).trim();
+            for (let i = 0; i < keys.length; i++) {
+                const key = keys[i];
+                if (key !== undefined && key !== null) {
+                    const val = obj[key];
+                    if (val !== undefined && val !== null) {
+                        const s = String(val).trim();
+                        if (s !== '') return s;
+                    }
                 }
             }
             const objKeys = Object.keys(obj);
-            for (const target of keys) {
+            for (let i = 0; i < keys.length; i++) {
+                const target = keys[i];
+                if (target === undefined || target === null) continue;
                 const normTarget = target.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
                 const foundKey = objKeys.find(k => k.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === normTarget);
-                if (foundKey && obj[foundKey] !== undefined && obj[foundKey] !== null && String(obj[foundKey]).trim() !== '') {
-                    return String(obj[foundKey]).trim();
+                if (foundKey && obj[foundKey] !== undefined && obj[foundKey] !== null) {
+                    const s = String(obj[foundKey]).trim();
+                    if (s !== '') return s;
                 }
             }
             return 'N/A';
@@ -347,11 +413,17 @@
         }
 
         function matchesMultiSelection(value, selectedValues) {
+            if (typeof DomUtils !== 'undefined' && typeof DomUtils.matchesMultiSelection === 'function') {
+                return DomUtils.matchesMultiSelection(value, selectedValues);
+            }
             const selected = Array.isArray(selectedValues) ? selectedValues : [];
             return selected.length === 0 || selected.includes(String(value || ''));
         }
 
         function getFacetedFilterValues(records, field, filterFields, selections, excludedId) {
+            if (typeof DomUtils !== 'undefined' && typeof DomUtils.getFacetedFilterValues === 'function') {
+                return DomUtils.getFacetedFilterValues(records, field, filterFields, selections, excludedId);
+            }
             const available = (records || []).filter(row => Object.entries(filterFields).every(([otherField, controlId]) => {
                 return controlId === excludedId || matchesMultiSelection(row[otherField], selections[controlId] || []);
             })).map(row => String(row[field] || '')).filter(Boolean);
@@ -370,9 +442,9 @@
                 status.dataset.state = state;
                 status.setAttribute('aria-busy', String(isLoading));
             }
-  if (statusMessage) {
-    statusMessage.innerText = message || (isLoading ? 'Cargando datos…' : (isReady ? 'Datos cargados' : 'No pudimos cargar los datos.'));
-  }
+            if (statusMessage) {
+                statusMessage.innerText = message || (isLoading ? 'Cargando datos…' : (isReady ? 'Datos cargados' : 'No pudimos cargar los datos.'));
+            }
             if (retryButton) retryButton.hidden = state !== 'error';
             if (toolbar) toolbar.setAttribute('aria-busy', String(isLoading));
 
@@ -386,7 +458,7 @@
             }
         }
 
-        const SLA_CONFIG_HORAS = {
+        const SLA_CONFIG_HORAS = (typeof DateUtils !== 'undefined' && DateUtils.SLA_CONFIG_HORAS) || {
             "SUMINISTRO": 4,
             "RED AEREA": 8,
             "RED AÉREA": 8,
@@ -407,6 +479,9 @@
         };
 
         function getEmoji(falla) {
+            if (typeof DomUtils !== 'undefined' && typeof DomUtils.getEmoji === 'function') {
+                return DomUtils.getEmoji(falla);
+            }
             const f = String(falla || '').trim().toUpperCase();
             if (f.includes("RED SUBTERRANEA") || f.includes("RED SUBTERRÁNEA")) return "🕳️";
             if (f.includes("RED AEREA") || f.includes("RED AÉREA") || f.includes("CNX AEREA") || f.includes("CNX AÉREA") || f.includes("LÍNEA AÉREA BT") || f.includes("LINEA AEREA BT")) return "⚡";
@@ -418,6 +493,9 @@
         }
 
         function getFaultIconHtml(falla) {
+            if (typeof DomUtils !== 'undefined' && typeof DomUtils.getFaultIconHtml === 'function') {
+                return DomUtils.getFaultIconHtml(falla);
+            }
             const f = String(falla || '').trim().toUpperCase();
             if (f.includes("RED SUBTERRANEA") || f.includes("RED SUBTERRÁNEA") || f.includes("CNX SUBTERRANEA") || f.includes("CNX SUBTERRÁNEA")) {
                 return `<img src="assets/icons/subterranea.svg" alt="Subterránea" class="fault-icon-img">`;
@@ -438,6 +516,9 @@
         }
 
         function parseDateFlexible(val) {
+            if (typeof DateUtils !== 'undefined' && typeof DateUtils.parseDateFlexible === 'function') {
+                return DateUtils.parseDateFlexible(val);
+            }
             if (!val || val === 'N/A') return null;
             const s = String(val).trim();
             const dmy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[\sT]+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
@@ -457,7 +538,10 @@
         }
 
         function calculateTicketSla(record) {
-            // 1. Determinar SLA máximo en horas (usar precalculado si viene de Python o resolver)
+            if (typeof DateUtils !== 'undefined' && typeof DateUtils.calculateTicketSla === 'function') {
+                return DateUtils.calculateTicketSla(record);
+            }
+            if (!record) return null;
             let maxHours = 0;
             if (record.sla_max_horas !== undefined && record.sla_max_horas !== null && !isNaN(Number(record.sla_max_horas))) {
                 maxHours = Number(record.sla_max_horas);
@@ -487,7 +571,6 @@
             }
             if (maxHours <= 0) maxHours = SLA_CONFIG_HORAS.DEFAULT;
 
-            // 2. Determinar duración transcurrida (en horas) comparando en vivo contra Date.now()
             let elapsed = 0;
             let dateResolved = false;
 
@@ -520,20 +603,20 @@
             const warnHours = maxHours * 0.75;
             const remainingHours = maxHours - elapsed;
 
-            let status = 'ok'; // 🟢
+            let status = 'ok';
             let statusClass = 'sla-ok';
             let label = 'Dentro de plazo';
             let badgeColor = '#16a34a';
 
             if (elapsed >= maxHours) {
-                status = 'overdue'; // 🔴
+                status = 'overdue';
                 statusClass = 'sla-overdue';
                 const overMins = Math.round((elapsed - maxHours) * 60);
                 const overHoursText = overMins >= 60 ? `${Math.floor(overMins / 60)}h ${overMins % 60}m` : `${overMins}m`;
                 label = `Fuera de plazo (+${overHoursText})`;
                 badgeColor = '#dc2626';
             } else if (elapsed >= warnHours) {
-                status = 'warning'; // 🟡
+                status = 'warning';
                 statusClass = 'sla-warning';
                 const remMins = Math.round(remainingHours * 60);
                 const remHoursText = remMins >= 60 ? `${Math.floor(remMins / 60)}h ${remMins % 60}m` : `${remMins}m`;
@@ -560,6 +643,9 @@
 
         // Función para ordenar intervalos de tiempo numéricamente
         function sortIntervals(a, b) {
+            if (typeof DateUtils !== 'undefined' && typeof DateUtils.sortIntervals === 'function') {
+                return DateUtils.sortIntervals(a, b);
+            }
             const parseNum = (str) => {
                 const match = String(str).match(/\d+/);
                 return match ? parseInt(match[0], 10) : 999;
@@ -572,12 +658,15 @@
 
         
         // Función para ordenar días cronológicamente (soporta '30-oct', '01-nov', 'DD/MM', ISO)
-        const SPANISH_MONTHS_MAP = {
+        const SPANISH_MONTHS_MAP = (typeof DateUtils !== 'undefined' && DateUtils.SPANISH_MONTHS_MAP) || {
             ene: 0, feb: 1, mar: 2, abr: 3, may: 4, jun: 5,
             jul: 6, ago: 7, sep: 8, set: 8, oct: 9, nov: 10, dic: 11
         };
 
         function parseDiaValue(diaStr) {
+            if (typeof DateUtils !== 'undefined' && typeof DateUtils.parseDiaValue === 'function') {
+                return DateUtils.parseDiaValue(diaStr);
+            }
             if (!diaStr) return null;
             const str = String(diaStr).trim().toLowerCase();
 
@@ -612,6 +701,9 @@
         }
 
         function sortDias(a, b, recordsRef) {
+            if (typeof DateUtils !== 'undefined' && typeof DateUtils.sortDias === 'function') {
+                return DateUtils.sortDias(a, b, recordsRef);
+            }
             if (Array.isArray(recordsRef) && recordsRef.length > 0) {
                 if (!recordsRef._diaTimestampMap) {
                     const map = new Map();
@@ -645,6 +737,9 @@
 
         // === COMPONENTE MULTI-SELECT CHECKBOX ===
         function initMultiSelect(containerId, titlePrefix, valuesList, onChangeCallback, labelFormatter = value => value) {
+            if (typeof DomUtils !== 'undefined' && typeof DomUtils.initMultiSelect === 'function') {
+                return DomUtils.initMultiSelect(containerId, titlePrefix, valuesList, onChangeCallback, labelFormatter);
+            }
             const container = document.getElementById(containerId);
             if (!container) return null;
             container.innerHTML = "";
@@ -809,15 +904,20 @@
             };
         }
 
-        document.addEventListener("click", () => {
-            document.querySelectorAll(".multiselect-dropdown-menu.show").forEach(m => {
-                m.classList.remove("show");
-                document.querySelector(`[aria-controls="${m.id}"]`)?.setAttribute("aria-expanded", "false");
+        if (typeof document !== 'undefined') {
+            document.addEventListener("click", () => {
+                document.querySelectorAll(".multiselect-dropdown-menu.show").forEach(m => {
+                    m.classList.remove("show");
+                    document.querySelector(`[aria-controls="${m.id}"]`)?.setAttribute("aria-expanded", "false");
+                });
             });
-        });
+        }
 
         // Notificaciones Flotantes y Navegación Inteligente al Mapa
         function showAppNotification(message, type = 'info', duration = 4000) {
+            if (typeof DomUtils !== 'undefined' && typeof DomUtils.showAppNotification === 'function') {
+                return DomUtils.showAppNotification(message, type, duration);
+            }
             let toast = document.getElementById('appNotificationToast');
             if (!toast) {
                 toast = document.createElement('div');
@@ -892,4 +992,3 @@
                 }, 850);
             }
         }
-

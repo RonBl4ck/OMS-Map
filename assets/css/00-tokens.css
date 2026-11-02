@@ -1,0 +1,98 @@
+/* ==========================================================================
+   PLUZ OMS - DESIGN TOKENS (00-tokens.css)
+   Paleta corporativa PLUZ, Contratistas (Cobra, Dominion, Inmel, Lari),
+   Superficies, Tipografía, Sombras, Bordes y Curvas de Transición.
+   ========================================================================== */
+
+:root {
+  /* --- PALETA CORPORATIVA PLUZ --- */
+  --pluz-blue: #3c5a9f;
+  --pluz-blue-hover: #2e4885;
+  --pluz-blue-active: #1d4ed8;
+  --pluz-blue-subtle: #eff6ff;
+  --pluz-yellow: #fbc140;
+  --pluz-green: #6cab5e;
+  --pluz-dark: #111c38;
+  --pluz-red: #ef4444;
+  --pluz-cyan: #0284c7;
+  --dark-panel: rgba(17, 28, 56, 0.95);
+
+  /* --- PALETA DE EMPRESAS CONTRATISTAS --- */
+  --contractor-cobra: #ea580c;
+  --contractor-cobra-subtle: #fff7ed;
+  --contractor-dominion: #0284c7;
+  --contractor-dominion-subtle: #e0f2fe;
+  --contractor-inmel: #059669;
+  --contractor-inmel-subtle: #d1fae5;
+  --contractor-lari: #7c3aed;
+  --contractor-lari-subtle: #ede9fe;
+
+  /* --- ESTADOS OPERATIVOS Y BADGES --- */
+  --color-pendiente: #fbc13f;
+  --color-ejecucion: #3b599f;
+  --color-ejecutado: #6cac5e;
+  --color-otros: #c1cbd6;
+  --color-critico: #dc2626;
+  --color-warning: #f59e0b;
+  --color-quantico: #ec4899;
+  --color-overdue: #ef5b66;
+
+  /* --- SUPERFICIES Y BORDES (TEMA CLARO DEFAULT) --- */
+  --surface: #ffffff;
+  --surface-subtle: #f6f8fc;
+  --surface-raised: rgba(255, 255, 255, 0.96);
+  --card-bg: #ffffff;
+  --border: #dfe5ef;
+  --border-subtle: #edf0f5;
+  --ink: #17213a;
+  --muted: #65718a;
+  --text-dark: #1e293b;
+  --text-muted: #64748b;
+
+  /* --- SOMBRAS Y ELEVACIÓN --- */
+  --shadow-sm: 0 1px 2px rgba(17, 28, 56, 0.06), 0 6px 18px rgba(17, 28, 56, 0.06);
+  --shadow-md: 0 4px 14px rgba(17, 28, 56, 0.1);
+  --shadow-lg: 0 18px 50px rgba(17, 28, 56, 0.16);
+  --shadow-glow-red: 0 0 16px rgba(220, 38, 38, 0.5);
+  --shadow-glow-blue: 0 0 16px rgba(37, 99, 235, 0.4);
+
+  /* --- BORDES Y RADIOS --- */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-full: 9999px;
+
+  /* --- TRANSICIONES Y CURVAS (EMIL KOWALSKI STANDARD) --- */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+  --duration-slow: 300ms;
+
+  /* --- TIPOGRAFÍA --- */
+  --font-sans: Inter, system-ui, -apple-system, sans-serif;
+  --font-display: Outfit, Inter, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* --- DIMENSIONES SHELL & LAYOUT --- */
+  --shell-height: 68px;
+  --address-result-top: 176px;
+}
+
+/* --- MODO OSCURO (DATA-THEME="DARK") --- */
+[data-theme="dark"] {
+  --surface: #0f172a;
+  --surface-subtle: #1e293b;
+  --surface-raised: rgba(30, 41, 59, 0.96);
+  --card-bg: #1e293b;
+  --border: #334155;
+  --border-subtle: #1e293b;
+  --ink: #f8fafc;
+  --muted: #94a3b8;
+  --text-dark: #f8fafc;
+  --text-muted: #94a3b8;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 6px 18px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 18px 50px rgba(0, 0, 0, 0.55);
+}
