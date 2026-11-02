@@ -647,9 +647,9 @@
             <div class="tech-detail-body" style="padding: 16px;">
                 <div style="margin-bottom: 10px;">
                     <label for="bulkPluzTicketsInput" style="font-size: 12px; font-weight: 700; color: #1e293b; display: block; margin-bottom: 4px;">
-                        📋 Copia y pega desde Excel (Ticket y Jefe de Cuadrilla):
+                        📋 Copia y pega desde Excel (Ticket, Jefe de Cuadrilla y Fin Estimado):
                     </label>
-                    <textarea id="bulkPluzTicketsInput" rows="6" placeholder="Pega directamente 2 columnas de Excel, ej:&#10;2145892&#09;JUAN PEREZ&#10;2145893&#09;CARLOS RAMOS&#10;2145894&#09;BRIGADA SUR 04&#10;(O pega solo la columna de tickets si aún no tienes asignado JC)" style="width: 100%; box-sizing: border-box; padding: 10px; font-family: monospace; font-size: 12px; border: 1.5px solid #cbd5e1; border-radius: 6px; resize: vertical; outline: none;"></textarea>
+                    <textarea id="bulkPluzTicketsInput" rows="6" placeholder="Pega directamente 2 o 3 columnas de Excel, ej:&#10;2145892&#09;JUAN PEREZ&#09;18:00&#10;2145893&#09;CARLOS RAMOS&#09;19:30&#10;2145894&#09;BRIGADA SUR 04&#10;(O pega solo columnas de Ticket y JC, Ticket y Hora, o solo Tickets)" style="width: 100%; box-sizing: border-box; padding: 10px; font-family: monospace; font-size: 12px; border: 1.5px solid #cbd5e1; border-radius: 6px; resize: vertical; outline: none;"></textarea>
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; flex-wrap: wrap; gap: 4px;">
                         <span id="bulkPluzDetectionCount" style="font-size: 11px; font-weight: 700; color: #047857; background: #ecfdf5; padding: 2px 8px; border-radius: 4px; border: 1px solid #a7f3d0;">
                             🔍 0 tickets detectados
@@ -660,10 +660,10 @@
                     </div>
                 </div>
 
-                <!-- Contenedor de Vista Previa de Asignaciones (Ticket ➔ JC) -->
+                <!-- Contenedor de Vista Previa de Asignaciones (Ticket ➔ JC ➔ Fin Est.) -->
                 <div id="bulkPluzPreviewContainer" style="display: none; margin-bottom: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 10px;">
                     <div style="font-size: 11px; font-weight: 700; color: #334155; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
-                        <span>👁️ Vista previa de asignación (Ticket ➔ JC):</span>
+                        <span>👁️ Vista previa de asignación (Ticket ➔ JC ➔ Fin Est.):</span>
                         <span id="bulkPluzPreviewSummary" style="font-size: 10px; color: #059669; font-weight: 700;"></span>
                     </div>
                     <div id="bulkPluzPreviewList" style="max-height: 130px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; font-size: 11px; padding-right: 4px;">

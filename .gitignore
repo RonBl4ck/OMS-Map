@@ -1,6 +1,7 @@
 # Dependencias y artefactos de construcción
 node_modules/
 .vercel
+.playwright-cli/
 dist/
 build/
 coverage/
@@ -62,6 +63,3 @@ __pycache__/
 .venv/
 venv/
 .pytest_cache/
-
-
-iniciar_servideor.bat

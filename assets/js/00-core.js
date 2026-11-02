@@ -325,8 +325,8 @@
             }
             const objKeys = Object.keys(obj);
             for (const target of keys) {
-                const normTarget = target.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                const foundKey = objKeys.find(k => k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === normTarget);
+                const normTarget = target.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                const foundKey = objKeys.find(k => k.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === normTarget);
                 if (foundKey && obj[foundKey] !== undefined && obj[foundKey] !== null && String(obj[foundKey]).trim() !== '') {
                     return String(obj[foundKey]).trim();
                 }

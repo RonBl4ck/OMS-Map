@@ -1536,11 +1536,118 @@
         // ========================================================
         // REGISTRO MASIVO A EN EJECUCIÓN (SUPERVISIÓN PLUZ)
         // ========================================================
+        function getLimaTodayStr() {
+            try {
+                return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+            } catch (e) {
+                const now = new Date();
+                const utcMs = now.getTime() + (now.getTimezoneOffset() * 60000);
+                const limaTime = new Date(utcMs - (5 * 3600000));
+                const pad = n => String(n).padStart(2, '0');
+                return `${limaTime.getFullYear()}-${pad(limaTime.getMonth() + 1)}-${pad(limaTime.getDate())}`;
+            }
+        }
+
+        function parseDateTimeCandidate(val) {
+            if (!val || (typeof val !== 'string' && typeof val !== 'number')) return '';
+            const str = String(val).trim();
+            if (!str) return '';
+
+            const pad = n => String(n).padStart(2, '0');
+
+            // 1. Detectar si el valor es solo hora (HH:MM, HH:MM:SS, h:mm a, 14:30 hrs, etc.)
+            const timeOnlyMatch = str.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s*([ap]\.?\s*m\.?|\s*hrs?|\s*hs?))?$/i);
+            if (timeOnlyMatch) {
+                let hh = parseInt(timeOnlyMatch[1], 10);
+                const mm = parseInt(timeOnlyMatch[2], 10);
+                const mod = (timeOnlyMatch[4] || '').toLowerCase().replace(/\./g, '').trim();
+
+                if (mod === 'pm' || mod === 'p m') {
+                    if (hh < 12) hh += 12;
+                } else if (mod === 'am' || mod === 'a m') {
+                    if (hh === 12) hh = 0;
+                }
+
+                if (hh >= 0 && hh <= 23 && mm >= 0 && mm <= 59) {
+                    return `${getLimaTodayStr()} ${pad(hh)}:${pad(mm)}`;
+                }
+            }
+
+            // 2. Fecha completa DD/MM/YYYY HH:MM o DD-MM-YYYY HH:MM
+            const dmyMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})[T\s]+(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s*([ap]\.?\s*m\.?))?$/i);
+            if (dmyMatch) {
+                const dd = parseInt(dmyMatch[1], 10);
+                const mon = parseInt(dmyMatch[2], 10);
+                const yyyy = parseInt(dmyMatch[3], 10);
+                let hh = parseInt(dmyMatch[4], 10);
+                const mm = parseInt(dmyMatch[5], 10);
+                const mod = (dmyMatch[7] || '').toLowerCase().replace(/\./g, '').trim();
+
+                if (mod === 'pm' || mod === 'p m') {
+                    if (hh < 12) hh += 12;
+                } else if (mod === 'am' || mod === 'a m') {
+                    if (hh === 12) hh = 0;
+                }
+
+                if (mon >= 1 && mon <= 12 && dd >= 1 && dd <= 31 && hh >= 0 && hh <= 23 && mm >= 0 && mm <= 59) {
+                    return `${yyyy}-${pad(mon)}-${pad(dd)} ${pad(hh)}:${pad(mm)}`;
+                }
+            }
+
+            // 3. Fecha completa YYYY-MM-DD HH:MM o YYYY/MM/DD HH:MM
+            const ymdMatch = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})[T\s]+(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s*([ap]\.?\s*m\.?))?$/i);
+            if (ymdMatch) {
+                const yyyy = parseInt(ymdMatch[1], 10);
+                const mon = parseInt(ymdMatch[2], 10);
+                const dd = parseInt(ymdMatch[3], 10);
+                let hh = parseInt(ymdMatch[4], 10);
+                const mm = parseInt(ymdMatch[5], 10);
+                const mod = (ymdMatch[7] || '').toLowerCase().replace(/\./g, '').trim();
+
+                if (mod === 'pm' || mod === 'p m') {
+                    if (hh < 12) hh += 12;
+                } else if (mod === 'am' || mod === 'a m') {
+                    if (hh === 12) hh = 0;
+                }
+
+                if (mon >= 1 && mon <= 12 && dd >= 1 && dd <= 31 && hh >= 0 && hh <= 23 && mm >= 0 && mm <= 59) {
+                    return `${yyyy}-${pad(mon)}-${pad(dd)} ${pad(hh)}:${pad(mm)}`;
+                }
+            }
+
+            // 4. ISO con zona horaria o T (ej: 2026-11-02T16:30:00Z)
+            if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(str)) {
+                const parsed = new Date(str);
+                if (!isNaN(parsed.getTime())) {
+                    try {
+                        const parts = new Intl.DateTimeFormat('en-CA', {
+                            timeZone: 'America/Lima',
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: false
+                        }).formatToParts(parsed);
+                        const p = {};
+                        parts.forEach(part => p[part.type] = part.value);
+                        const hourVal = p.hour === '24' ? '00' : p.hour;
+                        return `${p.year}-${p.month}-${p.day} ${hourVal}:${p.minute}`;
+                    } catch (e) {
+                        return `${parsed.getFullYear()}-${pad(parsed.getMonth() + 1)}-${pad(parsed.getDate())} ${pad(parsed.getHours())}:${pad(parsed.getMinutes())}`;
+                    }
+                }
+            }
+
+            return '';
+        }
+
         function parseBulkTicketsWithJc(rawText) {
             if (!rawText || typeof rawText !== 'string') return [];
             
             const lines = rawText.split(/\r?\n/);
             const resultMap = new Map();
+            const isPlaceholder = s => (!s || /^n\/?a$/i.test(s) || s === '-' || s === '--' || s.toLowerCase() === 'null');
 
             lines.forEach(rawLine => {
                 const line = rawLine.trim();
@@ -1548,18 +1655,39 @@
 
                 // Si la línea contiene tabulación (copiado clásico de 2+ columnas de Excel)
                 if (line.includes('\t')) {
-                    const parts = line.split('\t').map(p => p.trim()).filter(Boolean);
-                    if (parts.length >= 2) {
-                        const t0 = (parts[0].match(/\b\d{5,12}\b/) || [])[0];
-                        const t1 = (parts[1].match(/\b\d{5,12}\b/) || [])[0];
+                    const parts = line.split('\t').map(p => p.trim());
+                    const ticketIdx = parts.findIndex(p => /\b\d{5,12}\b/.test(p));
+                    if (ticketIdx !== -1) {
+                        const ticketMatch = parts[ticketIdx].match(/\b\d{5,12}\b/);
+                        const ticket = ticketMatch ? ticketMatch[0] : '';
+                        if (ticket) {
+                            let jc = '';
+                            let finEstimado = '';
+                            const otherParts = parts.filter((_, idx) => idx !== ticketIdx);
 
-                        if (t0 && !t1) {
-                            const jcVal = parts.slice(1).join(' ').trim().toUpperCase();
-                            resultMap.set(t0, { ticket: t0, jc: jcVal });
-                            return;
-                        } else if (t1 && !t0) {
-                            const jcVal = parts[0].trim().toUpperCase();
-                            resultMap.set(t1, { ticket: t1, jc: jcVal });
+                            if (parts.length >= 3) {
+                                for (const other of otherParts) {
+                                    if (!other || isPlaceholder(other)) continue;
+                                    const dt = parseDateTimeCandidate(other);
+                                    if (dt && !finEstimado) {
+                                        finEstimado = dt;
+                                    } else if (!jc && !dt) {
+                                        jc = other.toUpperCase();
+                                    }
+                                }
+                            } else if (parts.length === 2) {
+                                const other = otherParts[0] || '';
+                                if (other && !isPlaceholder(other)) {
+                                    const dt = parseDateTimeCandidate(other);
+                                    if (dt) {
+                                        finEstimado = dt;
+                                    } else {
+                                        jc = other.toUpperCase();
+                                    }
+                                }
+                            }
+
+                            resultMap.set(ticket, { ticket, jc, finEstimado });
                             return;
                         }
                     }
@@ -1570,7 +1698,7 @@
                 if (allTicketMatches.length > 1) {
                     allTicketMatches.forEach(t => {
                         if (!resultMap.has(t)) {
-                            resultMap.set(t, { ticket: t, jc: '' });
+                            resultMap.set(t, { ticket: t, jc: '', finEstimado: '' });
                         }
                     });
                     return;
@@ -1582,8 +1710,17 @@
                     let rest = line.replace(ticket, '').trim();
                     // Limpiar separadores comunes como guiones, comas, dos puntos, barras
                     rest = rest.replace(/^[\s,;\-|:]+|[\s,;\-|:]+$/g, '').trim();
-                    const jcVal = rest ? rest.toUpperCase() : '';
-                    resultMap.set(ticket, { ticket, jc: jcVal });
+                    let jcVal = '';
+                    let finEstVal = '';
+                    if (rest && !isPlaceholder(rest)) {
+                        const dt = parseDateTimeCandidate(rest);
+                        if (dt) {
+                            finEstVal = dt;
+                        } else {
+                            jcVal = rest.toUpperCase();
+                        }
+                    }
+                    resultMap.set(ticket, { ticket, jc: jcVal, finEstimado: finEstVal });
                 }
             });
 
@@ -1647,17 +1784,24 @@
 
             let matched = 0;
             let assignedJcCount = 0;
+            let assignedFinCount = 0;
             items.forEach(it => {
                 if (activeSet.has(it.ticket.toLowerCase())) matched++;
                 if (it.jc) assignedJcCount++;
+                if (it.finEstimado) assignedFinCount++;
             });
 
-            countEl.textContent = `🔍 ${total} ticket${total === 1 ? '' : 's'} detectado${total === 1 ? '' : 's'}${assignedJcCount > 0 ? ` (${assignedJcCount} con JC)` : ''}`;
+            let details = [];
+            if (assignedJcCount > 0) details.push(`${assignedJcCount} con JC`);
+            if (assignedFinCount > 0) details.push(`${assignedFinCount} con Hora Límite`);
+            const detailStr = details.length > 0 ? ` (${details.join(', ')})` : '';
+
+            countEl.textContent = `🔍 ${total} ticket${total === 1 ? '' : 's'} detectado${total === 1 ? '' : 's'}${detailStr}`;
             if (matchedEl) {
                 matchedEl.textContent = `(${matched} activo${matched === 1 ? '' : 's'} en OMS)`;
             }
 
-            // Renderizar Vista Previa de Asignaciones (Ticket ➔ JC)
+            // Renderizar Vista Previa de Asignaciones (Ticket ➔ JC ➔ Fin Estimado)
             if (previewContainer && previewList) {
                 if (total === 0) {
                     previewContainer.style.display = 'none';
@@ -1665,24 +1809,46 @@
                 } else {
                     previewContainer.style.display = 'block';
                     if (previewSummary) {
-                        previewSummary.textContent = `${total} total | ${assignedJcCount} con JC | ${matched} en OMS`;
+                        previewSummary.textContent = `${total} total | ${assignedJcCount} con JC | ${assignedFinCount} con Hora Límite | ${matched} en OMS`;
                     }
+                    const limaToday = getLimaTodayStr();
                     previewList.innerHTML = items.map(it => {
                         const inOms = activeSet.has(it.ticket.toLowerCase());
                         const omsBadge = inOms
                             ? `<span style="display: inline-block; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; border-radius: 3px; padding: 0 4px; font-size: 9px; font-weight: 700;">OMS ✓</span>`
                             : `<span style="display: inline-block; background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; border-radius: 3px; padding: 0 4px; font-size: 9px;">no en vista</span>`;
                         const jcBadge = it.jc
-                            ? `<span style="font-weight: 700; color: #0369a1; background: #e0f2fe; padding: 2px 6px; border-radius: 4px; border: 1px solid #bae6fd;">👷 ${it.jc}</span>`
+                            ? `<span style="font-weight: 700; color: #0369a1; background: #e0f2fe; padding: 2px 6px; border-radius: 4px; border: 1px solid #bae6fd; font-size: 10px;">👷 ${it.jc}</span>`
                             : `<span style="font-style: italic; color: #94a3b8; font-size: 10px;">(Sin JC)</span>`;
                         
+                        let finBadge = `<span style="font-style: italic; color: #94a3b8; font-size: 10px;">(Sin hora límite)</span>`;
+                        if (it.finEstimado) {
+                            let displayTime = '';
+                            if (it.finEstimado.startsWith(limaToday)) {
+                                displayTime = it.finEstimado.slice(11, 16);
+                            } else {
+                                const parts = it.finEstimado.split(' ');
+                                const dateParts = (parts[0] || '').split('-');
+                                const timePart = parts[1] || '';
+                                if (dateParts.length === 3) {
+                                    displayTime = `${dateParts[2]}/${dateParts[1]} ${timePart.slice(0, 5)}`;
+                                } else {
+                                    displayTime = it.finEstimado;
+                                }
+                            }
+                            finBadge = `<span style="color: #b45309; background: #fef3c7; border: 1px solid #fde68a; padding: 1px 6px; border-radius: 4px; font-weight: 700; font-size: 10px;">⏱️ Fin Est: ${displayTime}</span>`;
+                        }
+
                         return `
-                            <div style="display: flex; justify-content: space-between; align-items: center; background: #ffffff; padding: 4px 8px; border-radius: 4px; border: 1px solid #e2e8f0;">
-                                <div style="display: flex; align-items: center; gap: 6px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; background: #ffffff; padding: 4px 8px; border-radius: 4px; border: 1px solid #e2e8f0; gap: 8px;">
+                                <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
                                     <span style="font-weight: 700; color: #1e293b; font-family: monospace;">#${it.ticket}</span>
                                     ${omsBadge}
                                 </div>
-                                <div>${jcBadge}</div>
+                                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end;">
+                                    ${jcBadge}
+                                    ${finBadge}
+                                </div>
                             </div>
                         `;
                     }).join('');
@@ -1744,7 +1910,7 @@
                     detalleOperativo: '',
                     jefeCuadrilla: jcVal || (supLatest ? clean(supLatest.jefeCuadrilla) : ''),
                     jc: jcVal || (supLatest ? clean(supLatest.jefeCuadrilla) : ''),
-                    finEstimado: supLatest ? clean(supLatest.finEstimado) : '',
+                    finEstimado: it.finEstimado || (supLatest ? clean(supLatest.finEstimado) : ''),
                     estadoCritico: supLatest ? clean(supLatest.estadoCritico) : '',
                     detalleCritico: supLatest ? clean(supLatest.detalleCritico) : '',
                     estado: 'EN EJECUCION',
@@ -1963,6 +2129,7 @@
             window.closeBulkPluzModal = closeBulkPluzModal;
             window.parseBulkTickets = parseBulkTickets;
             window.parseBulkTicketsWithJc = parseBulkTicketsWithJc;
+            window.parseDateTimeCandidate = parseDateTimeCandidate;
             window.executeBulkPluzEnEjecucion = executeBulkPluzEnEjecucion;
             window.getSupervisorBadgeClass = getSupervisorBadgeClass;
             window.getCriticoBadgeClass = getCriticoBadgeClass;
