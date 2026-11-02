@@ -1321,15 +1321,18 @@
 
         const contractors = getContractorsList(ejecutados, pendientes);
 
-        // Calcular datos
+        // Calcular datos (normalizando comodines para compatibilidad con el servicio)
+        const contractorParam = (!state.selectedContractor || state.selectedContractor === 'ALL') ? '*' : state.selectedContractor;
+        const workTypeParam = (!state.selectedWorkType || state.selectedWorkType === 'ALL') ? '*' : state.selectedWorkType;
+
         const productivity = computeDailyProductivity(pendientes, ejecutados, {
             date: state.selectedDate,
-            contractor: state.selectedContractor,
-            workType: state.selectedWorkType
+            contractor: contractorParam,
+            workType: workTypeParam
         });
 
         const recurrentSeds = computeRecurrentSeds7D(pendientes, ejecutados, {
-            contractor: state.selectedContractor
+            contractor: contractorParam
         });
 
         // Filtrar SEDs recurrentes según buscador y filtro de estado
@@ -1625,8 +1628,9 @@
      */
     function updateTableOnly() {
         const { pendientes, ejecutados } = getRawRecords();
+        const contractorParam = (!state.selectedContractor || state.selectedContractor === 'ALL') ? '*' : state.selectedContractor;
         const recurrentSeds = computeRecurrentSeds7D(pendientes, ejecutados, {
-            contractor: state.selectedContractor
+            contractor: contractorParam
         });
 
         const query = (state.searchQuery7D || '').toLowerCase().trim();

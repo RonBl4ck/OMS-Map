@@ -194,11 +194,17 @@
         return parsed ? parsed.dateStr : null;
     }
 
+    function isWildcardFilter(val) {
+        if (!val) return true;
+        const str = String(val).trim().toUpperCase();
+        return str === '*' || str === 'ALL' || str === 'TODAS' || str === 'TODOS' || str === 'TODAS LAS EMPRESAS' || str === 'TODOS LOS TRABAJOS';
+    }
+
     /**
      * Filtra si una fila coincide con el contratista especificado
      */
     function matchesContractor(row, contractor) {
-        if (!contractor || contractor === '*') return true;
+        if (isWildcardFilter(contractor)) return true;
         const rowContractor = getRecordProp(
             row,
             'Contratista', 'Empresa', 'CONTRATISTA', 'empresa',
@@ -214,7 +220,7 @@
      * Filtra si una fila coincide con el tipo de trabajo/equipo especificado
      */
     function matchesWorkType(row, workType) {
-        if (!workType || workType === '*') return true;
+        if (isWildcardFilter(workType)) return true;
         const target = String(workType).trim().toLowerCase();
 
         const tipoEquipo = getRecordProp(
