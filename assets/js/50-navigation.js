@@ -44,7 +44,13 @@
 
         function showDashboardView() {
             selectPrimaryView('indicators');
-            refreshDashboard();
+            if (typeof requestAnimationFrame === 'function') {
+                requestAnimationFrame(() => {
+                    setTimeout(refreshDashboard, 0);
+                });
+            } else {
+                refreshDashboard();
+            }
         }
         function showLlamadasView() {
             if (sessionStorage.getItem('oms_user_role') !== 'admin') return;
