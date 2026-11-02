@@ -2,10 +2,13 @@
         const fullViewOverlay = document.getElementById("tdOmsModalOverlay");
         const llamadasOverlay = document.getElementById('llamadasModalOverlay');
         const historialPluzOverlay = document.getElementById('historialPluzOverlay');
+        const seguimientoDiaOverlay = document.getElementById('seguimientoDiaOverlay');
         const btnCloseModal = document.getElementById("btnCloseModal");
         const btnCloseLlamadas = document.getElementById('btnCloseLlamadas');
         const btnCloseHistorialPluz = document.getElementById('btnCloseHistorialPluz');
+        const btnCloseSeguimientoDia = document.getElementById('btnCloseSeguimientoDia');
         const tabTdOms = document.getElementById("tabTdOms");
+        const tabSeguimientoDia = document.getElementById('tabSeguimientoDia');
         const tabTecnicos = document.getElementById('tabTecnicos');
         const tecnicosOverlay = document.getElementById('tecnicosModalOverlay');
         const tabHistorialPluz = document.getElementById('tabHistorialPluz');
@@ -16,6 +19,7 @@
         const primaryViews = [
             { tab: tabMapaEl, panel: document.getElementById('map'), name: 'map' },
             { tab: tabTdOms, panel: fullViewOverlay, name: 'indicators' },
+            { tab: tabSeguimientoDia, panel: seguimientoDiaOverlay, name: 'productivity' },
             { tab: tabTecnicos, panel: tecnicosOverlay, name: 'tracking' },
             { tab: tabHistorialPluz, panel: historialPluzOverlay, name: 'historialPluz' },
             { tab: tabLlamadas, panel: llamadasOverlay, name: 'calls' }
@@ -52,6 +56,12 @@
                 refreshDashboard();
             }
         }
+        function showSeguimientoDiaView() {
+            selectPrimaryView('productivity');
+            if (typeof renderSeguimientoDia === 'function') {
+                renderSeguimientoDia();
+            }
+        }
         function showLlamadasView() {
             if (sessionStorage.getItem('oms_user_role') !== 'admin') return;
             selectPrimaryView('calls');
@@ -73,6 +83,7 @@
 
 
         if (tabTdOms) tabTdOms.addEventListener("click", showDashboardView);
+        if (tabSeguimientoDia) tabSeguimientoDia.addEventListener('click', showSeguimientoDiaView);
         if (tabHistorialPluz) tabHistorialPluz.addEventListener('click', showHistorialPluzView);
         if (btnOpenHistorialPluzFromTdOms) btnOpenHistorialPluzFromTdOms.addEventListener('click', showHistorialPluzView);
         if (tabLlamadas) tabLlamadas.addEventListener('click', showLlamadasView);
@@ -81,9 +92,11 @@
         if (btnCloseModal) btnCloseModal.addEventListener("click", showMapView);
         if (btnCloseLlamadas) btnCloseLlamadas.addEventListener('click', showMapView);
         if (btnCloseHistorialPluz) btnCloseHistorialPluz.addEventListener('click', showMapView);
+        if (btnCloseSeguimientoDia) btnCloseSeguimientoDia.addEventListener('click', showMapView);
 
         if (typeof window !== 'undefined') {
             window.showHistorialPluzView = showHistorialPluzView;
+            window.showSeguimientoDiaView = showSeguimientoDiaView;
         }
         const mobileActionsTrigger = document.getElementById('btnMobileActions');
         const mobileActionsMenu = document.getElementById('mobileActionsMenu');

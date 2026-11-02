@@ -144,6 +144,7 @@
                 <div class="map-tabs-nav" role="tablist" aria-label="Secciones principales">
                     <button id="tabMapa" class="tab-btn active" type="button" role="tab" aria-selected="true" aria-controls="map">Mapa</button>
                     <button id="tabTdOms" class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="tdOmsModalOverlay" title="Tablero de indicadores y métricas">Indicadores</button>
+                    <button id="tabSeguimientoDia" class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="seguimientoDiaOverlay" title="Balance de productividad y flujo diario">Productividad</button>
                     <button id="tabTecnicos" class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="tecnicosModalOverlay" title="Seguimiento de cierres por técnico">Seguimiento</button>
                     <button id="tabHistorialPluz" class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="historialPluzOverlay" title="Historial y auditoría de supervisión PLUZ" style="display: none;">Historial Pluz</button>
                     <button id="tabLlamadas" class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="llamadasModalOverlay" style="display: none;">Llamadas</button>
@@ -419,6 +420,19 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- VISTA DE PRODUCTIVIDAD Y BALANCE DIARIO -->
+    <div id="seguimientoDiaOverlay" class="td-oms-full-view">
+        <div class="view-header-bar" style="display:flex;justify-content:space-between;align-items:center;padding:12px 20px;border-bottom:1px solid #e2e8f0;background:#fff;">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <div class="modal-header-title" style="font-size:17px;font-weight:700;color:var(--pluz-blue,#1e3a8a);">⚡ Productividad y Balance Diario (Flujo de Carga)</div>
+                <span style="font-size:12px;color:#64748b;background:#f1f5f9;padding:3px 8px;border-radius:12px;font-weight:500;">Entradas vs. Salidas · Recurrencia 7D</span>
+            </div>
+        </div>
+        <div style="padding:16px;overflow-y:auto;max-height:calc(100vh - 70px);">
+            <div id="seguimientoDiaContainer"></div>
         </div>
     </div>
 
@@ -985,6 +999,7 @@
     <script src="assets/js/components/markersManager.js"></script>
     <script src="assets/js/components/sedCloudsManager.js"></script>
     <script src="assets/js/services/supervisorService.js"></script>
+    <script src="assets/js/services/seguimientoDiaService.js"></script>
     <script src="assets/js/components/chartsManager.js"></script>
     <script src="assets/js/components/modalsManager.js"></script>
     <script src="assets/js/components/dashboardManager.js"></script>
@@ -993,6 +1008,7 @@
     <script src="assets/js/sed-geometry.js"></script>
     <script src="assets/js/10-map.js?v=20260918-status-map"></script>
     <script src="assets/js/20-dashboard.js?v=20260918-status-map"></script>
+    <script src="assets/js/22-seguimiento-dia.js?v=20261102-1"></script>
     <script src="assets/js/25-contractor-report.js?v=20261013-1"></script>
     <script src="assets/js/30-llamadas.js?v=20260912-facets"></script>
     <script src="assets/js/35-critical-panel.js?v=20260930-pillbars"></script>
