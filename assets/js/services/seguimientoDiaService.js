@@ -351,6 +351,104 @@
     }
 
     /**
+     * Obtiene la fecha más reciente del snapshot de pendientes/datos para anclar el balance contable
+     */
+    function getSnapshotDate(filteredPendientes, filteredEjecutados, fallbackDate) {
+        let maxTs = 0;
+        let maxDateStr = null;
+
+        if (Array.isArray(filteredPendientes) && filteredPendientes.length > 0) {
+            for (const r of filteredPendientes) {
+                const raw = getStartDateRaw(r);
+                const p = parseDateTime(raw);
+                if (p && p.timestamp > maxTs) {
+                    maxTs = p.timestamp;
+                    maxDateStr = p.dateStr;
+                }
+            }
+        }
+
+        if (maxDateStr) return maxDateStr;
+
+        if (fallbackDate) {
+            const pFallback = parseDateTime(fallbackDate);
+            if (pFallback) return pFallback.dateStr;
+        }
+
+        const avail = getAvailableDays(filteredEjecutados, filteredPendientes, 1);
+        return avail.length > 0 ? avail[0] : normalizeDate(new Date());
+    }
+
+    /**
+     * Reconstruye la serie cronológica de inventarios (inicial y final) día por día
+     * usando balance contable inverso a partir de los pendientes vivos actuales:
+     * InvInicial(d) = InvFinal(d) - Ingresos(d) + Cierres(d)
+     * InvFinal(d_prev) = InvInicial(d)
+     */
+    function reconstructInventorySeries(filteredPendientes, filteredEjecutados, snapshotDate) {
+        const snap = snapshotDate || getSnapshotDate(filteredPendientes, filteredEjecutados);
+        const pSnap = parseDateTime(snap);
+        const snapMs = pSnap ? new Date(pSnap.timestamp).setHours(23, 59, 59, 999) : Infinity;
+
+        const allDaysDesc = getAvailableDays(filteredEjecutados, filteredPendientes, 60);
+        // Anclar estrictamente hasta la fecha de corte (snapshotDate) para descartar fechas futuras no ejecutadas
+        const daysDesc = allDaysDesc.filter(d => {
+            const p = parseDateTime(d);
+            return p ? p.timestamp <= snapMs : true;
+        });
+
+        if (!daysDesc || daysDesc.length === 0) return new Map();
+
+        const daysAsc = [...daysDesc].reverse();
+        const dailyCounts = new Map();
+        daysAsc.forEach(d => dailyCounts.set(d, { ingresos: 0, cierres: 0 }));
+
+        for (const r of filteredPendientes) {
+            const rawStart = getStartDateRaw(r);
+            const pStart = parseDateTime(rawStart);
+            if (pStart && dailyCounts.has(pStart.dateStr)) {
+                dailyCounts.get(pStart.dateStr).ingresos++;
+            }
+        }
+
+        for (const r of filteredEjecutados) {
+            const rawStart = getStartDateRaw(r);
+            const pStart = parseDateTime(rawStart);
+            if (pStart && dailyCounts.has(pStart.dateStr)) {
+                dailyCounts.get(pStart.dateStr).ingresos++;
+            }
+
+            const rawEnd = getRestorationDateRaw(r);
+            const pEnd = parseDateTime(rawEnd);
+            if (pEnd && dailyCounts.has(pEnd.dateStr)) {
+                dailyCounts.get(pEnd.dateStr).cierres++;
+            }
+        }
+
+        const currentLive = filteredPendientes.length;
+        const inventoryMap = new Map();
+
+        let runningFinal = currentLive;
+        for (let i = daysAsc.length - 1; i >= 0; i--) {
+            const d = daysAsc[i];
+            const counts = dailyCounts.get(d) || { ingresos: 0, cierres: 0 };
+            const invFinal = Math.max(0, runningFinal);
+            const invInicial = Math.max(0, invFinal - counts.ingresos + counts.cierres);
+
+            inventoryMap.set(d, {
+                inicial: invInicial,
+                final: invFinal,
+                ingresos: counts.ingresos,
+                cierres: counts.cierres
+            });
+
+            runningFinal = invInicial;
+        }
+
+        return inventoryMap;
+    }
+
+    /**
      * Calcula los indicadores de productividad diaria y distribución horaria
      *
      * @param {Array} pendientesRecords
@@ -518,9 +616,15 @@
             const balanceNeto = ingresosTotal - cierresTotal;
             const ttrPromedioHoras = ttrCount > 0 ? Math.round((ttrSumHours / ttrCount) * 10) / 10 : 0;
 
-            const totalPendientes = pendientesDelDia + pendientesHistoricos;
-            const inicial = Math.max(0, totalPendientes - ingresosTotal + cierresTotal);
-            const final = Math.max(0, totalPendientes > 0 ? totalPendientes : (inicial + ingresosTotal - cierresTotal));
+            const snapshotDate = getSnapshotDate(filteredPendientes, filteredEjecutados, refDateStr);
+            const invSeries = reconstructInventorySeries(filteredPendientes, filteredEjecutados, snapshotDate);
+            const firstDay = dailyBreakdown.length > 0 ? dailyBreakdown[0].date : null;
+            const lastDay = dailyBreakdown.length > 0 ? dailyBreakdown[dailyBreakdown.length - 1].date : null;
+            const firstInv = firstDay ? invSeries.get(firstDay) : null;
+            const lastInv = lastDay ? invSeries.get(lastDay) : null;
+
+            const inicial = firstInv ? firstInv.inicial : Math.max(0, filteredPendientes.length - ingresosTotal + cierresTotal);
+            const final = lastInv ? lastInv.final : filteredPendientes.length;
 
             return {
                 date: opts.date || '7D',
@@ -642,10 +746,17 @@
 
         const contractorBreakdown = contractorTracker.toArray();
 
-        // Cálculo de Waterfall
-        const totalPendientes = pendientesDelDia + pendientesHistoricos;
-        const inicial = Math.max(0, totalPendientes - ingresosTotal + cierresTotal);
-        const final = Math.max(0, totalPendientes > 0 ? totalPendientes : (inicial + ingresosTotal - cierresTotal));
+        // Cálculo de Waterfall mediante serie contable inversa
+        const snapshotDate = getSnapshotDate(filteredPendientes, filteredEjecutados, targetDate);
+        const invSeries = reconstructInventorySeries(filteredPendientes, filteredEjecutados, snapshotDate);
+        const dayInv = invSeries.get(targetDate);
+
+        let inicial = dayInv ? dayInv.inicial : Math.max(0, filteredPendientes.length - ingresosTotal + cierresTotal);
+        let final = dayInv ? dayInv.final : Math.max(0, inicial + ingresosTotal - cierresTotal);
+
+        if (final === 0 && (inicial + ingresosTotal - cierresTotal) > 0) {
+            final = inicial + ingresosTotal - cierresTotal;
+        }
 
         const waterfall = {
             inicial,
