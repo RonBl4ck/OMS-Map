@@ -2,6 +2,7 @@
         let tdFilterDia = null;
 
         function getFilteredTdOms() {
+            const selDias = tdCtrlDia ? tdCtrlDia.getSelected() : [];
             const selIntervalos = tdCtrlIntervalo ? tdCtrlIntervalo.getSelected() : [];
             const selEmps = tdCtrlEmpresa ? tdCtrlEmpresa.getSelected() : [];
             const selFallas = tdCtrlFalla ? tdCtrlFalla.getSelected() : [];
@@ -26,7 +27,7 @@
                 const matchSed = !onlyReincSed || (r.sed_reincidente || r.sed_count > 2);
                 const matchSum = !onlyReincSum || (r.suministro_count >= 2);
                 const matchCrit = !onlyCritModal || r.es_top_critica;
-                const matchDia = !tdFilterDia || r.dia === tdFilterDia;
+                const matchDia = matchesMultiSelection(r.dia, selDias) && (!tdFilterDia || r.dia === tdFilterDia);
 
                 let matchQuanticoCritico = true;
                 if (onlyQuanticoCritico) {
@@ -87,6 +88,7 @@
                 if (tdCtrlFalla) tdCtrlFalla.reset();
                 if (tdCtrlEstado) tdCtrlEstado.reset();
                 tdFilterDia = null;
+                if (tdCtrlDia) tdCtrlDia.reset();
             } else {
                 // Opción B: Aplicar filtro combinado de Categoría + Estado
                 if (tdCtrlIntervalo) tdCtrlIntervalo.reset();
@@ -102,6 +104,7 @@
                     tdCtrlIntervalo.setSelected([categoryValue], false);
                 } else if (isDia) {
                     tdFilterDia = categoryValue;
+                    if (tdCtrlDia) tdCtrlDia.setSelected([categoryValue], false);
                 }
 
                 if (tdCtrlEstado && stateValue) {
@@ -152,7 +155,7 @@
             ];
 
             target.innerHTML = chartDefs.map(([title, field, isHorizontal, description]) => {
-                const sortFn = (field === 'intervalo') ? sortIntervals : (a,b) => String(a).localeCompare(String(b), 'es');
+                const sortFn = (field === 'intervalo') ? sortIntervals : (field === 'dia' ? ((a, b) => sortDias(a, b, records)) : (a,b) => String(a).localeCompare(String(b), 'es'));
                 const categories = [...new Set(records.map(r => r[field]))].sort(sortFn);
                 if (!categories.length) {
                     return `<section class="chart-card"><h3>${escapeHtml(title)}</h3><p style="color:#64748b; font-size:12px;">Sin registros para los filtros seleccionados.</p></section>`;
@@ -836,6 +839,7 @@
 
         document.getElementById("btnResetFilters").addEventListener("click", () => {
             tdFilterDia = null;
+            if (tdCtrlDia) tdCtrlDia.reset();
             const chk7Mod = document.getElementById("chk7LlamadasModal");
             if (chk7Mod) chk7Mod.checked = false;
             const chkSedMod = document.getElementById("chkReincSedModal");

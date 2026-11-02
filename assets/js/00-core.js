@@ -570,6 +570,79 @@
             return String(a).localeCompare(String(b), 'es');
         }
 
+        
+        // Función para ordenar días cronológicamente (soporta '30-oct', '01-nov', 'DD/MM', ISO)
+        const SPANISH_MONTHS_MAP = {
+            ene: 0, feb: 1, mar: 2, abr: 3, may: 4, jun: 5,
+            jul: 6, ago: 7, sep: 8, set: 8, oct: 9, nov: 10, dic: 11
+        };
+
+        function parseDiaValue(diaStr) {
+            if (!diaStr) return null;
+            const str = String(diaStr).trim().toLowerCase();
+
+            // Formato DD-mmm o DD/mmm (ej: 01-nov, 30-oct, 1-nov)
+            const matchTxt = str.match(/^(\d{1,2})[-\/\s]([a-záéíóúñ]{3,})(?:[-\/\s](\d{2,4}))?$/i);
+            if (matchTxt) {
+                const day = parseInt(matchTxt[1], 10);
+                const monthRaw = matchTxt[2].substring(0, 3).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                const month = SPANISH_MONTHS_MAP[monthRaw];
+                if (month !== undefined) {
+                    const year = matchTxt[3] ? parseInt(matchTxt[3].length === 2 ? ('20' + matchTxt[3]) : matchTxt[3], 10) : 2000;
+                    return year * 10000 + (month + 1) * 100 + day;
+                }
+            }
+
+            // Formato DD/MM/AAAA o DD-MM-AAAA o DD/MM
+            const matchNum = str.match(/^(\d{1,2})[-\/](\d{1,2})(?:[-\/](\d{2,4}))?$/);
+            if (matchNum) {
+                const day = parseInt(matchNum[1], 10);
+                const month = parseInt(matchNum[2], 10);
+                const year = matchNum[3] ? parseInt(matchNum[3].length === 2 ? ('20' + matchNum[3]) : matchNum[3], 10) : 2000;
+                return year * 10000 + month * 100 + day;
+            }
+
+            // Formato ISO AAAA-MM-DD
+            const matchIso = str.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+            if (matchIso) {
+                return parseInt(matchIso[1], 10) * 10000 + parseInt(matchIso[2], 10) * 100 + parseInt(matchIso[3], 10);
+            }
+
+            return null;
+        }
+
+        function sortDias(a, b, recordsRef) {
+            if (Array.isArray(recordsRef) && recordsRef.length > 0) {
+                if (!recordsRef._diaTimestampMap) {
+                    const map = new Map();
+                    for (const r of recordsRef) {
+                        if (r && r.dia && !map.has(r.dia)) {
+                            const ts = (typeof parseTdOmsDate === 'function')
+                                ? parseTdOmsDate(r.hora_inicio || r.fecha_inicio)
+                                : null;
+                            if (ts !== null) map.set(r.dia, ts);
+                        }
+                    }
+                    recordsRef._diaTimestampMap = map;
+                }
+                const tsA = recordsRef._diaTimestampMap.get(a);
+                const tsB = recordsRef._diaTimestampMap.get(b);
+                if (tsA !== undefined && tsB !== undefined && tsA !== tsB) {
+                    return tsA - tsB;
+                }
+            }
+
+            const scoreA = parseDiaValue(a);
+            const scoreB = parseDiaValue(b);
+            if (scoreA !== null && scoreB !== null && scoreA !== scoreB) {
+                return scoreA - scoreB;
+            }
+            if (scoreA !== null) return -1;
+            if (scoreB !== null) return 1;
+
+            return String(a).localeCompare(String(b), 'es');
+        }
+
         // === COMPONENTE MULTI-SELECT CHECKBOX ===
         function initMultiSelect(containerId, titlePrefix, valuesList, onChangeCallback, labelFormatter = value => value) {
             const container = document.getElementById(containerId);
@@ -577,7 +650,10 @@
             container.innerHTML = "";
             container.className = "custom-multiselect";
 
-            const sortFn = (titlePrefix === "Intervalo") ? sortIntervals : (a, b) => String(a).localeCompare(String(b), 'es');
+            const isDiaFilter = titlePrefix === "Día" || titlePrefix === "Dia";
+            const sortFn = (titlePrefix === "Intervalo") ? sortIntervals 
+                         : (isDiaFilter ? sortDias 
+                         : (a, b) => String(a).localeCompare(String(b), 'es'));
             let initialOptions = [...new Set(valuesList)].filter(Boolean).sort(sortFn);
             let options = [...initialOptions];
             let selectedVals = new Set(options);

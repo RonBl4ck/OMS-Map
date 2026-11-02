@@ -114,10 +114,10 @@
             leafletMap.on('zoomend', syncSedCloudLabelVisibility);
         }
 
-        let mapCtrlEstado, mapCtrlEmpresa, mapCtrlFalla;
-        let tdCtrlIntervalo, tdCtrlEmpresa, tdCtrlFalla, tdCtrlEstado;
-        const MAP_FILTER_FIELDS = { estado: 'mapMultiEstado', empresa: 'mapMultiEmpresa', falla: 'mapMultiFalla' };
-        const TD_FILTER_FIELDS = { intervalo: 'tdMultiIntervalo', empresa: 'tdMultiEmpresa', falla: 'tdMultiFalla', estado: 'tdMultiEstado' };
+        let mapCtrlDia, mapCtrlEstado, mapCtrlEmpresa, mapCtrlFalla;
+        let tdCtrlDia, tdCtrlIntervalo, tdCtrlEmpresa, tdCtrlFalla, tdCtrlEstado;
+        const MAP_FILTER_FIELDS = { dia: 'mapMultiDia', estado: 'mapMultiEstado', empresa: 'mapMultiEmpresa', falla: 'mapMultiFalla' };
+        const TD_FILTER_FIELDS = { dia: 'tdMultiDia', intervalo: 'tdMultiIntervalo', empresa: 'tdMultiEmpresa', falla: 'tdMultiFalla', estado: 'tdMultiEstado' };
 
         function filterSelections(controls) {
             return Object.fromEntries(Object.entries(controls).map(([id, control]) => [id, control?.isAllSelected() ? [] : (control?.getSelected() || [])]));
@@ -131,13 +131,13 @@
         }
 
         function applyMapFilters() {
-            const controls = { mapMultiEstado: mapCtrlEstado, mapMultiEmpresa: mapCtrlEmpresa, mapMultiFalla: mapCtrlFalla };
+            const controls = { mapMultiDia: mapCtrlDia, mapMultiEstado: mapCtrlEstado, mapMultiEmpresa: mapCtrlEmpresa, mapMultiFalla: mapCtrlFalla };
             refreshFacetedControls(mapLocations, MAP_FILTER_FIELDS, controls);
             filterMapMarkers();
         }
 
         function applyDashboardFilters() {
-            const controls = { tdMultiIntervalo: tdCtrlIntervalo, tdMultiEmpresa: tdCtrlEmpresa, tdMultiFalla: tdCtrlFalla, tdMultiEstado: tdCtrlEstado };
+            const controls = { tdMultiDia: tdCtrlDia, tdMultiIntervalo: tdCtrlIntervalo, tdMultiEmpresa: tdCtrlEmpresa, tdMultiFalla: tdCtrlFalla, tdMultiEstado: tdCtrlEstado };
             refreshFacetedControls(tdOmsRecords, TD_FILTER_FIELDS, controls);
             refreshDashboard();
         }
@@ -283,11 +283,13 @@
             });
 
             // Filtros en el Mapa
+            mapCtrlDia = initMultiSelect("mapMultiDia", "Día", mapLocations.map(m => m.dia), applyMapFilters);
             mapCtrlEstado = initMultiSelect("mapMultiEstado", "Estado", mapLocations.map(m => m.estado), applyMapFilters);
             mapCtrlEmpresa = initMultiSelect("mapMultiEmpresa", "Empresa", mapLocations.map(m => m.empresa), applyMapFilters);
             mapCtrlFalla = initMultiSelect("mapMultiFalla", "Falla", mapLocations.map(m => m.falla), applyMapFilters);
 
             // Filtros en el Modal TD OMS
+            tdCtrlDia = initMultiSelect("tdMultiDia", "Día", tdOmsRecords.map(r => r.dia), applyDashboardFilters);
             tdCtrlIntervalo = initMultiSelect("tdMultiIntervalo", "Intervalo", tdOmsRecords.map(r => r.intervalo), applyDashboardFilters);
             tdCtrlEmpresa = initMultiSelect("tdMultiEmpresa", "Empresa", tdOmsRecords.map(r => r.empresa), applyDashboardFilters);
             tdCtrlFalla = initMultiSelect("tdMultiFalla", "Falla", tdOmsRecords.map(r => r.falla), applyDashboardFilters);
@@ -1026,6 +1028,7 @@
         function filterMapMarkers() {
             const searchType = document.getElementById("searchTypeMap") ? document.getElementById("searchTypeMap").value : "ticket";
             const query = document.getElementById("inputTicket").value.trim().toLowerCase();
+            const selDias = mapCtrlDia ? mapCtrlDia.getSelected() : [];
             const selEsts = mapCtrlEstado ? mapCtrlEstado.getSelected() : [];
             const selEmps = mapCtrlEmpresa ? mapCtrlEmpresa.getSelected() : [];
             const selFallas = mapCtrlFalla ? mapCtrlFalla.getSelected() : [];
@@ -1056,6 +1059,7 @@
                     matchQuery = String(item.alimentador || '').toLowerCase().includes(query);
                 }
 
+                const matchDia = matchesMultiSelection(item.dia, selDias);
                 const matchEst = matchesMultiSelection(item.estado, selEsts);
                 const matchEmp = matchesMultiSelection(item.empresa, selEmps);
                 const matchFal = matchesMultiSelection(item.falla, selFallas);
@@ -1066,7 +1070,7 @@
                 const isTopCrit = isAdmin && (typeof isTopCriticalSed === 'function' ? isTopCriticalSed(item.sed) : !!item.es_top_critica);
                 const matchCrit = !onlyCritica || isTopCrit;
 
-                return matchQuery && matchEst && matchEmp && matchFal && matchLlamadas && matchSed && matchSum && matchCrit;
+                return matchQuery && matchDia && matchEst && matchEmp && matchFal && matchLlamadas && matchSed && matchSum && matchCrit;
             }
 
             // Contar el total de incidencias que cumplen el filtro (incluyendo las no georreferenciadas / sin GPS)
@@ -1372,6 +1376,7 @@
             const chkCritMap = document.getElementById("chkCriticaMap");
             if (chkCritMap) chkCritMap.checked = false;
 
+            if (mapCtrlDia) mapCtrlDia.reset();
             if (mapCtrlEstado) mapCtrlEstado.reset();
             if (mapCtrlEmpresa) mapCtrlEmpresa.reset();
             if (mapCtrlFalla) mapCtrlFalla.reset();
