@@ -184,8 +184,24 @@ test('calculateDailyProductivity: balance de ingresos, cierres intradía y backl
     // Pendientes del día: INC-001 => 1
     assert.equal(stats.pendientesDelDia, 1, 'Pendientes del día debe ser 1');
 
-    // Balance neto: cierresTotal - ingresosTotal = 2 - 3 = -1
-    assert.equal(stats.balanceNeto, -1, 'Balance neto debe ser -1');
+    // Balance neto corregido: ingresosTotal - cierresTotal = 3 - 2 = 1 (el inventario creció)
+    assert.equal(stats.balanceNeto, 1, 'Balance neto debe ser 1 (ingresos - cierres)');
+
+    // Waterfall del día
+    assert.ok(stats.waterfall, 'Debe incluir objeto waterfall');
+    assert.equal(stats.waterfall.inicial, 1, 'Waterfall inicial debe ser 1');
+    assert.equal(stats.waterfall.ingresos, 3, 'Waterfall ingresos debe ser 3');
+    assert.equal(stats.waterfall.cierresIntradia, 1, 'Waterfall cierresIntradia debe ser 1');
+    assert.equal(stats.waterfall.cierresBacklog, 1, 'Waterfall cierresBacklog debe ser 1');
+    assert.equal(stats.waterfall.final, 2, 'Waterfall final debe ser 2');
+
+    // Contractor breakdown del día
+    assert.ok(Array.isArray(stats.contractorBreakdown), 'Debe incluir contractorBreakdown');
+    assert.equal(stats.contractorBreakdown.length, 1);
+    assert.equal(stats.contractorBreakdown[0].contractor, 'LARI');
+    assert.equal(stats.contractorBreakdown[0].ingresos, 3);
+    assert.equal(stats.contractorBreakdown[0].cierres, 2);
+    assert.equal(stats.contractorBreakdown[0].balance, 1);
 
     // TTR promedio: (2.5 + 4.0) / 2 = 3.25 => 3.3 horas
     assert.equal(stats.ttrPromedioHoras, 3.3, 'TTR promedio debe ser 3.3 horas');
@@ -407,4 +423,395 @@ test('getRecurrentSeds7D: agrupa, filtra por 7 días y ordena priorizando pendie
     assert.equal(recurrents[2].pendientesActivos, 0);
     assert.equal(recurrents[2].cerrados7D, 5);
     assert.equal(recurrents[2].total7D, 5);
+});
+
+test('calculateDailyProductivity: soporte para modo 7D y * con dailyBreakdown y contractorBreakdown', () => {
+    // Dataset con incidencias a lo largo de 7 días (27/10/2026 al 02/11/2026)
+    const pendientes = [
+        {
+            ticket: 'P-1',
+            'Hora de inicio': '02/11/2026 10:00:00',
+            Contratista: 'LARI'
+        },
+        {
+            ticket: 'P-2',
+            'Hora de inicio': '01/11/2026 12:00:00',
+            Contratista: 'CAM'
+        },
+        {
+            ticket: 'P-3',
+            'Hora de inicio': '30/10/2026 09:00:00',
+            Contratista: 'LARI'
+        },
+        // Pendiente fuera de la ventana de 7 días (hace 10 días: 23/10/2026)
+        {
+            ticket: 'P-OLD',
+            'Hora de inicio': '23/10/2026 08:00:00',
+            Contratista: 'LARI'
+        }
+    ];
+
+    const ejecutados = [
+        // Cierre hoy de ticket iniciado hoy
+        {
+            ticket: 'E-1',
+            'Hora de inicio': '02/11/2026 08:00:00',
+            'Hora de restauración': '02/11/2026 11:00:00',
+            Contratista: 'LARI'
+        },
+        // Cierre ayer de ticket iniciado hace 3 días
+        {
+            ticket: 'E-2',
+            'Hora de inicio': '29/10/2026 10:00:00',
+            'Hora de restauración': '01/11/2026 14:00:00',
+            Contratista: 'CAM'
+        },
+        // Cierre el 28/10
+        {
+            ticket: 'E-3',
+            'Hora de inicio': '28/10/2026 09:00:00',
+            'Hora de restauración': '28/10/2026 12:00:00',
+            Contratista: 'DOMINION'
+        },
+        // Ejecutado fuera de la ventana de 7 días
+        {
+            ticket: 'E-OLD',
+            'Hora de inicio': '10/10/2026 08:00:00',
+            'Hora de restauración': '10/10/2026 10:00:00',
+            Contratista: 'LARI'
+        }
+    ];
+
+    // 1. Probar con options.date = '7D'
+    const stats7D = SeguimientoDiaService.calculateDailyProductivity(pendientes, ejecutados, {
+        date: '7D',
+        referenceDate: '02/11/2026'
+    });
+
+    assert.equal(stats7D.is7D, true);
+    assert.equal(stats7D.date, '7D');
+
+    // dailyBreakdown: debe tener exactamente 7 elementos cronológicos
+    assert.ok(Array.isArray(stats7D.dailyBreakdown), 'dailyBreakdown debe ser un arreglo');
+    assert.equal(stats7D.dailyBreakdown.length, 7, 'dailyBreakdown debe contener los últimos 7 días');
+
+    const expectedDates = [
+        '27/10/2026', '28/10/2026', '29/10/2026', '30/10/2026', '31/10/2026', '1/11/2026', '2/11/2026'
+    ];
+    assert.deepEqual(stats7D.dailyBreakdown.map(d => d.date), expectedDates, 'dailyBreakdown debe estar ordenado cronológicamente');
+
+    // Comprobar estructura de cada item en dailyBreakdown
+    stats7D.dailyBreakdown.forEach(item => {
+        assert.ok(typeof item.date === 'string');
+        assert.ok(typeof item.ingresos === 'number');
+        assert.ok(typeof item.cierres === 'number');
+        assert.equal(item.balance, item.ingresos - item.cierres);
+    });
+
+    // Suma de ingresos y cierres en dailyBreakdown debe coincidir con los totales globales
+    const sumDailyIngresos = stats7D.dailyBreakdown.reduce((sum, d) => sum + d.ingresos, 0);
+    const sumDailyCierres = stats7D.dailyBreakdown.reduce((sum, d) => sum + d.cierres, 0);
+    assert.equal(sumDailyIngresos, stats7D.ingresosTotal);
+    assert.equal(sumDailyCierres, stats7D.cierresTotal);
+
+    // contractorBreakdown: debe contener LARI, CAM, DOMINION
+    assert.ok(Array.isArray(stats7D.contractorBreakdown));
+    assert.equal(stats7D.contractorBreakdown.length, 3);
+
+    // Empresas ordenadas por volumen total de actividad
+    const contractors = stats7D.contractorBreakdown.map(c => c.contractor);
+    assert.ok(contractors.includes('LARI'));
+    assert.ok(contractors.includes('CAM'));
+    assert.ok(contractors.includes('DOMINION'));
+
+    // Cada contratista debe tener balance = ingresos - cierres
+    stats7D.contractorBreakdown.forEach(cb => {
+        assert.equal(cb.balance, cb.ingresos - cb.cierres);
+    });
+
+    const sumContractorIngresos = stats7D.contractorBreakdown.reduce((sum, c) => sum + c.ingresos, 0);
+    const sumContractorCierres = stats7D.contractorBreakdown.reduce((sum, c) => sum + c.cierres, 0);
+    assert.equal(sumContractorIngresos, stats7D.ingresosTotal);
+    assert.equal(sumContractorCierres, stats7D.cierresTotal);
+
+    // 2. Probar con options.date = '*'
+    const statsWildcard = SeguimientoDiaService.calculateDailyProductivity(pendientes, ejecutados, {
+        date: '*',
+        referenceDate: '02/11/2026'
+    });
+    assert.equal(statsWildcard.is7D, true);
+    assert.equal(statsWildcard.dailyBreakdown.length, 7);
+    assert.equal(statsWildcard.ingresosTotal, stats7D.ingresosTotal);
+    assert.equal(statsWildcard.cierresTotal, stats7D.cierresTotal);
+});
+
+test('calculateDailyProductivity: cálculo de waterfall y balance neto negativo para un día', () => {
+    // Escenario donde los cierres superan a los ingresos (el inventario baja, balance neto negativo)
+    const pendientes = [
+        // 1 pendiente entrado hoy
+        {
+            ticket: 'P-TODAY',
+            'Hora de inicio': '02/11/2026 10:00:00',
+            Contratista: 'LARI'
+        },
+        // 5 pendientes históricos acumulados antes de hoy
+        { ticket: 'P-HIST-1', 'Hora de inicio': '01/11/2026 10:00:00', Contratista: 'LARI' },
+        { ticket: 'P-HIST-2', 'Hora de inicio': '01/11/2026 11:00:00', Contratista: 'LARI' },
+        { ticket: 'P-HIST-3', 'Hora de inicio': '31/10/2026 09:00:00', Contratista: 'CAM' },
+        { ticket: 'P-HIST-4', 'Hora de inicio': '30/10/2026 08:00:00', Contratista: 'CAM' },
+        { ticket: 'P-HIST-5', 'Hora de inicio': '29/10/2026 14:00:00', Contratista: 'CAM' }
+    ];
+
+    const ejecutados = [
+        // 1 cierre intradía hoy (ingreso hoy + cierre hoy)
+        {
+            ticket: 'E-INTRA',
+            'Hora de inicio': '02/11/2026 08:00:00',
+            'Hora de restauración': '02/11/2026 12:00:00',
+            Contratista: 'LARI'
+        },
+        // 3 cierres de backlog hoy (iniciados en días previos, restaurados hoy)
+        {
+            ticket: 'E-BACK-1',
+            'Hora de inicio': '01/11/2026 15:00:00',
+            'Hora de restauración': '02/11/2026 09:00:00',
+            Contratista: 'LARI'
+        },
+        {
+            ticket: 'E-BACK-2',
+            'Hora de inicio': '01/11/2026 16:00:00',
+            'Hora de restauración': '02/11/2026 10:00:00',
+            Contratista: 'CAM'
+        },
+        {
+            ticket: 'E-BACK-3',
+            'Hora de inicio': '31/10/2026 12:00:00',
+            'Hora de restauración': '02/11/2026 14:00:00',
+            Contratista: 'CAM'
+        }
+    ];
+
+    const stats = SeguimientoDiaService.calculateDailyProductivity(pendientes, ejecutados, {
+        date: '2/11/2026'
+    });
+
+    // Ingresos de hoy: P-TODAY (1) + E-INTRA (1) = 2
+    assert.equal(stats.ingresosTotal, 2);
+
+    // Cierres de hoy: E-INTRA (1 intradia) + 3 backlog = 4
+    assert.equal(stats.cierresTotal, 4);
+    assert.equal(stats.cierresIntradia, 1);
+    assert.equal(stats.cierresBacklog, 3);
+
+    // Balance neto: ingresosTotal - cierresTotal = 2 - 4 = -2 (el inventario bajó en 2)
+    assert.equal(stats.balanceNeto, -2);
+
+    // Pendientes activos totales al final del día = pendientesDelDia (1) + pendientesHistoricos (5) = 6
+    assert.equal(stats.pendientesDelDia, 1);
+    assert.equal(stats.pendientesHistoricos, 5);
+
+    // Waterfall:
+    // final = pendientesDelDia + pendientesHistoricos = 6
+    // inicial = final - ingresos + cierres = 6 - 2 + 4 = 8
+    assert.ok(stats.waterfall);
+    assert.equal(stats.waterfall.inicial, 8);
+    assert.equal(stats.waterfall.ingresos, 2);
+    assert.equal(stats.waterfall.cierresIntradia, 1);
+    assert.equal(stats.waterfall.cierresBacklog, 3);
+    assert.equal(stats.waterfall.final, 6);
+
+    // Verificación de la identidad de conservación: inicial + ingresos - (cierresIntradia + cierresBacklog) === final
+    assert.equal(
+        stats.waterfall.inicial + stats.waterfall.ingresos - (stats.waterfall.cierresIntradia + stats.waterfall.cierresBacklog),
+        stats.waterfall.final
+    );
+
+    // Verificación de contractorBreakdown
+    assert.equal(stats.contractorBreakdown.length, 2);
+    // LARI: ingresos = 2 (P-TODAY, E-INTRA), cierres = 2 (E-INTRA, E-BACK-1) => balance 0
+    const lari = stats.contractorBreakdown.find(c => c.contractor === 'LARI');
+    assert.ok(lari);
+    assert.equal(lari.ingresos, 2);
+    assert.equal(lari.cierres, 2);
+    assert.equal(lari.balance, 0);
+
+    // CAM: ingresos = 0, cierres = 2 (E-BACK-2, E-BACK-3) => balance -2
+    const cam = stats.contractorBreakdown.find(c => c.contractor === 'CAM');
+    assert.ok(cam);
+    assert.equal(cam.ingresos, 0);
+    assert.equal(cam.cierres, 2);
+    assert.equal(cam.balance, -2);
+});
+
+test('getRecurrentSuministros7D: agrupa por Suministro, descarta inválidos, filtra contratista y ordena priorizando pendientes activos', () => {
+    const pendientes = [
+        // Suministro S-101: 2 pendientes activos, SED-A, COMAS, LARI
+        {
+            Suministro: 'S-101',
+            SED: 'SED-A',
+            Distrito: 'COMAS',
+            Contratista: 'LARI',
+            ticket: 'TK-101-1'
+        },
+        {
+            Suministro: 'S-101',
+            SED: 'SED-A',
+            Distrito: 'COMAS',
+            Contratista: 'LARI',
+            ticket: 'TK-101-2'
+        },
+        // Suministro S-102: 1 pendiente activo, SED-B, CARABAYLLO, LARI
+        {
+            Suministro: 'S-102',
+            SED: 'SED-B',
+            Distrito: 'CARABAYLLO',
+            Contratista: 'LARI',
+            ticket: 'TK-102-1'
+        },
+        // Suministro inválido: '-', '0', 'SIN SUMINISTRO', vacíos (deben ser descartados)
+        { Suministro: '-', ticket: 'TK-INV-1', Contratista: 'LARI' },
+        { Suministro: '0', ticket: 'TK-INV-2', Contratista: 'LARI' },
+        { Suministro: 'SIN SUMINISTRO', ticket: 'TK-INV-3', Contratista: 'LARI' },
+        { Suministro: '', ticket: 'TK-INV-4', Contratista: 'LARI' },
+        // Suministro S-103: de otro contratista (CAM)
+        {
+            Suministro: 'S-103',
+            SED: 'SED-C',
+            Distrito: 'OLIVOS',
+            Contratista: 'CAM',
+            ticket: 'TK-103-1'
+        }
+    ];
+
+    const ejecutados = [
+        // Suministro S-101: 1 cierre en la ventana de 7 días
+        {
+            Suministro: 'S-101',
+            SED: 'SED-A',
+            Distrito: 'COMAS',
+            Contratista: 'LARI',
+            ticket: 'TK-101-3',
+            'Hora de restauración': '01/11/2026 12:00:00'
+        },
+        // Suministro S-104: 0 pendientes activos, pero 4 cierres en los últimos 7 días
+        {
+            Suministro: 'S-104',
+            SED: 'SED-D',
+            Distrito: 'INDEPENDENCIA',
+            Contratista: 'LARI',
+            ticket: 'TK-104-1',
+            'Hora de restauración': '02/11/2026 10:00:00'
+        },
+        {
+            Suministro: 'S-104',
+            SED: 'SED-D',
+            Distrito: 'INDEPENDENCIA',
+            Contratista: 'LARI',
+            ticket: 'TK-104-2',
+            'Hora de restauración': '01/11/2026 10:00:00'
+        },
+        {
+            Suministro: 'S-104',
+            SED: 'SED-D',
+            Distrito: 'INDEPENDENCIA',
+            Contratista: 'LARI',
+            ticket: 'TK-104-3',
+            'Hora de restauración': '31/10/2026 10:00:00'
+        },
+        {
+            Suministro: 'S-104',
+            SED: 'SED-D',
+            Distrito: 'INDEPENDENCIA',
+            Contratista: 'LARI',
+            ticket: 'TK-104-4',
+            'Hora de restauración': '30/10/2026 10:00:00'
+        },
+        // Suministro S-105: cierre hace más de 15 días (fuera de la ventana 7D, NO debe aparecer)
+        {
+            Suministro: 'S-105',
+            SED: 'SED-E',
+            Distrito: 'CALLAO',
+            Contratista: 'LARI',
+            ticket: 'TK-105-1',
+            'Hora de restauración': '15/10/2026 10:00:00'
+        }
+    ];
+
+    // Consulta filtrando por contratista LARI
+    const resLari = SeguimientoDiaService.getRecurrentSuministros7D(pendientes, ejecutados, {
+        date: '02/11/2026',
+        contractor: 'LARI'
+    });
+
+    // 1. Debe excluir suministros inválidos (- , 0, SIN SUMINISTRO) y S-105 (fuera de 7D)
+    assert.equal(resLari.some(s => s.suministro === '-' || s.suministro === '0' || s.suministro === 'SIN SUMINISTRO'), false);
+    assert.equal(resLari.some(s => s.suministro === 'S-105'), false);
+
+    // 2. Debe excluir S-103 porque pertenece a CAM
+    assert.equal(resLari.some(s => s.suministro === 'S-103'), false);
+
+    // 3. Deben quedar exactamente S-101, S-102 y S-104
+    assert.equal(resLari.length, 3);
+
+    // 4. Verificación de orden:
+    // Primero suministros con pendientesActivos > 0 ordenados por eventos7D:
+    //   - S-101: pendientesActivos = 2, eventos7D = 3 (2 pendientes + 1 cerrado)
+    //   - S-102: pendientesActivos = 1, eventos7D = 1 (1 pendiente + 0 cerrados)
+    // Después suministros con pendientesActivos == 0:
+    //   - S-104: pendientesActivos = 0, eventos7D = 4 (0 pendientes + 4 cerrados)
+    assert.equal(resLari[0].suministro, 'S-101', 'S-101 va primero por tener pendientes activos y 3 eventos');
+    assert.equal(resLari[0].pendientesActivos, 2);
+    assert.equal(resLari[0].eventos7D, 3);
+    assert.equal(resLari[0].sed, 'SED-A');
+    assert.equal(resLari[0].distrito, 'COMAS');
+
+    assert.equal(resLari[1].suministro, 'S-102', 'S-102 va segundo por tener pendientes activos');
+    assert.equal(resLari[1].pendientesActivos, 1);
+    assert.equal(resLari[1].eventos7D, 1);
+    assert.equal(resLari[1].sed, 'SED-B');
+    assert.equal(resLari[1].distrito, 'CARABAYLLO');
+
+    assert.equal(resLari[2].suministro, 'S-104', 'S-104 va al final por tener 0 pendientes activos a pesar de tener 4 eventos');
+    assert.equal(resLari[2].pendientesActivos, 0);
+    assert.equal(resLari[2].eventos7D, 4);
+    assert.equal(resLari[2].sed, 'SED-D');
+    assert.equal(resLari[2].distrito, 'INDEPENDENCIA');
+});
+
+test('getRecurrentSuministros7D: lee Objeto Técnico y Conteo_Fallas_Suministro_7D explícito', () => {
+    const pendientes = [
+        // Suministro que viene en el campo 'Objeto Técnico' y tiene conteo explícito Conteo_Fallas_Suministro_7D = 5
+        {
+            'Objeto Técnico': 'OBJ-8888',
+            sed: 'SED-X',
+            distrito: 'PUENTE PIEDRA',
+            Conteo_Fallas_Suministro_7D: '5',
+            ticket: 'TK-OBJ-1'
+        },
+        // Suministro que viene en 'suministro' en minúsculas y sin SED (debe poner '-')
+        {
+            suministro: 'OBJ-9999',
+            ticket: 'TK-OBJ-2'
+        }
+    ];
+
+    const res = SeguimientoDiaService.getRecurrentSuministros7D(pendientes, [], {
+        date: '02/11/2026'
+    });
+
+    assert.equal(res.length, 2);
+
+    const s8888 = res.find(s => s.suministro === 'OBJ-8888');
+    assert.ok(s8888);
+    assert.equal(s8888.pendientesActivos, 1);
+    assert.equal(s8888.eventos7D, 5, 'Debe tomar el conteo explícito Conteo_Fallas_Suministro_7D');
+    assert.equal(s8888.sed, 'SED-X');
+    assert.equal(s8888.distrito, 'PUENTE PIEDRA');
+
+    const s9999 = res.find(s => s.suministro === 'OBJ-9999');
+    assert.ok(s9999);
+    assert.equal(s9999.pendientesActivos, 1);
+    assert.equal(s9999.eventos7D, 1);
+    assert.equal(s9999.sed, '-', 'SED debe ser - por defecto');
+    assert.equal(s9999.distrito, '-', 'Distrito debe ser - por defecto');
 });

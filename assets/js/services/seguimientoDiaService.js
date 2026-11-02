@@ -298,12 +298,66 @@
     }
 
     /**
+     * Helper para extraer el nombre del contratista normalizado
+     */
+    function getContractorName(row) {
+        let c = getRecordProp(
+            row,
+            'Contratista', 'Empresa', 'CONTRATISTA', 'empresa',
+            'Pto.tbjo.responsable', 'contratista', 'company'
+        ).trim();
+        if (!c || c.toUpperCase() === 'N/A' || c === '-' || c === '0') {
+            return 'SIN CONTRATISTA';
+        }
+        return c;
+    }
+
+    /**
+     * Tracker de métricas agrupadas por contratista
+     */
+    function createContractorTracker() {
+        const map = new Map();
+        return {
+            record(row, type) {
+                const rawName = getContractorName(row);
+                const key = rawName.toUpperCase();
+                if (!map.has(key)) {
+                    map.set(key, {
+                        contractor: rawName,
+                        ingresos: 0,
+                        cierres: 0,
+                        balance: 0
+                    });
+                }
+                const item = map.get(key);
+                if (type === 'ingreso') item.ingresos++;
+                else if (type === 'cierre') item.cierres++;
+            },
+            toArray() {
+                return Array.from(map.values())
+                    .map(item => {
+                        item.balance = item.ingresos - item.cierres;
+                        return item;
+                    })
+                    .sort((a, b) => {
+                        const volA = a.ingresos + a.cierres;
+                        const volB = b.ingresos + b.cierres;
+                        if (volB !== volA) return volB - volA;
+                        if (b.ingresos !== a.ingresos) return b.ingresos - a.ingresos;
+                        return a.contractor.localeCompare(b.contractor);
+                    });
+            }
+        };
+    }
+
+    /**
      * Calcula los indicadores de productividad diaria y distribución horaria
      *
      * @param {Array} pendientesRecords
      * @param {Array} ejecutadosRecords
      * @param {Object} [options]
-     * @param {string} [options.date] - Fecha en formato 'D/M/YYYY' o 'DD/MM/YYYY'
+     * @param {string} [options.date] - Fecha en formato 'D/M/YYYY', '7D' o '*'
+     * @param {string} [options.referenceDate] - Fecha de referencia opcional para ventana 7D
      * @param {string} [options.contractor='*'] - Contratista a filtrar ('*' para todos)
      * @param {string} [options.workType='*'] - Tipo de equipo o skill a filtrar ('*' para todos)
      * @returns {Object}
@@ -311,37 +365,10 @@
     function calculateDailyProductivity(pendientesRecords, ejecutadosRecords, options) {
         const opts = Object.assign({
             date: '',
+            referenceDate: '',
             contractor: '*',
             workType: '*'
         }, options);
-
-        let targetDate = normalizeDate(opts.date);
-        if (!targetDate) {
-            const avail = getAvailableDays(ejecutadosRecords, pendientesRecords, 1);
-            targetDate = avail.length > 0 ? avail[0] : normalizeDate(new Date());
-        }
-
-        const hourlyDistribution = Array.from({ length: 24 }, (_, hour) => ({
-            hour,
-            ingresos: 0,
-            cierres: 0
-        }));
-
-        const result = {
-            date: targetDate,
-            contractor: opts.contractor || '*',
-            workType: opts.workType || '*',
-            ingresosTotal: 0,
-            cierresTotal: 0,
-            cierresIntradia: 0,
-            cierresBacklog: 0,
-            pendientesDelDia: 0,
-            balanceNeto: 0,
-            hourlyDistribution,
-            ttrPromedioHoras: 0
-        };
-
-        if (!targetDate) return result;
 
         const safePendientes = Array.isArray(pendientesRecords) ? pendientesRecords : [];
         const safeEjecutados = Array.isArray(ejecutadosRecords) ? ejecutadosRecords : [];
@@ -354,19 +381,210 @@
             matchesContractor(r, opts.contractor) && matchesWorkType(r, opts.workType)
         );
 
+        const rawDateStr = String(opts.date || '').trim().toUpperCase();
+        const is7DMode = rawDateStr === '7D' || rawDateStr === '*' || rawDateStr === 'ALL';
+
+        const hourlyDistribution = Array.from({ length: 24 }, (_, hour) => ({
+            hour,
+            ingresos: 0,
+            cierres: 0
+        }));
+
+        const contractorTracker = createContractorTracker();
+        let ingresosTotal = 0;
+        let cierresTotal = 0;
+        let cierresIntradia = 0;
+        let cierresBacklog = 0;
+        let pendientesDelDia = 0;
+        let pendientesHistoricos = 0;
         let ttrSumHours = 0;
         let ttrCount = 0;
+
+        // =========================================================================
+        // MODO 1: Ventana de 7 Días (options.date === '7D' o options.date === '*')
+        // =========================================================================
+        if (is7DMode) {
+            let refDateStr = normalizeDate(opts.referenceDate || (rawDateStr !== '7D' && rawDateStr !== '*' && rawDateStr !== 'ALL' ? opts.date : ''));
+            if (!refDateStr) {
+                const avail = getAvailableDays(filteredEjecutados, filteredPendientes, 1);
+                if (avail.length > 0) {
+                    refDateStr = avail[0];
+                } else {
+                    const availAll = getAvailableDays(safeEjecutados, safePendientes, 1);
+                    refDateStr = availAll.length > 0 ? availAll[0] : normalizeDate(new Date());
+                }
+            }
+
+            const refParsed = parseDateTime(refDateStr) || parseDateTime(new Date());
+            const refDateObj = new Date(refParsed.timestamp);
+
+            const dailyMap = new Map();
+            const daysList = [];
+            const numDays = 7;
+            for (let i = numDays - 1; i >= 0; i--) {
+                const d = new Date(refDateObj.getFullYear(), refDateObj.getMonth(), refDateObj.getDate() - i);
+                const dStr = `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+                const startMs = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0).getTime();
+                const endMs = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999).getTime();
+                dailyMap.set(dStr, {
+                    date: dStr,
+                    ingresos: 0,
+                    cierres: 0,
+                    balance: 0,
+                    startMs,
+                    endMs
+                });
+                daysList.push({ date: dStr, startMs, endMs });
+            }
+
+            const windowStartMs = daysList[0].startMs;
+            const windowEndMs = daysList[daysList.length - 1].endMs;
+
+            // Procesar PENDIENTES en la ventana 7D
+            for (const row of filteredPendientes) {
+                const rawStart = getStartDateRaw(row);
+                const pStart = parseDateTime(rawStart);
+                if (pStart && pStart.timestamp >= windowStartMs && pStart.timestamp <= windowEndMs) {
+                    pendientesDelDia++;
+                    ingresosTotal++;
+                    const dEntry = dailyMap.get(pStart.dateStr);
+                    if (dEntry) dEntry.ingresos++;
+                    contractorTracker.record(row, 'ingreso');
+                    if (pStart.hour >= 0 && pStart.hour < 24) {
+                        hourlyDistribution[pStart.hour].ingresos++;
+                    }
+                } else if (pStart && pStart.timestamp < windowStartMs) {
+                    pendientesHistoricos++;
+                } else if (!pStart) {
+                    pendientesHistoricos++;
+                }
+            }
+
+            // Procesar EJECUTADOS en la ventana 7D
+            for (const row of filteredEjecutados) {
+                const rawStart = getStartDateRaw(row);
+                const pStart = parseDateTime(rawStart);
+                const rawEnd = getRestorationDateRaw(row);
+                const pEnd = parseDateTime(rawEnd);
+
+                // Ingresos en la ventana
+                if (pStart && pStart.timestamp >= windowStartMs && pStart.timestamp <= windowEndMs) {
+                    ingresosTotal++;
+                    const dEntry = dailyMap.get(pStart.dateStr);
+                    if (dEntry) dEntry.ingresos++;
+                    contractorTracker.record(row, 'ingreso');
+                    if (pStart.hour >= 0 && pStart.hour < 24) {
+                        hourlyDistribution[pStart.hour].ingresos++;
+                    }
+                }
+
+                // Cierres en la ventana
+                if (pEnd && pEnd.timestamp >= windowStartMs && pEnd.timestamp <= windowEndMs) {
+                    cierresTotal++;
+                    const dEntry = dailyMap.get(pEnd.dateStr);
+                    if (dEntry) dEntry.cierres++;
+                    contractorTracker.record(row, 'cierre');
+                    if (pEnd.hour >= 0 && pEnd.hour < 24) {
+                        hourlyDistribution[pEnd.hour].cierres++;
+                    }
+
+                    // Intradía vs Backlog
+                    const isIntradia = Boolean(pStart && pStart.dateStr === pEnd.dateStr);
+                    if (isIntradia) {
+                        cierresIntradia++;
+                    } else {
+                        cierresBacklog++;
+                    }
+
+                    // TTR
+                    if (pStart && pEnd.timestamp >= pStart.timestamp) {
+                        const diffHours = (pEnd.timestamp - pStart.timestamp) / (1000 * 60 * 60);
+                        if (isFinite(diffHours) && diffHours >= 0) {
+                            ttrSumHours += diffHours;
+                            ttrCount++;
+                        }
+                    }
+                }
+            }
+
+            const dailyBreakdown = Array.from(dailyMap.values()).map(item => ({
+                date: item.date,
+                ingresos: item.ingresos,
+                cierres: item.cierres,
+                balance: item.ingresos - item.cierres
+            }));
+
+            const contractorBreakdown = contractorTracker.toArray();
+            const balanceNeto = ingresosTotal - cierresTotal;
+            const ttrPromedioHoras = ttrCount > 0 ? Math.round((ttrSumHours / ttrCount) * 10) / 10 : 0;
+
+            const totalPendientes = pendientesDelDia + pendientesHistoricos;
+            const inicial = Math.max(0, totalPendientes - ingresosTotal + cierresTotal);
+            const final = Math.max(0, totalPendientes > 0 ? totalPendientes : (inicial + ingresosTotal - cierresTotal));
+
+            return {
+                date: opts.date || '7D',
+                is7D: true,
+                referenceDate: refDateStr,
+                contractor: opts.contractor || '*',
+                workType: opts.workType || '*',
+                ingresosTotal,
+                cierresTotal,
+                cierresIntradia,
+                cierresBacklog,
+                pendientesDelDia,
+                pendientesHistoricos,
+                balanceNeto,
+                hourlyDistribution,
+                ttrPromedioHoras,
+                dailyBreakdown,
+                contractorBreakdown,
+                waterfall: {
+                    inicial,
+                    ingresos: ingresosTotal,
+                    cierresIntradia,
+                    cierresBacklog,
+                    final
+                }
+            };
+        }
+
+        // =========================================================================
+        // MODO 2: Día específico (ej. '2/11/2026')
+        // =========================================================================
+        let targetDate = normalizeDate(opts.date);
+        if (!targetDate) {
+            const avail = getAvailableDays(filteredEjecutados, filteredPendientes, 1);
+            if (avail.length > 0) {
+                targetDate = avail[0];
+            } else {
+                const availAll = getAvailableDays(safeEjecutados, safePendientes, 1);
+                targetDate = availAll.length > 0 ? availAll[0] : normalizeDate(new Date());
+            }
+        }
+
+        const pTarget = parseDateTime(targetDate);
+        let startOfTargetDay = 0;
+        if (pTarget) {
+            const dTarget = new Date(pTarget.timestamp);
+            startOfTargetDay = new Date(dTarget.getFullYear(), dTarget.getMonth(), dTarget.getDate(), 0, 0, 0, 0).getTime();
+        }
 
         // 1. Procesar PENDIENTES
         for (const row of filteredPendientes) {
             const rawStart = getStartDateRaw(row);
             const pStart = parseDateTime(rawStart);
             if (pStart && pStart.dateStr === targetDate) {
-                result.pendientesDelDia++;
-                result.ingresosTotal++;
+                pendientesDelDia++;
+                ingresosTotal++;
+                contractorTracker.record(row, 'ingreso');
                 if (pStart.hour >= 0 && pStart.hour < 24) {
                     hourlyDistribution[pStart.hour].ingresos++;
                 }
+            } else if (pStart && pStart.timestamp < startOfTargetDay) {
+                pendientesHistoricos++;
+            } else if (!pStart) {
+                pendientesHistoricos++;
             }
         }
 
@@ -380,7 +598,8 @@
 
             // A. Casos iniciados en targetDate (contribuyen a ingresosTotal)
             if (pStart && pStart.dateStr === targetDate) {
-                result.ingresosTotal++;
+                ingresosTotal++;
+                contractorTracker.record(row, 'ingreso');
                 if (pStart.hour >= 0 && pStart.hour < 24) {
                     hourlyDistribution[pStart.hour].ingresos++;
                 }
@@ -388,7 +607,8 @@
 
             // B. Casos cerrados/restaurados en targetDate
             if (pEnd && pEnd.dateStr === targetDate) {
-                result.cierresTotal++;
+                cierresTotal++;
+                contractorTracker.record(row, 'cierre');
                 if (pEnd.hour >= 0 && pEnd.hour < 24) {
                     hourlyDistribution[pEnd.hour].cierres++;
                 }
@@ -396,9 +616,9 @@
                 // Intradía vs Backlog
                 const isIntradia = Boolean(pStart && pStart.dateStr === targetDate);
                 if (isIntradia) {
-                    result.cierresIntradia++;
+                    cierresIntradia++;
                 } else {
-                    result.cierresBacklog++;
+                    cierresBacklog++;
                 }
 
                 // Cálculo de TTR (horas entre inicio y restauración)
@@ -412,15 +632,45 @@
             }
         }
 
-        // Balance Neto: cierresTotal - ingresosTotal
-        result.balanceNeto = result.cierresTotal - result.ingresosTotal;
+        // Balance Neto: ingresosTotal - cierresTotal (si ingresos > cierres, es positivo; si cierres > ingresos, es negativo)
+        const balanceNeto = ingresosTotal - cierresTotal;
 
         // TTR promedio redondeado a 1 decimal
-        result.ttrPromedioHoras = ttrCount > 0
+        const ttrPromedioHoras = ttrCount > 0
             ? Math.round((ttrSumHours / ttrCount) * 10) / 10
             : 0;
 
-        return result;
+        const contractorBreakdown = contractorTracker.toArray();
+
+        // Cálculo de Waterfall
+        const totalPendientes = pendientesDelDia + pendientesHistoricos;
+        const inicial = Math.max(0, totalPendientes - ingresosTotal + cierresTotal);
+        const final = Math.max(0, totalPendientes > 0 ? totalPendientes : (inicial + ingresosTotal - cierresTotal));
+
+        const waterfall = {
+            inicial,
+            ingresos: ingresosTotal,
+            cierresIntradia,
+            cierresBacklog,
+            final
+        };
+
+        return {
+            date: targetDate,
+            contractor: opts.contractor || '*',
+            workType: opts.workType || '*',
+            ingresosTotal,
+            cierresTotal,
+            cierresIntradia,
+            cierresBacklog,
+            pendientesDelDia,
+            pendientesHistoricos,
+            balanceNeto,
+            hourlyDistribution,
+            ttrPromedioHoras,
+            contractorBreakdown,
+            waterfall
+        };
     }
 
     /**
@@ -595,11 +845,216 @@
         return resultList;
     }
 
+    /**
+     * Agrupa y calcula incidencias recurrentes por Suministro en los últimos 7 días
+     *
+     * @param {Array} pendientesRecords
+     * @param {Array} ejecutadosRecords
+     * @param {Object} [options]
+     * @param {string} [options.date] - Fecha de referencia ('7D', '*', o 'D/M/YYYY')
+     * @param {string} [options.referenceDate]
+     * @param {string} [options.contractor='*'] - Filtro por contratista
+     * @param {string} [options.workType='*']
+     * @param {number} [options.days=7] - Ventana de días (por defecto 7)
+     * @returns {Array<Object>}
+     */
+    function getRecurrentSuministros7D(pendientesRecords, ejecutadosRecords, options) {
+        const opts = Object.assign({
+            date: '',
+            referenceDate: '',
+            contractor: '*',
+            workType: '*',
+            days: 7
+        }, options);
+
+        let refDateStr = normalizeDate(opts.referenceDate || (opts.date !== '7D' && opts.date !== '*' ? opts.date : ''));
+        if (!refDateStr) {
+            const avail = getAvailableDays(ejecutadosRecords, pendientesRecords, 1);
+            refDateStr = avail.length > 0 ? avail[0] : normalizeDate(new Date());
+        }
+
+        const refParsed = parseDateTime(refDateStr) || parseDateTime(new Date());
+        const numDays = Math.max(1, opts.days || 7);
+        const refDateObj = new Date(refParsed.timestamp);
+        const endOfRefDay = new Date(refDateObj.getFullYear(), refDateObj.getMonth(), refDateObj.getDate(), 23, 59, 59, 999).getTime();
+        const startOfWindow = new Date(refDateObj.getFullYear(), refDateObj.getMonth(), refDateObj.getDate(), 0, 0, 0, 0).getTime() - ((numDays - 1) * 24 * 60 * 60 * 1000);
+
+        const safePendientes = Array.isArray(pendientesRecords) ? pendientesRecords : [];
+        const safeEjecutados = Array.isArray(ejecutadosRecords) ? ejecutadosRecords : [];
+
+        // Filtro por contratista si != '*' y != 'ALL'
+        const filteredPendientes = safePendientes.filter(r =>
+            matchesContractor(r, opts.contractor) && matchesWorkType(r, opts.workType)
+        );
+        const filteredEjecutados = safeEjecutados.filter(r =>
+            matchesContractor(r, opts.contractor) && matchesWorkType(r, opts.workType)
+        );
+
+        const sumMap = new Map();
+
+        function extractSuministroCode(row) {
+            if (!row || typeof row !== 'object') return '';
+            const s = getRecordProp(
+                row,
+                'Suministro', 'Objeto Técnico', 'Objeto Tecnico', 'suministro',
+                'objeto_tecnico', 'SUMINISTRO', 'OBJETO_TECNICO',
+                'Objeto_Tecnico', 'Id Suministro', 'id_suministro', 'Nro Suministro'
+            ).trim();
+            if (!s) return '';
+            const upper = s.toUpperCase();
+            if (upper === '-' || upper === '0' || upper === 'SIN SUMINISTRO' || upper === 'N/A' || upper === 'NULL' || upper === 'UNDEFINED') {
+                return '';
+            }
+            return s;
+        }
+
+        function extractExplicitCount(row) {
+            const raw = getRecordProp(
+                row,
+                'Conteo_Fallas_Suministro_7D', 'Fallas_Suministro_7D',
+                'conteo_fallas_suministro_7d', 'fallas_suministro_7d',
+                'Conteo_Fallas_Suministro', 'conteo_fallas_7d'
+            );
+            if (!raw) return 0;
+            const n = parseInt(raw, 10);
+            return isNaN(n) ? 0 : n;
+        }
+
+        function getSuministroData(rawCode) {
+            const key = rawCode.trim().toUpperCase();
+            if (!sumMap.has(key)) {
+                sumMap.set(key, {
+                    suministro: rawCode.trim(),
+                    pendientesActivos: 0,
+                    cerrados7D: 0,
+                    maxExplicitCount: 0,
+                    seds: new Map(),
+                    distritos: new Map(),
+                    ticketsSet: new Set()
+                });
+            }
+            return sumMap.get(key);
+        }
+
+        function recordAttr(map, val) {
+            if (!val) return;
+            const clean = String(val).trim();
+            const upper = clean.toUpperCase();
+            if (!clean || upper === 'N/A' || upper === '-' || upper === '0' || upper === 'NULL') return;
+            map.set(clean, (map.get(clean) || 0) + 1);
+        }
+
+        function extractSed(row) {
+            return getRecordProp(row, 'SED', 'sed', 'SED_CANONICA', 'sed_canonica', 'Sed');
+        }
+
+        function extractDistrito(row) {
+            return getRecordProp(row, 'Distrito', 'distrito', 'DISTRITO', 'Distrito / Comuna', 'comuna');
+        }
+
+        function extractTicket(row) {
+            return getRecordProp(row, 'ticket', 'Ticket', 'INCIDENCIA', 'Incidencia', 'incidencia', 'Número de avería', 'Numero de averia', 'averia', 'id');
+        }
+
+        // 1. Acumular PENDIENTES ACTIVOS
+        for (const row of filteredPendientes) {
+            const code = extractSuministroCode(row);
+            if (!code) continue;
+
+            const data = getSuministroData(code);
+            data.pendientesActivos++;
+
+            const exp = extractExplicitCount(row);
+            if (exp > data.maxExplicitCount) data.maxExplicitCount = exp;
+
+            const t = extractTicket(row);
+            if (t) data.ticketsSet.add(t);
+
+            recordAttr(data.seds, extractSed(row));
+            recordAttr(data.distritos, extractDistrito(row));
+        }
+
+        // 2. Acumular CERRADOS EN LA VENTANA DE 7 DÍAS
+        for (const row of filteredEjecutados) {
+            const code = extractSuministroCode(row);
+            if (!code) continue;
+
+            const pEnd = parseDateTime(getRestorationDateRaw(row));
+            const pStart = parseDateTime(getStartDateRaw(row));
+
+            const inWindow = (pEnd && pEnd.timestamp >= startOfWindow && pEnd.timestamp <= endOfRefDay) ||
+                             (!pEnd && pStart && pStart.timestamp >= startOfWindow && pStart.timestamp <= endOfRefDay);
+
+            if (inWindow) {
+                const data = getSuministroData(code);
+                data.cerrados7D++;
+
+                const exp = extractExplicitCount(row);
+                if (exp > data.maxExplicitCount) data.maxExplicitCount = exp;
+
+                const t = extractTicket(row);
+                if (t) data.ticketsSet.add(t);
+
+                recordAttr(data.seds, extractSed(row));
+                recordAttr(data.distritos, extractDistrito(row));
+            }
+        }
+
+        function getTopAttribute(map) {
+            if (!map || map.size === 0) return '';
+            let topVal = '';
+            let maxCount = -1;
+            for (const [val, count] of map.entries()) {
+                if (count > maxCount) {
+                    maxCount = count;
+                    topVal = val;
+                }
+            }
+            return topVal;
+        }
+
+        const resultList = [];
+        for (const item of sumMap.values()) {
+            const appearances = item.pendientesActivos + item.cerrados7D;
+            const eventos7D = Math.max(item.maxExplicitCount, appearances);
+
+            if (eventos7D > 0 || item.pendientesActivos > 0) {
+                resultList.push({
+                    suministro: item.suministro,
+                    sed: getTopAttribute(item.seds) || '-',
+                    distrito: getTopAttribute(item.distritos) || '-',
+                    pendientesActivos: item.pendientesActivos,
+                    eventos7D: eventos7D,
+                    tickets: Array.from(item.ticketsSet)
+                });
+            }
+        }
+
+        // Ordenamiento: primero por pendientesActivos > 0 descendente, luego por eventos7D descendente
+        resultList.sort((a, b) => {
+            const aHasPending = a.pendientesActivos > 0 ? 1 : 0;
+            const bHasPending = b.pendientesActivos > 0 ? 1 : 0;
+            if (aHasPending !== bHasPending) {
+                return bHasPending - aHasPending; // Pendientes activos primero
+            }
+            if (b.eventos7D !== a.eventos7D) {
+                return b.eventos7D - a.eventos7D; // Mayor eventos7D primero
+            }
+            if (b.pendientesActivos !== a.pendientesActivos) {
+                return b.pendientesActivos - a.pendientesActivos;
+            }
+            return String(a.suministro).localeCompare(String(b.suministro));
+        });
+
+        return resultList;
+    }
+
     return {
         parseDateTime,
         normalizeDate,
         getAvailableDays,
         calculateDailyProductivity,
-        getRecurrentSeds7D
+        getRecurrentSeds7D,
+        getRecurrentSuministros7D
     };
 }));
