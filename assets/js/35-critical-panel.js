@@ -274,38 +274,45 @@ function openCriticalSedPanel(sedCode) {
     const seenIds = new Set();
     const unifiedEvents = [];
 
-    // Helper para excluir fallas de conexiones individuales / suministros
-    function isExcludedFault(typeStr) {
-        if (!typeStr || typeStr === 'N/A') return false;
-        const s = String(typeStr).toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        return s.includes("SUMINISTRO") || 
-               s.includes("DOMICILIO") || 
-               s.includes("CNX") || 
-               s.includes("CONEXION") || 
-               s.includes("ACOMETIDA") ||
-               s.includes("MEDIDOR") ||
-               s.includes("BORNERA") ||
-               s.includes("SIN SERVICIO");
-    }
+    // Delegar a window.DomUtils o globales existentes para evitar helpers duplicados
+    const checkExcludedFault = (typeof window !== 'undefined' && typeof window.isExcludedFault === 'function')
+        ? window.isExcludedFault
+        : ((typeof DomUtils !== 'undefined' && typeof DomUtils.isExcludedFault === 'function')
+            ? DomUtils.isExcludedFault
+            : (typeof isExcludedFault === 'function' ? isExcludedFault : (typeStr) => {
+                if (!typeStr || typeStr === 'N/A') return false;
+                const s = String(typeStr).toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                return s.includes("SUMINISTRO") || 
+                       s.includes("DOMICILIO") || 
+                       s.includes("CNX") || 
+                       s.includes("CONEXION") || 
+                       s.includes("ACOMETIDA") ||
+                       s.includes("MEDIDOR") ||
+                       s.includes("BORNERA") ||
+                       s.includes("SIN SERVICIO");
+            }));
 
-    // Helper canónico para unificar nombres de llaves (ej. '02SP' -> '2SP', 'LLAVE 01' -> '1')
-    function normalizeLlaveCode(val) {
-        if (!val || val === 'N/A' || val === 'None') return 'GENERAL';
-        let s = String(val).trim().toUpperCase();
-        if (s === 'MULTI_LLAVE' || s.includes('BARRA') || s.includes('GENERAL') || s.includes('TRAFO')) return 'MULTI_LLAVE';
-        if (s.includes('/')) s = s.split('/').pop();
-        if (s.includes(':')) s = s.split(':').pop();
-        s = s.replace(/^(LLAVE|LL|CIRC|CIRCUITO|ALIMENTADOR|FU)[\s\.\:\-_]*/i, '').trim();
-        s = s.replace(/\b0+([1-9][0-9]*[A-Z0-9]*)\b/g, '$1');
-        s = s.replace(/[\s\-_]+/g, '');
-        return s || 'GENERAL';
-    }
+    const normLlaveCode = (typeof window !== 'undefined' && typeof window.normalizeLlaveCode === 'function')
+        ? window.normalizeLlaveCode
+        : ((typeof DomUtils !== 'undefined' && typeof DomUtils.normalizeLlaveCode === 'function')
+            ? DomUtils.normalizeLlaveCode
+            : (typeof normalizeLlaveCode === 'function' ? normalizeLlaveCode : (val) => {
+                if (!val || val === 'N/A' || val === 'None') return 'GENERAL';
+                let s = String(val).trim().toUpperCase();
+                if (s === 'MULTI_LLAVE' || s.includes('BARRA') || s.includes('GENERAL') || s.includes('TRAFO')) return 'MULTI_LLAVE';
+                if (s.includes('/')) s = s.split('/').pop();
+                if (s.includes(':')) s = s.split(':').pop();
+                s = s.replace(/^(LLAVE|LL|CIRC|CIRCUITO|ALIMENTADOR|FU)[\s\.\:\-_]*/i, '').trim();
+                s = s.replace(/\b0+([1-9][0-9]*[A-Z0-9]*)\b/g, '$1');
+                s = s.replace(/[\s\-_]+/g, '');
+                return s || 'GENERAL';
+            }));
 
     // Precedencia 1: DuckDB (Base Histórica Maestra)
     (rawEvents || []).forEach(e => {
         const id = String(e.id || '').trim();
         if (id && id !== 'None') seenIds.add(id);
-        const canonLlave = normalizeLlaveCode(e.l);
+        const canonLlave = normLlaveCode(e.l);
         unifiedEvents.push({
             id: id,
             f: e.f,
@@ -334,7 +341,7 @@ function openCriticalSedPanel(sedCode) {
             );
 
             // Filtrar y descartar reclamos de suministro / acometida individual
-            if (isExcludedFault(falReal)) return;
+            if (checkExcludedFault(falReal)) return;
 
             const ticketId = String(getProp(r, 'Ticket', 'ticket', 'ODM', 'odm', 'id', 'Numero de Incidencia') || '').trim();
             if (ticketId && seenIds.has(ticketId)) return;
@@ -360,7 +367,7 @@ function openCriticalSedPanel(sedCode) {
                 }
             }
 
-            const canonLlave = normalizeLlaveCode(rawLlaveSuffix);
+            const canonLlave = normLlaveCode(rawLlaveSuffix);
 
             // Nota específica y personal técnico
             const nota = getProp(r, 'Nota específica', 'Nota especifica', 'Nota especfica', 'Observaciones', 'nota_especifica', 'Comentarios', 'Nota');
@@ -394,7 +401,7 @@ function openCriticalSedPanel(sedCode) {
         const lBase = typeof extractBaseSedCode === 'function' ? extractBaseSedCode(l.sed) : '';
 
         if (lNorm === normSed || lBase === baseSed || lNorm === baseSed || lBase === normSed) {
-            if (isExcludedFault(l.falla)) return;
+            if (checkExcludedFault(l.falla)) return;
 
             const ticketId = String(l.ticket || l.odm || '').trim();
             if (ticketId && seenIds.has(ticketId)) return;
@@ -408,7 +415,7 @@ function openCriticalSedPanel(sedCode) {
                 multiLl = !parts[1];
             }
 
-            const canonLlave = normalizeLlaveCode(rawLlaveSuffix);
+            const canonLlave = normLlaveCode(rawLlaveSuffix);
 
             unifiedEvents.push({
                 id: ticketId,
@@ -667,6 +674,49 @@ function refreshCriticalPanelViews() {
     renderCriticalEventsTable(filteredEvents);
 }
 
+let chartJsLazyPromise = null;
+
+/**
+ * Carga diferida (lazy load) de Chart.js si no está presente en el entorno global
+ */
+function ensureChartJsLoaded() {
+    if (typeof Chart !== 'undefined') {
+        return Promise.resolve(Chart);
+    }
+    if (chartJsLazyPromise) {
+        return chartJsLazyPromise;
+    }
+
+    chartJsLazyPromise = new Promise((resolve, reject) => {
+        if (typeof document === 'undefined') {
+            return resolve(typeof Chart !== 'undefined' ? Chart : null);
+        }
+
+        const existing = document.querySelector('script[src*="chart.umd.min.js"], script[src*="chart.js"]');
+        if (existing) {
+            if (typeof Chart !== 'undefined') {
+                return resolve(Chart);
+            }
+            existing.addEventListener('load', () => resolve(window.Chart));
+            existing.addEventListener('error', (err) => reject(err));
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js';
+        script.async = true;
+        script.onload = () => resolve(window.Chart);
+        script.onerror = (e) => reject(new Error('No se pudo cargar Chart.js dinámicamente'));
+        document.head.appendChild(script);
+    });
+
+    return chartJsLazyPromise;
+}
+
+if (typeof window !== 'undefined') {
+    window.ensureChartJsLoaded = ensureChartJsLoaded;
+}
+
 /**
  * Renderiza el gráfico interactivo usando Chart.js adaptado a la granularidad del rango.
  */
@@ -680,7 +730,13 @@ function renderCriticalChart(events) {
     }
 
     if (typeof Chart === 'undefined') {
-        console.warn("Chart.js no está cargado.");
+        ensureChartJsLoaded().then((loadedChart) => {
+            if (loadedChart && document.getElementById('criticalSedChartCanvas')) {
+                renderCriticalChart(events);
+            }
+        }).catch(err => {
+            console.warn("Chart.js no está cargado y falló la carga diferida:", err);
+        });
         return;
     }
 

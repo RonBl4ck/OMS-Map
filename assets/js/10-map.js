@@ -1,7 +1,34 @@
+        // Carga modular de submódulos si está en entorno Node / CommonJS
+        if (typeof require === 'function') {
+            try {
+                if (typeof MapPopups === 'undefined') {
+                    const popMod = require('./templates/mapPopups.js');
+                    if (typeof globalThis !== 'undefined') globalThis.MapPopups = popMod.MapPopups || popMod;
+                }
+                if (typeof MapManager === 'undefined') {
+                    const mapMod = require('./components/mapManager.js');
+                    if (typeof globalThis !== 'undefined') globalThis.MapManager = mapMod.MapManager || mapMod;
+                }
+                if (typeof MarkersManager === 'undefined') {
+                    const markMod = require('./components/markersManager.js');
+                    if (typeof globalThis !== 'undefined') globalThis.MarkersManager = markMod.MarkersManager || markMod;
+                }
+                if (typeof SedCloudsManager === 'undefined') {
+                    const sedMod = require('./components/sedCloudsManager.js');
+                    if (typeof globalThis !== 'undefined') globalThis.SedCloudsManager = sedMod.SedCloudsManager || sedMod;
+                }
+            } catch (e) {
+                // Standalone execution
+            }
+        }
+
         let baseLayersControl = null;
         let activeBaseLayer = null;
 
         function applyBaseLayers(cartoKey) {
+            if (typeof window !== 'undefined' && window.MapManager && typeof window.MapManager.applyBaseLayers === 'function') {
+                return window.MapManager.applyBaseLayers(cartoKey);
+            }
             if (!leafletMap) return;
 
             let key = (cartoKey || sessionStorage.getItem('oms_carto_key') || '').trim();
@@ -111,6 +138,9 @@
                 }
             }).addTo(leafletMap);
             sedPerimetersGroup = L.layerGroup().addTo(leafletMap);
+            if (typeof window !== 'undefined') {
+                window.sedPerimetersGroup = sedPerimetersGroup;
+            }
             leafletMap.on('zoomend', syncSedCloudLabelVisibility);
         }
 
@@ -301,6 +331,12 @@
         }
 
         function setupMapMarkers() {
+            if (typeof window !== 'undefined' && window.MarkersManager && typeof window.MarkersManager.setupMapMarkers === 'function') {
+                window.MarkersManager.setupMapMarkers();
+                window.renderMapMarkers = setupMapMarkers;
+                return;
+            }
+
             markersGroup.clearLayers();
             markerMap.clear();
 
@@ -377,7 +413,9 @@
                     }
                 }
 
-                const popupHtml = `
+                const popupHtml = (typeof window !== 'undefined' && window.MapPopups && typeof window.MapPopups.renderIncidentPopup === 'function')
+                    ? window.MapPopups.renderIncidentPopup(loc)
+                    : `
                     <div style="font-family: Arial, sans-serif; font-size: 12px; min-width: 265px; line-height: 1.5;">
                         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #3c5a9f; padding-bottom:4px; margin-bottom:6px;">
                             <h4 style="margin:0; color:#3c5a9f; font-size:13px; font-weight:700;">${loc.emoji} Ticket: ${escapeHtml(loc.ticket)}</h4>
@@ -440,7 +478,9 @@
                     </div>
                 `;
 
-                const iconHtml = `
+                const iconHtml = (typeof window !== 'undefined' && window.MapPopups && typeof window.MapPopups.renderIncidentIcon === 'function')
+                    ? window.MapPopups.renderIncidentIcon(loc)
+                    : `
                     <div class="marker-sla-badge ${loc.sla.statusClass}${isExecution ? ' is-execution' : ''}${loc.es_top_critica ? ' is-sed-critica-pulse' : ''}" title="Ticket: ${escapeHtml(loc.ticket)} | ${escapeHtml(loc.falla)} | Plazo: ${escapeHtml(loc.sla.label)}">
                         ${isExecution ? '<span class="marker-vehicle-backdrop" aria-hidden="true">🚚</span>' : ''}
                         <span class="marker-fault-icon">${getFaultIconHtml(loc.falla)}</span>
@@ -541,6 +581,9 @@
         }
 
         function locateUser() {
+            if (typeof window !== 'undefined' && window.MapManager && typeof window.MapManager.locateUser === 'function') {
+                return window.MapManager.locateUser();
+            }
             const controlButton = document.querySelector('.map-locate-control button');
             if (!navigator.geolocation) {
                 showMapNotice('⚠️ Este dispositivo no permite obtener la ubicación.', 'error');
@@ -961,6 +1004,9 @@
         }
 
         async function buscarDireccionEnMapa() {
+            if (typeof window !== 'undefined' && window.MapManager && typeof window.MapManager.buscarDireccionEnMapa === 'function') {
+                return window.MapManager.buscarDireccionEnMapa();
+            }
             const query = document.getElementById('inputTicket').value.trim();
             const resBox = document.getElementById('addressResultBox');
             const radius = ADDRESS_SEARCH_RADIUS_METERS;
@@ -1029,6 +1075,9 @@
         }
 
         function filterMapMarkers(options = {}) {
+            if (typeof window !== 'undefined' && window.MarkersManager && typeof window.MarkersManager.filterMapMarkers === 'function') {
+                return window.MarkersManager.filterMapMarkers(options);
+            }
             const searchType = document.getElementById("searchTypeMap") ? document.getElementById("searchTypeMap").value : "ticket";
             const query = document.getElementById("inputTicket").value.trim().toLowerCase();
             const selDias = mapCtrlDia ? mapCtrlDia.getSelected() : [];
@@ -1127,36 +1176,10 @@
             renderSedPerimeters(visibleLocations);
         }
 
-        function computeConvexHull(points) {
-            if (points.length <= 2) return points;
-            const pts = points.slice().sort((a, b) => a[0] === b[0] ? a[1] - b[1] : a[0] - b[0]);
-
-            function cross(o, a, b) {
-                return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
-            }
-
-            const lower = [];
-            for (let i = 0; i < pts.length; i++) {
-                while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], pts[i]) <= 0) {
-                    lower.pop();
-                }
-                lower.push(pts[i]);
-            }
-
-            const upper = [];
-            for (let i = pts.length - 1; i >= 0; i--) {
-                while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], pts[i]) <= 0) {
-                    upper.pop();
-                }
-                upper.push(pts[i]);
-            }
-
-            lower.pop();
-            upper.pop();
-            return lower.concat(upper);
-        }
-
         function renderSedPerimeters(locations) {
+            if (typeof window !== 'undefined' && window.SedCloudsManager && typeof window.SedCloudsManager.renderSedPerimeters === 'function') {
+                return window.SedCloudsManager.renderSedPerimeters(locations);
+            }
             if (!sedPerimetersGroup) return;
             sedPerimetersGroup.clearLayers();
             sedCloudLayers = [];
@@ -1204,7 +1227,9 @@
                     className: 'sed-perimeter-shape'
                 };
 
-                const popupContent = `
+                const popupContent = (typeof window !== 'undefined' && window.MapPopups && typeof window.MapPopups.renderSedPopup === 'function')
+                    ? window.MapPopups.renderSedPopup({ ...group, strokeColor, count })
+                    : `
                     <div style="font-family: Arial, sans-serif; font-size: 12px; min-width: 230px; line-height: 1.4;">
                         <div style="border-bottom: 2px solid ${strokeColor}; padding-bottom: 4px; margin-bottom: 6px;">
                             <h4 style="margin:0; color: ${strokeColor}; font-size: 13px; font-weight: 700;">
@@ -1253,6 +1278,9 @@
         }
 
         function syncSedCloudLabelVisibility() {
+            if (typeof window !== 'undefined' && window.SedCloudsManager && typeof window.SedCloudsManager.syncSedCloudLabelVisibility === 'function') {
+                return window.SedCloudsManager.syncSedCloudLabelVisibility();
+            }
             if (!leafletMap) return;
             const zoom = leafletMap.getZoom();
             sedCloudLayers.forEach(({ layer, count }) => {
@@ -1262,6 +1290,9 @@
         }
 
         function focusSedCloud(sed) {
+            if (typeof window !== 'undefined' && window.SedCloudsManager && typeof window.SedCloudsManager.focusSedCloud === 'function') {
+                return window.SedCloudsManager.focusSedCloud(sed);
+            }
             const selectedKey = String(sed || '').trim().toUpperCase();
             activeSedCloudKey = selectedKey;
             sedCloudLayers.forEach(({ layer, sedKey }) => {
@@ -1270,6 +1301,9 @@
         }
 
         function toggleSedPerimeters() {
+            if (typeof window !== 'undefined' && window.SedCloudsManager && typeof window.SedCloudsManager.toggleSedPerimeters === 'function') {
+                return window.SedCloudsManager.toggleSedPerimeters();
+            }
             showSedPerimeters = !showSedPerimeters;
             const btn = document.getElementById("btnToggleSedLayer");
             if (btn) {
@@ -1283,6 +1317,9 @@
         }
 
         function setMapLegendExpanded(expanded, persist = true) {
+            if (typeof window !== 'undefined' && window.MapManager && typeof window.MapManager.setMapLegendExpanded === 'function') {
+                return window.MapManager.setMapLegendExpanded(expanded, persist);
+            }
             const legend = document.getElementById('mapEmojiLegend');
             const button = document.getElementById('btnToggleMapLegend');
             if (!legend || !button) return;
@@ -1292,6 +1329,9 @@
         }
 
         function initMapLegend() {
+            if (typeof window !== 'undefined' && window.MapManager && typeof window.MapManager.initMapLegend === 'function') {
+                return window.MapManager.initMapLegend();
+            }
             const button = document.getElementById('btnToggleMapLegend');
             if (!button) return;
             const saved = localStorage.getItem('oms-map-legend-expanded');
@@ -1378,27 +1418,30 @@
             });
         }
 
-        document.getElementById("btnLimpiar").addEventListener("click", () => {
-            document.getElementById("inputTicket").value = "";
-            if (resBox) resBox.style.display = "none";
-            addressSearchTicketKeys = null;
-            addressPendingCandidates = [];
-            clearAddressSearchVisuals();
-            const chk7Map = document.getElementById("chk7LlamadasMap");
-            if (chk7Map) chk7Map.checked = false;
-            const chkSedMap = document.getElementById("chkReincSedMap");
-            if (chkSedMap) chkSedMap.checked = false;
-            const chkSumMap = document.getElementById("chkReincSuminMap");
-            if (chkSumMap) chkSumMap.checked = false;
-            const chkCritMap = document.getElementById("chkCriticaMap");
-            if (chkCritMap) chkCritMap.checked = false;
+        const btnLimpiarEl = document.getElementById("btnLimpiar");
+        if (btnLimpiarEl) {
+            btnLimpiarEl.addEventListener("click", () => {
+                if (inputTicketEl) inputTicketEl.value = "";
+                if (resBox) resBox.style.display = "none";
+                addressSearchTicketKeys = null;
+                addressPendingCandidates = [];
+                clearAddressSearchVisuals();
+                const chk7Map = document.getElementById("chk7LlamadasMap");
+                if (chk7Map) chk7Map.checked = false;
+                const chkSedMap = document.getElementById("chkReincSedMap");
+                if (chkSedMap) chkSedMap.checked = false;
+                const chkSumMap = document.getElementById("chkReincSuminMap");
+                if (chkSumMap) chkSumMap.checked = false;
+                const chkCritMap = document.getElementById("chkCriticaMap");
+                if (chkCritMap) chkCritMap.checked = false;
 
-            if (mapCtrlDia) mapCtrlDia.reset();
-            if (mapCtrlEstado) mapCtrlEstado.reset();
-            if (mapCtrlEmpresa) mapCtrlEmpresa.reset();
-            if (mapCtrlFalla) mapCtrlFalla.reset();
-            filterMapMarkers();
-        });
+                if (mapCtrlDia) mapCtrlDia.reset();
+                if (mapCtrlEstado) mapCtrlEstado.reset();
+                if (mapCtrlEmpresa) mapCtrlEmpresa.reset();
+                if (mapCtrlFalla) mapCtrlFalla.reset();
+                filterMapMarkers();
+            });
+        }
 
         const chkMap7 = document.getElementById("chk7LlamadasMap");
         if (chkMap7) chkMap7.addEventListener("change", filterMapMarkers);
@@ -1410,5 +1453,5 @@
         if (chkMapCrit) chkMapCrit.addEventListener("change", filterMapMarkers);
 
         if (btnAddressSearchEl) btnAddressSearchEl.addEventListener('click', buscarDireccionEnMapa);
-        window.addEventListener('resize', syncAddressResultPosition);
+        if (typeof window !== 'undefined') window.addEventListener('resize', syncAddressResultPosition);
         updateAddressSearchUi();

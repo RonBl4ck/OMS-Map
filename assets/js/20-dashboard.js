@@ -1,3 +1,27 @@
+        // Carga modular en entornos Node / CommonJS
+        if (typeof require === 'function') {
+            try {
+                if (typeof SupervisorService === 'undefined') {
+                    const mod = require('./services/supervisorService.js');
+                    if (typeof globalThis !== 'undefined') globalThis.SupervisorService = mod.SupervisorService || mod;
+                }
+                if (typeof ChartsManager === 'undefined') {
+                    const mod = require('./components/chartsManager.js');
+                    if (typeof globalThis !== 'undefined') globalThis.ChartsManager = mod.ChartsManager || mod;
+                }
+                if (typeof ModalsManager === 'undefined') {
+                    const mod = require('./components/modalsManager.js');
+                    if (typeof globalThis !== 'undefined') globalThis.ModalsManager = mod.ModalsManager || mod;
+                }
+                if (typeof DashboardManager === 'undefined') {
+                    const mod = require('./components/dashboardManager.js');
+                    if (typeof globalThis !== 'undefined') globalThis.DashboardManager = mod.DashboardManager || mod;
+                }
+            } catch (e) {
+                // Fallback para entornos VM aislados sin sistema de archivos
+            }
+        }
+
         // === 4 GRÁFICOS & KPIS TD OMS ESTILO PLUZ ===
         let tdFilterDia = null;
 
@@ -2139,6 +2163,10 @@
         }
 
         if (typeof window !== 'undefined') {
+            if (typeof SupervisorService !== 'undefined') window.SupervisorService = SupervisorService;
+            if (typeof ChartsManager !== 'undefined') window.ChartsManager = ChartsManager;
+            if (typeof ModalsManager !== 'undefined') window.ModalsManager = ModalsManager;
+            if (typeof DashboardManager !== 'undefined') window.DashboardManager = DashboardManager;
             window.openSupervisorModal = openSupervisorModal;
             window.closeSupervisorModal = closeSupervisorModal;
             window.openBulkPluzModal = openBulkPluzModal;
@@ -2150,6 +2178,38 @@
             window.getSupervisorBadgeClass = getSupervisorBadgeClass;
             window.getCriticoBadgeClass = getCriticoBadgeClass;
             window.exportFilteredTdOmsTable = exportFilteredTdOmsTable;
+            window.renderModernCharts = renderModernCharts;
+            window.renderTdOmsTable = renderTdOmsTable;
+            window.sortTdOmsTable = sortTdOmsTable;
+            window.summarizeDeadlineStatus = summarizeDeadlineStatus;
+            window.updateKpiCards = updateKpiCards;
+            window.downloadExcel = downloadExcel;
+            window.downloadExecutedBase = downloadExecutedBase;
+        }
+
+        if (typeof module === 'object' && module.exports) {
+            module.exports = {
+                summarizeDeadlineStatus,
+                renderModernCharts,
+                handleChartBarClick,
+                parseTdOmsDate,
+                formatShortDate,
+                formatForDateTimeLocal,
+                isSupervisorLogOverdue,
+                getSupervisorFinEstimadoInfo,
+                sortTdOmsTable,
+                renderTdOmsTable,
+                downloadExcel,
+                downloadExecutedBase,
+                openSupervisorModal,
+                closeSupervisorModal,
+                openBulkPluzModal,
+                closeBulkPluzModal,
+                parseBulkTicketsWithJc,
+                parseBulkTickets,
+                parseDateTimeCandidate,
+                executeBulkPluzEnEjecucion
+            };
         }
 
 
