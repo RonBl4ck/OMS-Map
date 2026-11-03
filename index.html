@@ -142,12 +142,9 @@
             </div>
             <div class="navbar-center">
                 <div class="map-tabs-nav" role="tablist" aria-label="Secciones principales">
-                    <button id="tabMapa" class="tab-btn active" type="button" role="tab" aria-selected="true" aria-controls="map">Mapa</button>
-                    <button id="tabTdOms" class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="tdOmsModalOverlay" title="Tablero de indicadores y métricas">Indicadores</button>
-                    <button id="tabSeguimientoDia" class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="seguimientoDiaOverlay" title="Balance de productividad y flujo diario" style="display: none;">Productividad</button>
-                    <button id="tabTecnicos" class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="tecnicosModalOverlay" title="Seguimiento de cierres por técnico">Seguimiento</button>
-                    <button id="tabHistorialPluz" class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="historialPluzOverlay" title="Historial y auditoría de supervisión PLUZ" style="display: none;">Historial Pluz</button>
-                    <button id="tabLlamadas" class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="llamadasModalOverlay" style="display: none;">Llamadas</button>
+                    <button id="tabMapa" class="tab-btn active" type="button" role="tab" aria-selected="true" aria-controls="map" title="Centro de control cartográfico en tiempo real"><span>🗺️ Operación</span></button>
+                    <button id="tabTdOms" class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="tdOmsModalOverlay" title="Métricas de plazos, balance diario y llamadas"><span>📊 Métricas & Control</span></button>
+                    <button id="tabTecnicos" class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="tecnicosModalOverlay" title="Seguimiento de cuadrillas y técnicos en campo"><span>👷 Cuadrillas & Campo</span></button>
                 </div>
             </div>
             <div class="kpi-badges-row">
@@ -201,7 +198,7 @@
                 <div id="mapMultiEstado"></div>
                 <div id="mapMultiEmpresa"></div>
                 <div id="mapMultiFalla"></div>
-                <label class="checkbox-filter-label" style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; color: #be123c; user-select: none;" title="Filtrar por incidencias con 7 o más llamadas">
+                <label class="checkbox-filter-label severity-chip" style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; color: #be123c; user-select: none;" title="Filtrar por incidencias con 7 o más llamadas">
                     <input type="checkbox" id="chk7LlamadasMap" data-requires-primary-data style="cursor: pointer; accent-color: #e11d48; width: 13px; height: 13px;">
                     <span>📞 ≥7 Llam.</span>
                 </label>
@@ -275,9 +272,25 @@
 
     <!-- VISTA PESTAÑA COMPLETA DE INDICADORES TD OMS -->
     <div id="tdOmsModalOverlay" class="td-oms-full-view">
-        <div class="view-header-bar">
-            <div class="modal-header-title">
-                📊 Indicadores TD OMS — Tablero Ejecutivo Pluz
+        <div class="view-header-bar module-header-consolidated">
+            <div class="module-header-info">
+                <div class="modal-header-title">
+                    📊 Métricas & Control
+                </div>
+                <p class="view-header-description">
+                    Tablero ejecutivo de cumplimiento de plazos, balance de flujo diario y señales de clientes.
+                </p>
+            </div>
+            <div class="module-segmented-nav" role="tablist" aria-label="Subsecciones de Métricas y Control">
+                <button type="button" class="segmented-nav-btn active" id="btnSubnavPlazos" role="tab" aria-selected="true">
+                    <span>📊 Plazos & Reportes</span>
+                </button>
+                <button id="tabSeguimientoDia" class="segmented-nav-btn" type="button" role="tab" aria-selected="false" aria-controls="seguimientoDiaOverlay" title="Balance de productividad y flujo diario" style="display: none;">
+                    <span>📈 Balance Diario (Waterfall)</span>
+                </button>
+                <button id="tabLlamadas" class="segmented-nav-btn" type="button" role="tab" aria-selected="false" aria-controls="llamadasModalOverlay" title="Registro y presión de llamadas" style="display: none;">
+                    <span>📞 Señales & Llamadas</span>
+                </button>
             </div>
         </div>
         <div class="kpi-cards-grid">
@@ -425,14 +438,51 @@
 
     <!-- VISTA DE PRODUCTIVIDAD Y BALANCE DIARIO -->
     <div id="seguimientoDiaOverlay" class="td-oms-full-view">
-        <div style="padding:16px;overflow-y:auto;max-height:100vh;">
+        <div class="view-header-bar module-header-consolidated" style="max-width: 1320px; margin: 0 auto 16px;">
+            <div class="module-header-info">
+                <div class="modal-header-title">
+                    📈 Balance Diario & Productividad
+                </div>
+                <p class="view-header-description">
+                    Flujo horario de ingresos vs. cierres, gráfico de cascada (Waterfall) y monitor de recurrencia a 7 días.
+                </p>
+            </div>
+            <div class="module-segmented-nav" role="tablist" aria-label="Subsecciones de Métricas y Control">
+                <button type="button" class="segmented-nav-btn" id="btnSubnavPlazosFromSeg" role="tab" aria-selected="false">
+                    <span>📊 Plazos & Reportes</span>
+                </button>
+                <button type="button" class="segmented-nav-btn active" role="tab" aria-selected="true">
+                    <span>📈 Balance Diario (Waterfall)</span>
+                </button>
+                <button type="button" class="segmented-nav-btn" id="btnSubnavCallsFromSeg" role="tab" aria-selected="false">
+                    <span>📞 Señales & Llamadas</span>
+                </button>
+            </div>
+        </div>
+        <div style="padding:4px 2px 16px;overflow-y:auto;max-height:calc(100vh - 140px);">
             <div id="seguimientoDiaContainer"></div>
         </div>
     </div>
 
     <!-- VISTA EXCLUSIVA PLUZ: SEGUIMIENTO DE CIERRES POR TÉCNICO -->
     <div id="tecnicosModalOverlay" class="td-oms-full-view">
-        <div class="view-header-bar"><div class="modal-header-title">Seguimiento de cierres por técnico</div></div>
+        <div class="view-header-bar module-header-consolidated">
+            <div class="module-header-info">
+                <div class="modal-header-title">👷 Cuadrillas & Campo — Seguimiento de Técnicos</div>
+                <p class="view-header-description">Monitoreo del ritmo de liquidación de cuadrillas, tiempos de inactividad, alertas >4h y timeline.</p>
+            </div>
+            <div class="module-segmented-nav" role="tablist" aria-label="Subsecciones de Cuadrillas y Campo">
+                <button type="button" class="segmented-nav-btn active" id="btnSubnavTecnicos" role="tab" aria-selected="true">
+                    <span>👷 Rendimiento de Técnicos</span>
+                </button>
+                <button id="tabHistorialPluz" class="segmented-nav-btn" type="button" role="tab" aria-selected="false" aria-controls="historialPluzOverlay" title="Historial y auditoría de supervisión PLUZ" style="display: none;">
+                    <span>🛡️ Historial & Auditoría PLUZ</span>
+                </button>
+                <button type="button" class="segmented-nav-btn segmented-nav-action" id="btnSubnavOpenBulkPluz" style="display: none;" title="Registrar masivamente estado EN EJECUCIÓN">
+                    <span>⚡ Asignación Masiva</span>
+                </button>
+            </div>
+        </div>
         <div class="kpi-cards-grid"><div class="exec-kpi-card"><div class="kpi-lbl">Técnicos con actividad</div><div class="kpi-num" id="techKpiActive">0</div></div><div class="exec-kpi-card"><div class="kpi-lbl">Trabajos cerrados</div><div class="kpi-num" id="techKpiJobs">0</div></div><div class="exec-kpi-card"><div class="kpi-lbl">Prom. desde último trabajo</div><div class="kpi-num" id="techKpiAverage">--</div></div><div class="exec-kpi-card kpi-pending"><div class="kpi-lbl">Sin cierre &gt;4h</div><div class="kpi-num" id="techKpiAlerts">0</div></div></div>
         <div class="table-section-card" style="max-width:1200px;margin:0 auto;background:#fff;border-radius:10px;padding:18px">
             <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap"><div><h3 style="margin:0;color:var(--pluz-blue)">Cierres diarios</h3><p id="techStatus" style="margin:5px 0;color:#64748b"></p></div><div class="tech-global-search"><input id="inputFilterTecnicos" placeholder="Buscar Ticket, ODM, técnico o empresa" class="tech-control" autocomplete="off" aria-label="Buscar en seguimiento técnico" aria-controls="techGlobalSearchResults"><div id="techGlobalSearchResults" class="tech-global-search-results" role="listbox"></div></div></div>
@@ -546,16 +596,24 @@
 
     <!-- VISTA EXCLUSIVA PLUZ: HISTORIAL DE SUPERVISIÓN Y AUDITORÍA PLUZ -->
     <div id="historialPluzOverlay" class="td-oms-full-view">
-        <div class="view-header-bar">
-            <div>
+        <div class="view-header-bar module-header-consolidated">
+            <div class="module-header-info">
                 <div class="modal-header-title">
-                    Historial de Supervisión PLUZ
+                    🛡️ Historial de Supervisión PLUZ
                 </div>
                 <p class="view-header-description" style="color: #64748b; font-size: 12px; margin: 4px 0 0;">
                     Auditoría integral de estados operativos, criticidades (Quánticos / Críticos) y seguimiento cronológico por SED.
                 </p>
             </div>
-            <div style="display: flex; gap: 8px; align-items: center;">
+            <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                <div class="module-segmented-nav" role="tablist" aria-label="Subsecciones de Cuadrillas y Campo">
+                    <button type="button" class="segmented-nav-btn" id="btnSubnavTecnicosFromHist" role="tab" aria-selected="false">
+                        <span>👷 Rendimiento de Técnicos</span>
+                    </button>
+                    <button type="button" class="segmented-nav-btn active" role="tab" aria-selected="true">
+                        <span>🛡️ Historial & Auditoría PLUZ</span>
+                    </button>
+                </div>
                 <button type="button" id="btnExportHistorialPluz" class="btn-export-table" style="background: #10b981;">
                     <span>📥</span>
                     <span>Exportar Historial</span>
@@ -695,7 +753,7 @@
     </div>
 
     <!-- MODAL DE SEGUIMIENTO Y REGISTRO DE SUPERVISIÓN PLUZ -->
-    <div id="supervisorModalOverlay" class="tech-modal-overlay" style="display: none;">
+    <div id="supervisorModalOverlay" class="tech-modal-overlay supervisor-slide-drawer" style="display: none;">
         <div class="tech-detail-dialog" style="max-width: 620px;">
             <div class="tech-detail-header" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-bottom: 2px solid var(--pluz-blue);">
                 <div>
@@ -797,10 +855,21 @@
 
     <!-- VISTA EXCLUSIVA PLUZ: REGISTRO DE LLAMADAS -->
     <div id="llamadasModalOverlay" class="td-oms-full-view">
-        <div class="view-header-bar">
-            <div>
-                <div class="modal-header-title">Registro de llamadas</div>
+        <div class="view-header-bar module-header-consolidated">
+            <div class="module-header-info">
+                <div class="modal-header-title">📞 Señales & Registro de Llamadas</div>
                 <p class="view-header-description">Señales de contacto y casos que concentran mayor presión de llamadas.</p>
+            </div>
+            <div class="module-segmented-nav" role="tablist" aria-label="Subsecciones de Métricas y Control">
+                <button type="button" class="segmented-nav-btn" id="btnSubnavPlazosFromCalls" role="tab" aria-selected="false">
+                    <span>📊 Plazos & Reportes</span>
+                </button>
+                <button type="button" class="segmented-nav-btn" id="btnSubnavBalanceFromCalls" role="tab" aria-selected="false">
+                    <span>📈 Balance Diario (Waterfall)</span>
+                </button>
+                <button type="button" class="segmented-nav-btn active" role="tab" aria-selected="true">
+                    <span>📞 Señales & Llamadas</span>
+                </button>
             </div>
         </div>
         <div class="calls-kpi-grid" aria-label="Resumen de llamadas">

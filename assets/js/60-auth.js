@@ -206,6 +206,8 @@ function updateUserBadge() {
     if (btnOpenHistorialPluzFromTdOms) btnOpenHistorialPluzFromTdOms.style.display = isAdmin ? 'inline-flex' : 'none';
     const btnOpenBulkPluzEnEjecucion = document.getElementById('btnOpenBulkPluzEnEjecucion');
     if (btnOpenBulkPluzEnEjecucion) btnOpenBulkPluzEnEjecucion.style.display = isAdmin ? 'inline-flex' : 'none';
+    const btnSubnavOpenBulkPluz = document.getElementById('btnSubnavOpenBulkPluz');
+    if (btnSubnavOpenBulkPluz) btnSubnavOpenBulkPluz.style.display = isAdmin ? 'inline-flex' : 'none';
     const lblCriticaMap = document.getElementById("lblCriticaMap");
     if (lblCriticaMap) lblCriticaMap.style.display = isAdmin ? 'inline-flex' : 'none';
     const lblCriticaModal = document.getElementById("lblCriticaModal");

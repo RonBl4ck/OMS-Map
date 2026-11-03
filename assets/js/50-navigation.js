@@ -32,6 +32,21 @@
                 view.tab?.setAttribute('aria-selected', String(selected));
                 if (view.name !== 'map') view.panel?.classList.toggle('active-view', selected);
             });
+            // Arquitectura B: Sincronizar estado macro en navbar superior
+            const isMetricasModule = (name === 'indicators' || name === 'productivity' || name === 'calls');
+            const isCuadrillasModule = (name === 'tracking' || name === 'historialPluz');
+            if (tabTdOms) {
+                tabTdOms.classList.toggle('active', isMetricasModule);
+                tabTdOms.setAttribute('aria-selected', String(isMetricasModule));
+            }
+            if (tabTecnicos) {
+                tabTecnicos.classList.toggle('active', isCuadrillasModule);
+                tabTecnicos.setAttribute('aria-selected', String(isCuadrillasModule));
+            }
+            // Sincronizar sub-navegación segmentada
+            document.getElementById('btnSubnavPlazos')?.classList.toggle('active', name === 'indicators');
+            document.getElementById('btnSubnavTecnicos')?.classList.toggle('active', name === 'tracking');
+
             document.body.dataset.primaryView = name;
             const mapSelected = name === 'map';
             [document.getElementById('map'), document.getElementById('mapSearchToolbar'), document.querySelector('.map-legend')].forEach(element => {
@@ -94,6 +109,18 @@
         if (btnCloseLlamadas) btnCloseLlamadas.addEventListener('click', showMapView);
         if (btnCloseHistorialPluz) btnCloseHistorialPluz.addEventListener('click', showMapView);
         if (btnCloseSeguimientoDia) btnCloseSeguimientoDia.addEventListener('click', showMapView);
+
+        // Sub-navegación segmentada (Arquitectura B)
+        document.getElementById('btnSubnavPlazos')?.addEventListener('click', showDashboardView);
+        document.getElementById('btnSubnavPlazosFromSeg')?.addEventListener('click', showDashboardView);
+        document.getElementById('btnSubnavPlazosFromCalls')?.addEventListener('click', showDashboardView);
+        document.getElementById('btnSubnavCallsFromSeg')?.addEventListener('click', showLlamadasView);
+        document.getElementById('btnSubnavBalanceFromCalls')?.addEventListener('click', showSeguimientoDiaView);
+        document.getElementById('btnSubnavTecnicos')?.addEventListener('click', showTecnicosView);
+        document.getElementById('btnSubnavTecnicosFromHist')?.addEventListener('click', showTecnicosView);
+        document.getElementById('btnSubnavOpenBulkPluz')?.addEventListener('click', () => {
+            document.getElementById('btnOpenBulkPluzEnEjecucion')?.click();
+        });
 
         if (typeof window !== 'undefined') {
             window.showHistorialPluzView = showHistorialPluzView;
