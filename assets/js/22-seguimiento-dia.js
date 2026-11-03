@@ -42,6 +42,9 @@
         selectedDate: '7D',            // Por defecto: '7D' (Vista General 7 Días)
         selectedContractor: 'ALL',
         selectedWorkType: 'ALL',
+        startHour: 0,
+        endHour: 24,
+        isLiveNow: false,
         searchQuery7D: '',
         recurrenceTab: 'SEDS',         // 'SEDS' o 'SUMINISTROS'
         limit7D: 20,
@@ -205,6 +208,25 @@
                 padding: 4px 10px;
                 font-size: 11px;
                 border-radius: 6px;
+            }
+
+            .segdia-btn-now {
+                background: #eff6ff;
+                color: #1d4ed8;
+                border: 1px solid #bfdbfe;
+                font-weight: 700;
+            }
+
+            .segdia-btn-now:hover {
+                background: #dbeafe;
+                color: #1e40af;
+            }
+
+            .segdia-btn-now.is-active {
+                background: #2563eb;
+                color: #ffffff;
+                border-color: #1d4ed8;
+                box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
             }
 
             /* Botón Icono Compacto */
@@ -752,19 +774,23 @@
     function computeDailyProductivity(pendientes, ejecutados, options) {
         const isWeek = options.date === '7D';
         const service = window.SeguimientoDiaService || (typeof SeguimientoDiaService !== 'undefined' ? SeguimientoDiaService : null);
+        const optsWithHours = Object.assign({
+            startHour: state.startHour,
+            endHour: state.endHour
+        }, options);
 
         if (service && typeof service.calculateDailyProductivity === 'function') {
             try {
-                const res = service.calculateDailyProductivity(pendientes, ejecutados, options);
+                const res = service.calculateDailyProductivity(pendientes, ejecutados, optsWithHours);
                 if (res) {
-                    return normalizeProductivityResult(res, isWeek, pendientes, ejecutados, options);
+                    return normalizeProductivityResult(res, isWeek, pendientes, ejecutados, optsWithHours);
                 }
             } catch (err) {
                 console.warn('[SeguimientoDia] Error en calculateDailyProductivity del servicio:', err);
             }
         }
 
-        return computeLocalProductivity(pendientes, ejecutados, options);
+        return computeLocalProductivity(pendientes, ejecutados, optsWithHours);
     }
 
     /**
@@ -862,6 +888,15 @@
         const contractor = (options.contractor && options.contractor !== 'ALL' && options.contractor !== '*') 
             ? String(options.contractor).toUpperCase() : null;
 
+        const startHour = (options.startHour !== undefined && options.startHour !== null) ? Number(options.startHour) : 0;
+        const endHour = (options.endHour !== undefined && options.endHour !== null) ? Number(options.endHour) : 24;
+        const isHourInRange = (h) => {
+            if (h === null || h === undefined || isNaN(h)) return true;
+            if (startHour <= 0 && endHour >= 24) return true;
+            const maxH = endHour >= 24 ? 23 : endHour;
+            return h >= startHour && h <= maxH;
+        };
+
         const matchContractor = r => {
             if (!contractor) return true;
             const c = String(r['Contratista'] || r['Empresa'] || r['EMPRESA'] || r['CONTRATISTA'] || '').toUpperCase();
@@ -921,9 +956,11 @@
                 const fRaw = r['Hora de inicio'] || r['Fecha de creación'] || r['Fecha Creación'] || r['Fecha'];
                 const dmy = parseDateToDmy(fRaw);
                 if (dmy === targetDate) {
-                    ingresosTotal++;
-                    recordContractor(r, 'ingreso');
                     const h = parseHour(fRaw);
+                    if (isHourInRange(h)) {
+                        ingresosTotal++;
+                        recordContractor(r, 'ingreso');
+                    }
                     if (h !== null && h >= 0 && h < 24) hourlyDist[h].ingresos++;
                 }
             });
@@ -940,16 +977,18 @@
                 }
 
                 if (dmyClose === targetDate) {
-                    cierresTotal++;
-                    recordContractor(r, 'cierre');
                     const h = parseHour(fCloseRaw);
-                    if (h !== null && h >= 0 && h < 24) hourlyDist[h].cierres++;
+                    if (isHourInRange(h)) {
+                        cierresTotal++;
+                        recordContractor(r, 'cierre');
 
-                    if (dmyOpen && dmyOpen === targetDate) {
-                        cierresIntradia++;
-                    } else {
-                        cierresBacklog++;
+                        if (dmyOpen && dmyOpen === targetDate) {
+                            cierresIntradia++;
+                        } else {
+                            cierresBacklog++;
+                        }
                     }
+                    if (h !== null && h >= 0 && h < 24) hourlyDist[h].cierres++;
 
                     const durVal = r['Duración'] || r['DURACION'] || r['TTR'];
                     if (durVal) {
@@ -1401,11 +1440,41 @@
                         },
                         y: {
                             beginAtZero: true,
+                            grace: '10%',
                             grid: { color: '#f1f5f9' },
                             ticks: { color: '#64748b', font: { size: 10.5 }, precision: 0 }
                         }
                     }
-                }
+                },
+                plugins: [{
+                    id: 'daily7DBarLabels',
+                    afterDatasetsDraw(chart) {
+                        const { ctx } = chart;
+                        chart.data.datasets.forEach((dataset, datasetIdx) => {
+                            const meta = chart.getDatasetMeta(datasetIdx);
+                            if (!meta || !meta.data) return;
+                            meta.data.forEach((bar, idx) => {
+                                const val = dataset.data[idx];
+                                if (val === undefined || val === null || val === 0) return;
+                                const text = String(val);
+                                const barHeight = Math.abs(bar.base - bar.y);
+                                ctx.save();
+                                ctx.font = '600 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                                ctx.textAlign = 'center';
+                                if (barHeight >= 18) {
+                                    ctx.fillStyle = '#ffffff';
+                                    ctx.textBaseline = 'middle';
+                                    ctx.fillText(text, bar.x, (bar.y + bar.base) / 2);
+                                } else {
+                                    ctx.fillStyle = '#1e293b';
+                                    ctx.textBaseline = 'bottom';
+                                    ctx.fillText(text, bar.x, bar.y - 3);
+                                }
+                                ctx.restore();
+                            });
+                        });
+                    }
+                }]
             });
 
             // GRÁFICO B: Cierres por Contratista en la Semana
@@ -2045,6 +2114,24 @@
                             ${contractors.map(c => `<option value="${c}" ${c === state.selectedContractor ? 'selected' : ''}>${c}</option>`).join('')}
                         </select>
 
+                        <label class="segdia-filter-label" for="segdiaSelectStartHour">Desde:</label>
+                        <select id="segdiaSelectStartHour" class="segdia-select" aria-label="Hora de inicio">
+                            ${Array.from({ length: 24 }, (_, i) => `<option value="${i}" ${state.startHour === i ? 'selected' : ''}>${String(i).padStart(2, '0')}:00</option>`).join('')}
+                        </select>
+
+                        <label class="segdia-filter-label" for="segdiaSelectEndHour">Hasta:</label>
+                        <select id="segdiaSelectEndHour" class="segdia-select" aria-label="Hora de fin">
+                            ${Array.from({ length: 24 }, (_, i) => {
+                                const val = i + 1;
+                                const lbl = val === 24 ? '24:00 (Fin)' : `${String(val).padStart(2, '0')}:00`;
+                                return `<option value="${val}" ${state.endHour === val ? 'selected' : ''}>${lbl}</option>`;
+                            }).join('')}
+                        </select>
+
+                        <button type="button" id="btnSegdiaNow" class="segdia-btn ${state.isLiveNow ? 'segdia-btn-now is-active' : 'segdia-btn-now'}" title="Fijar corte hasta la hora actual">
+                            ⚡ Ahora
+                        </button>
+
                         <button type="button" id="btnSegdiaRefresh" class="segdia-btn" title="Recalcular métricas">
                             🔄 Actualizar
                         </button>
@@ -2217,6 +2304,45 @@
         if (contractorSelect) {
             contractorSelect.addEventListener('change', (e) => {
                 state.selectedContractor = e.target.value;
+                render();
+            });
+        }
+
+        const startHourSelect = document.getElementById('segdiaSelectStartHour');
+        if (startHourSelect) {
+            startHourSelect.addEventListener('change', (e) => {
+                const val = parseInt(e.target.value, 10) || 0;
+                state.startHour = val;
+                if (state.endHour <= state.startHour) {
+                    state.endHour = Math.min(24, state.startHour + 1);
+                }
+                state.isLiveNow = false;
+                render();
+            });
+        }
+
+        const endHourSelect = document.getElementById('segdiaSelectEndHour');
+        if (endHourSelect) {
+            endHourSelect.addEventListener('change', (e) => {
+                const val = parseInt(e.target.value, 10) || 24;
+                state.endHour = val;
+                if (state.startHour >= state.endHour) {
+                    state.startHour = Math.max(0, state.endHour - 1);
+                }
+                state.isLiveNow = false;
+                render();
+            });
+        }
+
+        const nowBtn = document.getElementById('btnSegdiaNow');
+        if (nowBtn) {
+            nowBtn.addEventListener('click', () => {
+                const currentHour = new Date().getHours();
+                state.endHour = currentHour;
+                if (state.startHour > state.endHour) {
+                    state.startHour = 0;
+                }
+                state.isLiveNow = true;
                 render();
             });
         }

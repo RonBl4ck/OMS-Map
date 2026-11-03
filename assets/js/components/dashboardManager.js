@@ -664,6 +664,9 @@
             const row = {
                 "Ticket": r.ticket || "",
                 "ODM": r.odm || "",
+                "Suministro": r.suministro || r.cliente || "",
+                "Dirección": r.direccion || "",
+                "Distrito": r.distrito || "",
                 "Hora Inicio": r.hora_inicio || r.fecha_inicio || "",
                 "SED": r.sed || "",
                 "Falla": r.falla || "",
