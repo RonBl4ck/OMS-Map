@@ -643,6 +643,33 @@ test('calculateDailyProductivity: cálculo de waterfall y balance neto negativo 
     assert.equal(cam.balance, -2);
 });
 
+test('calculateDailyProductivity: contractorBreakdown para un día específico con todas las empresas', () => {
+    const pendientes = [
+        { 'Hora de inicio': '02/11/2026 08:30:00', 'Contratista': 'CAM' },
+        { 'Hora de inicio': '02/11/2026 09:15:00', 'Contratista': 'COBRA' }
+    ];
+    const ejecutados = [
+        { 'Hora de inicio': '02/11/2026 07:00:00', 'Hora de restauración': '02/11/2026 10:00:00', 'Contratista': 'CAM' },
+        { 'Hora de inicio': '01/11/2026 18:00:00', 'Hora de restauración': '02/11/2026 11:30:00', 'Contratista': 'CAM' }
+    ];
+    const stats = SeguimientoDiaService.calculateDailyProductivity(pendientes, ejecutados, {
+        date: '2/11/2026',
+        contractor: '*'
+    });
+    assert.ok(Array.isArray(stats.contractorBreakdown), 'Debe incluir contractorBreakdown');
+    const cam = stats.contractorBreakdown.find(c => c.contractor === 'CAM');
+    assert.ok(cam, 'Debe existir contratista CAM');
+    assert.equal(cam.ingresos, 2, 'CAM debe tener 2 ingresos');
+    assert.equal(cam.cierres, 2, 'CAM debe tener 2 cierres');
+    assert.equal(cam.balance, 0, 'Balance de CAM debe ser 0');
+
+    const cobra = stats.contractorBreakdown.find(c => c.contractor === 'COBRA');
+    assert.ok(cobra, 'Debe existir contratista COBRA');
+    assert.equal(cobra.ingresos, 1, 'COBRA debe tener 1 ingreso');
+    assert.equal(cobra.cierres, 0, 'COBRA debe tener 0 cierres');
+    assert.equal(cobra.balance, 1, 'Balance de COBRA debe ser 1');
+});
+
 test('getRecurrentSuministros7D: agrupa por Suministro, descarta inválidos, filtra contratista y ordena priorizando pendientes activos', () => {
     const pendientes = [
         // Suministro S-101: 2 pendientes activos, SED-A, COMAS, LARI

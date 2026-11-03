@@ -902,12 +902,27 @@
 
             const hourlyDist = Array.from({ length: 24 }, (_, hour) => ({ hour, ingresos: 0, cierres: 0 }));
 
+            const contractorMap = new Map();
+            const recordContractor = (row, type) => {
+                const rawC = row['Contratista'] || row['Empresa'] || row['EMPRESA'] || row['CONTRATISTA'] || 'Sin Contratista';
+                const cName = String(rawC).trim();
+                if (!cName || cName === '-' || cName === 'null') return;
+                const key = cName.toUpperCase();
+                if (!contractorMap.has(key)) {
+                    contractorMap.set(key, { contractor: cName, ingresos: 0, cierres: 0, balance: 0 });
+                }
+                const entry = contractorMap.get(key);
+                if (type === 'ingreso') entry.ingresos++;
+                else if (type === 'cierre') entry.cierres++;
+            };
+
             pendientes.forEach(r => {
                 if (!matchContractor(r)) return;
                 const fRaw = r['Hora de inicio'] || r['Fecha de creación'] || r['Fecha Creación'] || r['Fecha'];
                 const dmy = parseDateToDmy(fRaw);
                 if (dmy === targetDate) {
                     ingresosTotal++;
+                    recordContractor(r, 'ingreso');
                     const h = parseHour(fRaw);
                     if (h !== null && h >= 0 && h < 24) hourlyDist[h].ingresos++;
                 }
@@ -918,13 +933,18 @@
                 const fCloseRaw = r['Hora de restauración'] || r['Fecha de ejecucion'] || r['Fecha de Ejecución'] || r['Fecha'];
                 const dmyClose = parseDateToDmy(fCloseRaw);
 
+                const fOpenRaw = r['Hora de inicio'] || r['Fecha de creación'] || r['Fecha Creación'] || r['Fecha'];
+                const dmyOpen = parseDateToDmy(fOpenRaw);
+                if (dmyOpen && dmyOpen === targetDate) {
+                    recordContractor(r, 'ingreso');
+                }
+
                 if (dmyClose === targetDate) {
                     cierresTotal++;
+                    recordContractor(r, 'cierre');
                     const h = parseHour(fCloseRaw);
                     if (h !== null && h >= 0 && h < 24) hourlyDist[h].cierres++;
 
-                    const fOpenRaw = r['Hora de inicio'] || r['Fecha de creación'] || r['Fecha Creación'] || r['Fecha'];
-                    const dmyOpen = parseDateToDmy(fOpenRaw);
                     if (dmyOpen && dmyOpen === targetDate) {
                         cierresIntradia++;
                     } else {
@@ -946,6 +966,16 @@
             const final = Math.max(0, inicial + ingresosTotal - cierresIntradia - cierresBacklog);
             const ttrPromedioHoras = countDuration > 0 ? Math.round((sumDurationHours / countDuration) * 10) / 10 : 3.8;
 
+            const contractorBreakdown = Array.from(contractorMap.values()).map(item => {
+                item.balance = item.ingresos - item.cierres;
+                return item;
+            }).sort((a, b) => {
+                const volA = a.ingresos + a.cierres;
+                const volB = b.ingresos + b.cierres;
+                if (volB !== volA) return volB - volA;
+                return b.ingresos - a.ingresos;
+            });
+
             return {
                 isWeekOverview: false,
                 ingresosTotal,
@@ -964,7 +994,7 @@
                     cierresBacklog,
                     final
                 },
-                contractorBreakdown: []
+                contractorBreakdown
             };
         }
     }
@@ -1438,109 +1468,238 @@
 
         } else {
             // ==========================================
-            // MODO DÍA ESPECÍFICO: HORARIO + WATERFALL
+            // MODO DÍA ESPECÍFICO: COMPARATIVO CONTRATISTAS / HORARIO + EVOLUCIÓN DIARIA
             // ==========================================
 
-            // GRÁFICO A: Balance Horario (00:00 - 23:00)
-            const hourly = productivity.hourlyDistribution || [];
-            const labelsA = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
-            const ingHourly = new Array(24).fill(0);
-            const cieHourly = new Array(24).fill(0);
+            const isSingleDayAllContractors = (!state.selectedContractor || state.selectedContractor === 'ALL');
 
-            hourly.forEach((h, idx) => {
-                const hourIndex = (h && typeof h.hour === 'number') ? h.hour : idx;
-                if (hourIndex >= 0 && hourIndex < 24) {
-                    ingHourly[hourIndex] = h.ingresos || 0;
-                    cieHourly[hourIndex] = h.cierres || 0;
-                }
-            });
+            if (isSingleDayAllContractors) {
+                // ========================================================
+                // GRÁFICO A (1 DÍA + TODAS): Casos Ingresados vs. Cerrados por Contratista
+                // ========================================================
+                const rawContractors = (productivity.contractorBreakdown || []).filter(c => (c.ingresos > 0 || c.cierres > 0));
+                const contractorsList = rawContractors.length > 0 ? rawContractors : (productivity.contractorBreakdown || []);
+                const labelsA = contractorsList.map(c => c.contractor || 'Sin Nombre');
+                const ingData = contractorsList.map(c => c.ingresos || 0);
+                const cieData = contractorsList.map(c => c.cierres || 0);
 
-            const ctxA = canvasA.getContext('2d');
-            state.charts.chartA = new Chart(ctxA, {
-                type: 'bar',
-                data: {
-                    labels: labelsA,
-                    datasets: [
-                        {
-                            label: 'Ingresos del Día',
-                            data: ingHourly,
-                            backgroundColor: PALETTE.ingresosAlpha,
-                            borderColor: PALETTE.ingresos,
-                            borderWidth: 1,
-                            borderRadius: 4,
-                            barPercentage: 0.85,
-                            categoryPercentage: 0.8
-                        },
-                        {
-                            label: 'Cierres del Día',
-                            data: cieHourly,
-                            backgroundColor: PALETTE.cierresAlpha,
-                            borderColor: PALETTE.cierres,
-                            borderWidth: 1,
-                            borderRadius: 4,
-                            barPercentage: 0.85,
-                            categoryPercentage: 0.8
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: { duration: 250, easing: 'easeOutQuart' },
-                    interaction: { mode: 'index', intersect: false },
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                            align: 'end',
-                            labels: {
-                                boxWidth: 10,
-                                boxHeight: 10,
-                                usePointStyle: true,
-                                pointStyle: 'circle',
-                                font: { size: 11, weight: '600' },
-                                color: '#475569'
+                const ctxA = canvasA.getContext('2d');
+                state.charts.chartA = new Chart(ctxA, {
+                    type: 'bar',
+                    data: {
+                        labels: labelsA,
+                        datasets: [
+                            {
+                                label: 'Ingresos del Día',
+                                data: ingData,
+                                backgroundColor: PALETTE.ingresosAlpha,
+                                borderColor: PALETTE.ingresos,
+                                borderWidth: 1,
+                                borderRadius: 4,
+                                barPercentage: 0.8,
+                                categoryPercentage: 0.75
+                            },
+                            {
+                                label: 'Cierres del Día',
+                                data: cieData,
+                                backgroundColor: PALETTE.cierresAlpha,
+                                borderColor: PALETTE.cierres,
+                                borderWidth: 1,
+                                borderRadius: 4,
+                                barPercentage: 0.8,
+                                categoryPercentage: 0.75
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: { duration: 250, easing: 'easeOutQuart' },
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                align: 'end',
+                                labels: {
+                                    boxWidth: 10,
+                                    boxHeight: 10,
+                                    usePointStyle: true,
+                                    pointStyle: 'circle',
+                                    font: { size: 11, weight: '600' },
+                                    color: '#475569'
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(15, 23, 42, 0.94)',
+                                titleColor: '#f8fafc',
+                                bodyColor: '#e2e8f0',
+                                borderColor: 'rgba(255, 255, 255, 0.12)',
+                                borderWidth: 1,
+                                padding: 10,
+                                cornerRadius: 8,
+                                callbacks: {
+                                    footer: function (items) {
+                                        if (!items || items.length < 2) return '';
+                                        const ing = items[0].parsed.y || 0;
+                                        const cie = items[1].parsed.y || 0;
+                                        const diff = ing - cie;
+                                        return `Balance neto empresa: ${diff > 0 ? '+' + diff : diff}`;
+                                    }
+                                }
                             }
                         },
-                        tooltip: {
-                            backgroundColor: 'rgba(15, 23, 42, 0.94)',
-                            titleColor: '#f8fafc',
-                            bodyColor: '#e2e8f0',
-                            borderColor: 'rgba(255, 255, 255, 0.12)',
-                            borderWidth: 1,
-                            padding: 10,
-                            cornerRadius: 8,
-                            callbacks: {
-                                footer: function (items) {
-                                    if (!items || items.length < 2) return '';
-                                    const ing = items[0].parsed.y || 0;
-                                    const cie = items[1].parsed.y || 0;
-                                    const diff = ing - cie;
-                                    return `Balance neto hora: ${diff > 0 ? '+' + diff : diff}`;
+                        scales: {
+                            x: {
+                                grid: { display: false },
+                                ticks: {
+                                    color: '#334155',
+                                    font: { size: 11, weight: '600' }
                                 }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                grace: '8%',
+                                grid: { color: '#f1f5f9' },
+                                ticks: { color: '#64748b', font: { size: 10.5 }, precision: 0 }
                             }
                         }
                     },
-                    scales: {
-                        x: {
-                            grid: { display: false },
-                            ticks: {
-                                color: '#64748b',
-                                font: { size: 10.5 },
-                                maxRotation: 0,
-                                autoSkip: true,
-                                maxTicksLimit: 12
+                    plugins: [{
+                        id: 'contractorBarLabels',
+                        afterDatasetsDraw(chart) {
+                            const { ctx } = chart;
+                            chart.data.datasets.forEach((dataset, datasetIdx) => {
+                                const meta = chart.getDatasetMeta(datasetIdx);
+                                if (!meta || !meta.data) return;
+                                meta.data.forEach((bar, idx) => {
+                                    const val = dataset.data[idx];
+                                    if (val === undefined || val === null || val === 0) return;
+                                    const text = String(val);
+                                    const barHeight = Math.abs(bar.base - bar.y);
+                                    ctx.save();
+                                    ctx.font = '600 10.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                                    ctx.textAlign = 'center';
+                                    if (barHeight >= 18) {
+                                        ctx.fillStyle = '#ffffff';
+                                        ctx.textBaseline = 'middle';
+                                        ctx.fillText(text, bar.x, (bar.y + bar.base) / 2);
+                                    } else {
+                                        ctx.fillStyle = '#334155';
+                                        ctx.textBaseline = 'bottom';
+                                        ctx.fillText(text, bar.x, bar.y - 3);
+                                    }
+                                    ctx.restore();
+                                });
+                            });
+                        }
+                    }]
+                });
+            } else {
+                // ========================================================
+                // GRÁFICO A (1 DÍA + EMPRESA ESPECÍFICA): Balance Horario (00:00 - 23:00)
+                // ========================================================
+                const hourly = productivity.hourlyDistribution || [];
+                const labelsA = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
+                const ingHourly = new Array(24).fill(0);
+                const cieHourly = new Array(24).fill(0);
+
+                hourly.forEach((h, idx) => {
+                    const hourIndex = (h && typeof h.hour === 'number') ? h.hour : idx;
+                    if (hourIndex >= 0 && hourIndex < 24) {
+                        ingHourly[hourIndex] = h.ingresos || 0;
+                        cieHourly[hourIndex] = h.cierres || 0;
+                    }
+                });
+
+                const ctxA = canvasA.getContext('2d');
+                state.charts.chartA = new Chart(ctxA, {
+                    type: 'bar',
+                    data: {
+                        labels: labelsA,
+                        datasets: [
+                            {
+                                label: 'Ingresos del Día',
+                                data: ingHourly,
+                                backgroundColor: PALETTE.ingresosAlpha,
+                                borderColor: PALETTE.ingresos,
+                                borderWidth: 1,
+                                borderRadius: 4,
+                                barPercentage: 0.85,
+                                categoryPercentage: 0.8
+                            },
+                            {
+                                label: 'Cierres del Día',
+                                data: cieHourly,
+                                backgroundColor: PALETTE.cierresAlpha,
+                                borderColor: PALETTE.cierres,
+                                borderWidth: 1,
+                                borderRadius: 4,
+                                barPercentage: 0.85,
+                                categoryPercentage: 0.8
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: { duration: 250, easing: 'easeOutQuart' },
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                align: 'end',
+                                labels: {
+                                    boxWidth: 10,
+                                    boxHeight: 10,
+                                    usePointStyle: true,
+                                    pointStyle: 'circle',
+                                    font: { size: 11, weight: '600' },
+                                    color: '#475569'
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(15, 23, 42, 0.94)',
+                                titleColor: '#f8fafc',
+                                bodyColor: '#e2e8f0',
+                                borderColor: 'rgba(255, 255, 255, 0.12)',
+                                borderWidth: 1,
+                                padding: 10,
+                                cornerRadius: 8,
+                                callbacks: {
+                                    footer: function (items) {
+                                        if (!items || items.length < 2) return '';
+                                        const ing = items[0].parsed.y || 0;
+                                        const cie = items[1].parsed.y || 0;
+                                        const diff = ing - cie;
+                                        return `Balance neto hora: ${diff > 0 ? '+' + diff : diff}`;
+                                    }
+                                }
                             }
                         },
-                        y: {
-                            beginAtZero: true,
-                            grid: { color: '#f1f5f9' },
-                            ticks: { color: '#64748b', font: { size: 10.5 }, precision: 0 }
+                        scales: {
+                            x: {
+                                grid: { display: false },
+                                ticks: {
+                                    color: '#64748b',
+                                    font: { size: 10.5 },
+                                    maxRotation: 0,
+                                    autoSkip: true,
+                                    maxTicksLimit: 12
+                                }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: '#f1f5f9' },
+                                ticks: { color: '#64748b', font: { size: 10.5 }, precision: 0 }
+                            }
                         }
                     }
-                }
-            });
+                });
+            }
 
-            // GRÁFICO B: Gráfico de Cascada (Waterfall Chart) con Floating Bars
+            // ========================================================
+            // GRÁFICO B: Evolución diaria con Floating Bars y Etiquetas Numéricas Absolutas
+            // ========================================================
             const wf = productivity.waterfall || {};
             const inicial = Number(wf.inicial ?? 0);
             const nuevos = Number(wf.ingresos ?? productivity.ingresosTotal ?? 0);
@@ -1561,6 +1720,7 @@
                 [step4, step3],                           // Backlog (-)
                 [0, step4]                                // Final
             ];
+            const rawNumbers = [inicial, nuevos, intradia, backlog, finalVal];
 
             const ctxB = canvasB.getContext('2d');
             state.charts.chartB = new Chart(ctxB, {
@@ -1642,6 +1802,7 @@
                         },
                         y: {
                             beginAtZero: true,
+                            grace: '8%',
                             grid: { color: '#f1f5f9' },
                             ticks: {
                                 color: '#64748b',
@@ -1650,7 +1811,40 @@
                             }
                         }
                     }
-                }
+                },
+                plugins: [{
+                    id: 'waterfallValueLabels',
+                    afterDatasetsDraw(chart) {
+                        const { ctx } = chart;
+                        const meta = chart.getDatasetMeta(0);
+                        if (!meta || !meta.data) return;
+
+                        ctx.save();
+                        ctx.font = '700 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                        ctx.textAlign = 'center';
+
+                        meta.data.forEach((bar, idx) => {
+                            const val = rawNumbers[idx];
+                            if (val === undefined || val === null) return;
+                            const text = String(Math.abs(Number(val) || 0));
+
+                            const barHeight = Math.abs(bar.base - bar.y);
+                            const topY = Math.min(bar.y, bar.base);
+                            const centerY = (bar.y + bar.base) / 2;
+
+                            if (barHeight >= 22) {
+                                ctx.fillStyle = '#ffffff';
+                                ctx.textBaseline = 'middle';
+                                ctx.fillText(text, bar.x, centerY);
+                            } else {
+                                ctx.fillStyle = '#1e293b';
+                                ctx.textBaseline = 'bottom';
+                                ctx.fillText(text, bar.x, topY - 4);
+                            }
+                        });
+                        ctx.restore();
+                    }
+                }]
             });
         }
     }
@@ -1810,6 +2004,23 @@
         }
 
         const isWeek = productivity.isWeekOverview;
+        const isSingleDayAllContractors = !isWeek && (!state.selectedContractor || state.selectedContractor === 'ALL');
+
+        let cardTitleA = 'Balance Horario de Flujo (00:00 - 23:00)';
+        let cardDescA = 'Ingresos vs. Cierres agrupados por hora del día seleccionado';
+        if (isWeek) {
+            cardTitleA = 'Evolución Diaria (Últimos 7 Días)';
+            cardDescA = 'Ingresos (Azul) vs. Cierres (Verde) por cada jornada';
+        } else if (isSingleDayAllContractors) {
+            cardTitleA = 'Casos Ingresados vs. Cerrados por Contratista';
+            cardDescA = 'Comparativo de nuevos ingresos (Azul) vs. cierres efectivos (Verde) por empresa';
+        } else {
+            cardTitleA = `Balance Horario de Flujo (${escapeHtml(state.selectedContractor)})`;
+            cardDescA = `Distribución horaria (00:00 - 23:00) para ${escapeHtml(state.selectedContractor)}`;
+        }
+
+        const cardTitleB = isWeek ? 'Cierres por Contratista (Semana)' : 'Evolución diaria';
+        const cardDescB = isWeek ? 'Producción acumulada de contratistas en los últimos 7 días' : 'Flujo de inventario: Inicial, Nuevos, Intradía, Backlog y Remanente final';
 
         // Construir HTML UI
         container.innerHTML = `
@@ -1899,8 +2110,8 @@
                     <div class="segdia-card">
                         <div class="segdia-card-header">
                             <div>
-                                <h3 class="segdia-card-title">${isWeek ? 'Evolución Diaria (Últimos 7 Días)' : 'Balance Horario de Flujo (00:00 - 23:00)'}</h3>
-                                <p class="segdia-card-desc">${isWeek ? 'Ingresos (Azul) vs. Cierres (Verde) por cada jornada' : 'Ingresos vs. Cierres agrupados por hora del día seleccionado'}</p>
+                                <h3 class="segdia-card-title">${cardTitleA}</h3>
+                                <p class="segdia-card-desc">${cardDescA}</p>
                             </div>
                         </div>
                         <div class="segdia-chart-wrapper">
@@ -1912,8 +2123,8 @@
                     <div class="segdia-card">
                         <div class="segdia-card-header">
                             <div>
-                                <h3 class="segdia-card-title">${isWeek ? 'Cierres por Contratista (Semana)' : 'Gráfico de Cascada (Waterfall)'}</h3>
-                                <p class="segdia-card-desc">${isWeek ? 'Producción acumulada de contratistas en los últimos 7 días' : 'Inventario de tickets: Inicial, Nuevos, Intradía, Backlog y Final'}</p>
+                                <h3 class="segdia-card-title">${cardTitleB}</h3>
+                                <p class="segdia-card-desc">${cardDescB}</p>
                             </div>
                         </div>
                         <div class="segdia-chart-wrapper">
