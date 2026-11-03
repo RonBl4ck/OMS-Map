@@ -178,3 +178,14 @@ test('topNavCount en 10-map.js contabiliza el total de incidencias incluyendo ca
     assert.match(mapJs, /allRecordsSource\s*=\s*\(tdOmsRecords\s*&&\s*tdOmsRecords\.length\s*>\s*0\)\s*\?\s*tdOmsRecords\s*:\s*mapLocations/);
     assert.match(mapJs, /matchesCurrentMapFilter\(record\)/);
 });
+
+test('tab Productividad se oculta por defecto en index.html y se reserva a perfil PLUZ (admin)', () => {
+    const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+    assert.match(html, /id=["']tabSeguimientoDia["'][^>]*style=["'][^"']*display:\s*none;?["']/, 'tabSeguimientoDia debe estar oculto por defecto');
+
+    const authJs = fs.readFileSync(path.join(root, 'assets', 'js', '60-auth.js'), 'utf8');
+    assert.match(authJs, /tabSeguimientoDia\.style\.display\s*=\s*isAdmin\s*\?\s*''\s*:\s*'none'/, 'updateUserBadge debe alternar visibilidad de tabSeguimientoDia según rol admin');
+
+    const navJs = fs.readFileSync(path.join(root, 'assets', 'js', '50-navigation.js'), 'utf8');
+    assert.match(navJs, /function showSeguimientoDiaView\(\)[\s\S]*?sessionStorage\.getItem\(['"]oms_user_role['"]\)\s*!==\s*['"]admin['"]/, 'showSeguimientoDiaView debe bloquearse si no es admin');
+});

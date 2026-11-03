@@ -200,6 +200,8 @@ function updateUserBadge() {
     if (tabLlamadas) tabLlamadas.style.display = isAdmin ? '' : 'none';
     const tabHistorialPluz = document.getElementById('tabHistorialPluz');
     if (tabHistorialPluz) tabHistorialPluz.style.display = isAdmin ? '' : 'none';
+    const tabSeguimientoDia = document.getElementById('tabSeguimientoDia');
+    if (tabSeguimientoDia) tabSeguimientoDia.style.display = isAdmin ? '' : 'none';
     const btnOpenHistorialPluzFromTdOms = document.getElementById('btnOpenHistorialPluzFromTdOms');
     if (btnOpenHistorialPluzFromTdOms) btnOpenHistorialPluzFromTdOms.style.display = isAdmin ? 'inline-flex' : 'none';
     const btnOpenBulkPluzEnEjecucion = document.getElementById('btnOpenBulkPluzEnEjecucion');

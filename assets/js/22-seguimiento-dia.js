@@ -1730,6 +1730,11 @@
      * Renderiza todo el contenido visual en el contenedor destino.
      */
     function render() {
+        const isAdmin = (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('oms_user_role') : null) === 'admin';
+        if (!isAdmin) {
+            if (state.containerEl) state.containerEl.innerHTML = '';
+            return;
+        }
         injectStyles();
 
         let container = state.containerEl;
