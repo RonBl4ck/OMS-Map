@@ -842,3 +842,54 @@ test('getRecurrentSuministros7D: lee Objeto Técnico y Conteo_Fallas_Suministro_
     assert.equal(s9999.sed, '-', 'SED debe ser - por defecto');
     assert.equal(s9999.distrito, '-', 'Distrito debe ser - por defecto');
 });
+
+test('calculateDailyProductivity: filtrado por rango horario (startHour y endHour)', () => {
+    const pendientes = [
+        {
+            ticket: 'INC-M1',
+            'Hora de inicio': '02/11/2026 08:30:00',
+            Contratista: 'LARI'
+        },
+        {
+            ticket: 'INC-T1',
+            'Hora de inicio': '02/11/2026 15:00:00',
+            Contratista: 'LARI'
+        },
+        {
+            ticket: 'INC-N1',
+            'Hora de inicio': '02/11/2026 21:00:00',
+            Contratista: 'LARI'
+        }
+    ];
+
+    const ejecutados = [
+        {
+            ticket: 'INC-M2',
+            'Hora de inicio': '02/11/2026 07:00:00',
+            'Hora de restauración': '02/11/2026 10:30:00',
+            Contratista: 'LARI'
+        },
+        {
+            ticket: 'INC-T2',
+            'Hora de inicio': '02/11/2026 13:00:00',
+            'Hora de restauración': '02/11/2026 16:45:00',
+            Contratista: 'LARI'
+        }
+    ];
+
+    const resManana = SeguimientoDiaService.calculateDailyProductivity(pendientes, ejecutados, {
+        date: '02/11/2026',
+        startHour: 8,
+        endHour: 12
+    });
+    assert.equal(resManana.ingresosTotal, 1, 'Ingresos manana debe ser 1');
+    assert.equal(resManana.cierresTotal, 1, 'Cierres manana debe ser 1');
+
+    const resCorte = SeguimientoDiaService.calculateDailyProductivity(pendientes, ejecutados, {
+        date: '02/11/2026',
+        startHour: 0,
+        endHour: 15
+    });
+    assert.equal(resCorte.ingresosTotal, 4, 'Ingresos hasta las 15 debe ser 4');
+    assert.equal(resCorte.cierresTotal, 1, 'Cierres hasta las 15 debe ser 1');
+});

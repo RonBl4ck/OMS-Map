@@ -42,6 +42,8 @@
         selectedDate: '7D',            // Por defecto: '7D' (Vista General 7 Días)
         selectedContractor: 'ALL',
         selectedWorkType: 'ALL',
+        startHour: 0,
+        endHour: 23,
         searchQuery7D: '',
         recurrenceTab: 'SEDS',         // 'SEDS' o 'SUMINISTROS'
         limit7D: 20,
@@ -77,6 +79,71 @@
 
             .segdia-root *, .segdia-root *::before, .segdia-root *::after {
                 box-sizing: border-box;
+            }
+
+            
+            /* Filtro interactivo de horario y corte acumulado */
+            .segdia-time-filter {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                background: #f8fafc;
+                border: 1px solid #cbd5e1;
+                border-radius: 8px;
+                padding: 4px 10px;
+                box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03);
+            }
+
+            .segdia-range-group {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+            }
+
+            .segdia-range-sublabel {
+                font-size: 11px;
+                font-weight: 600;
+                color: #64748b;
+                margin-left: 2px;
+            }
+
+            .segdia-range-input {
+                width: 72px;
+                height: 5px;
+                accent-color: #2563eb;
+                cursor: pointer;
+                border-radius: 4px;
+                background: #cbd5e1;
+                vertical-align: middle;
+            }
+
+            .segdia-range-badge {
+                font-size: 11px;
+                font-weight: 700;
+                color: #1e293b;
+                font-variant-numeric: tabular-nums;
+                background: #ffffff;
+                border: 1px solid #e2e8f0;
+                border-radius: 4px;
+                padding: 1px 5px;
+                min-width: 44px;
+                text-align: center;
+                display: inline-block;
+            }
+
+            .segdia-btn-now {
+                padding: 4px 10px;
+                font-size: 11px;
+                background: #eff6ff;
+                color: #1d4ed8;
+                border: 1px solid #bfdbfe;
+                font-weight: 700;
+                border-radius: 6px;
+            }
+
+            .segdia-btn-now:hover {
+                background: #dbeafe;
+                color: #1e40af;
             }
 
             /* Números tabulares */
@@ -861,6 +928,9 @@
         const targetDate = options.date;
         const contractor = (options.contractor && options.contractor !== 'ALL' && options.contractor !== '*') 
             ? String(options.contractor).toUpperCase() : null;
+        const startHour = (options && options.startHour !== undefined) ? Math.max(0, Math.min(23, parseInt(options.startHour, 10) || 0)) : 0;
+        const endHour = (options && options.endHour !== undefined) ? Math.max(startHour, Math.min(23, parseInt(options.endHour, 10) || 23)) : 23;
+        const isHourInRange = (h) => (h === null || h === undefined || isNaN(h)) ? true : (h >= startHour && h <= endHour);
 
         const matchContractor = r => {
             if (!contractor) return true;
@@ -921,10 +991,12 @@
                 const fRaw = r['Hora de inicio'] || r['Fecha de creación'] || r['Fecha Creación'] || r['Fecha'];
                 const dmy = parseDateToDmy(fRaw);
                 if (dmy === targetDate) {
-                    ingresosTotal++;
-                    recordContractor(r, 'ingreso');
                     const h = parseHour(fRaw);
-                    if (h !== null && h >= 0 && h < 24) hourlyDist[h].ingresos++;
+                    if (isHourInRange(h)) {
+                        ingresosTotal++;
+                        recordContractor(r, 'ingreso');
+                        if (h !== null && h >= 0 && h < 24) hourlyDist[h].ingresos++;
+                    }
                 }
             });
 
@@ -936,14 +1008,18 @@
                 const fOpenRaw = r['Hora de inicio'] || r['Fecha de creación'] || r['Fecha Creación'] || r['Fecha'];
                 const dmyOpen = parseDateToDmy(fOpenRaw);
                 if (dmyOpen && dmyOpen === targetDate) {
-                    recordContractor(r, 'ingreso');
+                    const hOpen = parseHour(fOpenRaw);
+                    if (isHourInRange(hOpen)) {
+                        recordContractor(r, 'ingreso');
+                    }
                 }
 
                 if (dmyClose === targetDate) {
-                    cierresTotal++;
-                    recordContractor(r, 'cierre');
                     const h = parseHour(fCloseRaw);
-                    if (h !== null && h >= 0 && h < 24) hourlyDist[h].cierres++;
+                    if (isHourInRange(h)) {
+                        cierresTotal++;
+                        recordContractor(r, 'cierre');
+                        if (h !== null && h >= 0 && h < 24) hourlyDist[h].cierres++;
 
                     if (dmyOpen && dmyOpen === targetDate) {
                         cierresIntradia++;
@@ -958,6 +1034,7 @@
                             sumDurationHours += parsed;
                             countDuration++;
                         }
+                    }
                     }
                 }
             });
@@ -1020,13 +1097,13 @@
             pendientes.forEach(r => {
                 if (!matchContractor(r)) return;
                 const fRaw = r['Hora de inicio'] || r['Fecha de creación'] || r['Fecha'];
-                if (parseDateToDmy(fRaw) === dmy) ingresos++;
+                if (parseDateToDmy(fRaw) === dmy && isHourInRange(parseHour(fRaw))) ingresos++;
             });
 
             ejecutados.forEach(r => {
                 if (!matchContractor(r)) return;
                 const fCloseRaw = r['Hora de restauración'] || r['Fecha de ejecucion'] || r['Fecha'];
-                if (parseDateToDmy(fCloseRaw) === dmy) cierres++;
+                if (parseDateToDmy(fCloseRaw) === dmy && isHourInRange(parseHour(fCloseRaw))) cierres++;
             });
 
             const parts = dmy.split('/');
@@ -1401,11 +1478,40 @@
                         },
                         y: {
                             beginAtZero: true,
+                            grace: '14%',
                             grid: { color: '#f1f5f9' },
                             ticks: { color: '#64748b', font: { size: 10.5 }, precision: 0 }
                         }
                     }
-                }
+                },
+                plugins: [{
+                    id: 'evolucion7DValueLabels',
+                    afterDatasetsDraw(chart) {
+                        const { ctx } = chart;
+                        chart.data.datasets.forEach((dataset, datasetIdx) => {
+                            const meta = chart.getDatasetMeta(datasetIdx);
+                            if (!meta || meta.hidden) return;
+
+                            ctx.save();
+                            ctx.font = '700 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'bottom';
+
+                            meta.data.forEach((bar, idx) => {
+                                const val = dataset.data[idx];
+                                if (val === undefined || val === null || val === 0) return;
+
+                                const text = String(val);
+                                const x = bar.x;
+                                const y = Math.min(bar.y, bar.base) - 3;
+
+                                ctx.fillStyle = datasetIdx === 0 ? '#1D4ED8' : '#047857';
+                                ctx.fillText(text, x, y);
+                            });
+                            ctx.restore();
+                        });
+                    }
+                }]
             });
 
             // GRÁFICO B: Cierres por Contratista en la Semana
@@ -1960,7 +2066,9 @@
         const productivity = computeDailyProductivity(pendientes, ejecutados, {
             date: state.selectedDate,
             contractor: contractorParam,
-            workType: workTypeParam
+            workType: workTypeParam,
+            startHour: state.startHour,
+            endHour: state.endHour
         });
 
         // Monitor dual de recurrencia (SEDs vs Suministros)
@@ -2044,6 +2152,24 @@
                             <option value="ALL" ${state.selectedContractor === 'ALL' ? 'selected' : ''}>Todas las empresas</option>
                             ${contractors.map(c => `<option value="${c}" ${c === state.selectedContractor ? 'selected' : ''}>${c}</option>`).join('')}
                         </select>
+
+                        
+                        <!-- FILTRO HORARIO INTERACTIVO (DESPLAZABLE CON INICIO / FIN / AHORA) -->
+                        <div class="segdia-time-filter">
+                            <span class="segdia-filter-label" title="Filtrar casos por franja horaria">⏱️ Horario:</span>
+                            <div class="segdia-range-group">
+                                <label for="segdiaStartHour" class="segdia-range-sublabel" title="Hora de inicio">Desde:</label>
+                                <input type="range" id="segdiaStartHour" class="segdia-range-input" min="0" max="23" value="${state.startHour}" step="1" title="Mover para desplazar hora de inicio">
+                                <span id="segdiaStartHourVal" class="segdia-range-badge">${String(state.startHour).padStart(2, '0')}:00</span>
+
+                                <label for="segdiaEndHour" class="segdia-range-sublabel" title="Hora de corte">Hasta:</label>
+                                <input type="range" id="segdiaEndHour" class="segdia-range-input" min="0" max="23" value="${state.endHour}" step="1" title="Mover para desplazar hora de corte">
+                                <span id="segdiaEndHourVal" class="segdia-range-badge">${String(state.endHour).padStart(2, '0')}:59</span>
+                            </div>
+                            <button type="button" id="btnSegdiaNow" class="segdia-btn segdia-btn-now" title="Ajustar corte hasta la hora actual (Ahora)">
+                                ⚡ Ahora
+                            </button>
+                        </div>
 
                         <button type="button" id="btnSegdiaRefresh" class="segdia-btn" title="Recalcular métricas">
                             🔄 Actualizar
@@ -2217,6 +2343,63 @@
         if (contractorSelect) {
             contractorSelect.addEventListener('change', (e) => {
                 state.selectedContractor = e.target.value;
+                render();
+            });
+        }
+
+        
+        // Filtro de horario: Start Hour
+        const startHourInput = document.getElementById('segdiaStartHour');
+        const startHourBadge = document.getElementById('segdiaStartHourVal');
+        const endHourInput = document.getElementById('segdiaEndHour');
+        const endHourBadge = document.getElementById('segdiaEndHourVal');
+
+        if (startHourInput) {
+            startHourInput.addEventListener('input', (e) => {
+                let val = parseInt(e.target.value, 10) || 0;
+                if (val > state.endHour) {
+                    val = state.endHour;
+                    startHourInput.value = val;
+                }
+                state.startHour = val;
+                if (startHourBadge) {
+                    startHourBadge.textContent = String(val).padStart(2, '0') + ':00';
+                }
+            });
+
+            startHourInput.addEventListener('change', () => {
+                render();
+            });
+        }
+
+        if (endHourInput) {
+            endHourInput.addEventListener('input', (e) => {
+                let val = parseInt(e.target.value, 10);
+                if (isNaN(val)) val = 23;
+                if (val < state.startHour) {
+                    val = state.startHour;
+                    endHourInput.value = val;
+                }
+                state.endHour = val;
+                if (endHourBadge) {
+                    endHourBadge.textContent = String(val).padStart(2, '0') + ':59';
+                }
+            });
+
+            endHourInput.addEventListener('change', () => {
+                render();
+            });
+        }
+
+        // Botón "Ahora" (corte hasta la hora actual)
+        const btnNow = document.getElementById('btnSegdiaNow');
+        if (btnNow) {
+            btnNow.addEventListener('click', () => {
+                const nowHour = new Date().getHours();
+                state.endHour = Math.min(23, Math.max(0, nowHour));
+                if (state.startHour > state.endHour) {
+                    state.startHour = 0;
+                }
                 render();
             });
         }
