@@ -95,3 +95,15 @@ Verificando que los nuevos componentes no introducen anti-patrones en el diseño
    Aunque el estado reactivo (`store.js`) sincroniza los filtros en memoria, se recomienda almacenar los filtros seleccionados (ej. contratista activo) en `sessionStorage` para conservarlos tras recargar la página (`F5`).
 2. **Atajos de Teclado Numéricos:**  
    Añadir atajos de teclado (`Alt + 1` para Operación, `Alt + 2` para Métricas, `Alt + 3` para Cuadrillas) para agilizar aún más la operación de despacho en salas de control.
+
+
+---
+
+## 7. Refinamientos Aplicados Post-Revisión
+
+A petición de la jefatura, se aplicaron los siguientes 3 ajustes de pulido fino:
+1. **Simplificación del botón "Balance Diario":** Se removió el sufijo técnico `(Waterfall)` de todos los segmented buttons y descripciones, quedando unificado como `📈 Balance Diario`.
+2. **Despeje de Cabecera en "Plazos & Reportes":** Se eliminó el párrafo descriptivo redundante en `#tdOmsModalOverlay` para conceder máxima prioridad visual a los 4 KPIs ejecutivos de plazos.
+3. **Reubicación Operativa de Acciones en Cuadrillas:**
+   - En **Rendimiento de Técnicos**: Se integró el botón **`📥 Exportar Historial`** (`#btnExportHistorialPluz`) para descargar el consolidado operativo de campo.
+   - En **Historial Pluz**: Se ubicó la acción destacada **`⚡ Asignación Masiva`** (`#btnSubnavOpenBulkPluz`) para cargar y pasar masivamente a estado *En Ejecución* los tickets auditados.

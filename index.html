@@ -277,16 +277,13 @@
                 <div class="modal-header-title">
                     📊 Métricas & Control
                 </div>
-                <p class="view-header-description">
-                    Tablero ejecutivo de cumplimiento de plazos, balance de flujo diario y señales de clientes.
-                </p>
             </div>
             <div class="module-segmented-nav" role="tablist" aria-label="Subsecciones de Métricas y Control">
                 <button type="button" class="segmented-nav-btn active" id="btnSubnavPlazos" role="tab" aria-selected="true">
                     <span>📊 Plazos & Reportes</span>
                 </button>
                 <button id="tabSeguimientoDia" class="segmented-nav-btn" type="button" role="tab" aria-selected="false" aria-controls="seguimientoDiaOverlay" title="Balance de productividad y flujo diario" style="display: none;">
-                    <span>📈 Balance Diario (Waterfall)</span>
+                    <span>📈 Balance Diario</span>
                 </button>
                 <button id="tabLlamadas" class="segmented-nav-btn" type="button" role="tab" aria-selected="false" aria-controls="llamadasModalOverlay" title="Registro y presión de llamadas" style="display: none;">
                     <span>📞 Señales & Llamadas</span>
@@ -444,7 +441,7 @@
                     📈 Balance Diario & Productividad
                 </div>
                 <p class="view-header-description">
-                    Flujo horario de ingresos vs. cierres, gráfico de cascada (Waterfall) y monitor de recurrencia a 7 días.
+                    Flujo horario de ingresos vs. cierres, gráfico de cascada y monitor de recurrencia a 7 días.
                 </p>
             </div>
             <div class="module-segmented-nav" role="tablist" aria-label="Subsecciones de Métricas y Control">
@@ -452,7 +449,7 @@
                     <span>📊 Plazos & Reportes</span>
                 </button>
                 <button type="button" class="segmented-nav-btn active" role="tab" aria-selected="true">
-                    <span>📈 Balance Diario (Waterfall)</span>
+                    <span>📈 Balance Diario</span>
                 </button>
                 <button type="button" class="segmented-nav-btn" id="btnSubnavCallsFromSeg" role="tab" aria-selected="false">
                     <span>📞 Señales & Llamadas</span>
@@ -471,15 +468,18 @@
                 <div class="modal-header-title">👷 Cuadrillas & Campo — Seguimiento de Técnicos</div>
                 <p class="view-header-description">Monitoreo del ritmo de liquidación de cuadrillas, tiempos de inactividad, alertas >4h y timeline.</p>
             </div>
-            <div class="module-segmented-nav" role="tablist" aria-label="Subsecciones de Cuadrillas y Campo">
-                <button type="button" class="segmented-nav-btn active" id="btnSubnavTecnicos" role="tab" aria-selected="true">
-                    <span>👷 Rendimiento de Técnicos</span>
-                </button>
-                <button id="tabHistorialPluz" class="segmented-nav-btn" type="button" role="tab" aria-selected="false" aria-controls="historialPluzOverlay" title="Historial y auditoría de supervisión PLUZ" style="display: none;">
-                    <span>🛡️ Historial & Auditoría PLUZ</span>
-                </button>
-                <button type="button" class="segmented-nav-btn segmented-nav-action" id="btnSubnavOpenBulkPluz" style="display: none;" title="Registrar masivamente estado EN EJECUCIÓN">
-                    <span>⚡ Asignación Masiva</span>
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <div class="module-segmented-nav" role="tablist" aria-label="Subsecciones de Cuadrillas y Campo">
+                    <button type="button" class="segmented-nav-btn active" id="btnSubnavTecnicos" role="tab" aria-selected="true">
+                        <span>👷 Rendimiento de Técnicos</span>
+                    </button>
+                    <button id="tabHistorialPluz" class="segmented-nav-btn" type="button" role="tab" aria-selected="false" aria-controls="historialPluzOverlay" title="Historial y auditoría de supervisión PLUZ" style="display: none;">
+                        <span>🛡️ Historial & Auditoría PLUZ</span>
+                    </button>
+                </div>
+                <button type="button" id="btnExportHistorialPluz" class="btn-export-table" style="background: #10b981;" title="Exportar historial">
+                    <span>📥</span>
+                    <span>Exportar Historial</span>
                 </button>
             </div>
         </div>
@@ -614,9 +614,8 @@
                         <span>🛡️ Historial & Auditoría PLUZ</span>
                     </button>
                 </div>
-                <button type="button" id="btnExportHistorialPluz" class="btn-export-table" style="background: #10b981;">
-                    <span>📥</span>
-                    <span>Exportar Historial</span>
+                <button type="button" class="segmented-nav-btn segmented-nav-action" id="btnSubnavOpenBulkPluz" style="display: none;" title="Registrar masivamente estado EN EJECUCIÓN en Supervisión PLUZ">
+                    <span>⚡ Asignación Masiva</span>
                 </button>
             </div>
         </div>
@@ -865,7 +864,7 @@
                     <span>📊 Plazos & Reportes</span>
                 </button>
                 <button type="button" class="segmented-nav-btn" id="btnSubnavBalanceFromCalls" role="tab" aria-selected="false">
-                    <span>📈 Balance Diario (Waterfall)</span>
+                    <span>📈 Balance Diario</span>
                 </button>
                 <button type="button" class="segmented-nav-btn active" role="tab" aria-selected="true">
                     <span>📞 Señales & Llamadas</span>
