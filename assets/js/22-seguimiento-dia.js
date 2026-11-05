@@ -883,7 +883,7 @@
      */
     function extractFallaFromRow(row) {
         if (!row || typeof row !== 'object') return '-';
-        return row['Falla'] || row['falla'] || row['FALLA'] || row['Falla OMS'] || row['falla_odm2'] || row['Falla ODM2'] || row['tipo_falla'] || row['Tipo de Falla'] || row['Tipo Falla'] || '-';
+        return row['Falla'] || row['falla'] || row['FALLA'] || row['Falla OMS'] || row['falla_odm2'] || row['Falla ODM2'] || row['Tipo de Equipo probable de falla'] || row['tipo_falla'] || row['Tipo de Falla'] || row['Tipo Falla'] || '-';
     }
 
     /**
