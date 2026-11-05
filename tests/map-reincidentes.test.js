@@ -170,3 +170,11 @@ test('archivos CSS contienen estilos para .is-suministro-reincidente y .marker-r
     assert.ok(css1.includes('.marker-reinc-badge') || css2.includes('.marker-reinc-badge'), 'Debe incluir regla para .marker-reinc-badge');
     assert.ok(css1.includes('.popup-reincidente-card') || css2.includes('.popup-reincidente-card'), 'Debe incluir regla para .popup-reincidente-card');
 });
+
+test('10-map.js define correctamente variables de historial de suministro sin ReferenceError', () => {
+    const code = fs.readFileSync(path.join(root, 'assets', 'js', '10-map.js'), 'utf8');
+    assert.ok(code.includes('const finalSuministroCount ='), 'Debe definir finalSuministroCount');
+    assert.ok(code.includes('let parsedHistorialItems ='), 'Debe definir parsedHistorialItems');
+    assert.ok(code.includes('let parsedDias ='), 'Debe definir parsedDias');
+    assert.ok(code.includes('const isSuministroReincidente ='), 'Debe definir isSuministroReincidente');
+});

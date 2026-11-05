@@ -290,6 +290,51 @@
                 const rawSuminCount = getProp(item, 'Conteo_Fallas_Suministro_7D', 'Fallas_Suministro_7D');
                 const suministroCount = parseInt(rawSuminCount, 10) || 0;
 
+                // Historial de reincidencias de suministros (JSON y fallback)
+                const rawHistSumin = getProp(item, 'HISTORIAL_SUMINISTRO_JSON', 'historial_suministro_json', 'Historial_Suministro_JSON', 'HISTORIAL_JSON');
+                let parsedHistorialItems = [];
+                let parsedDias = 2;
+
+                if (rawHistSumin) {
+                    try {
+                        const parsed = (typeof rawHistSumin === 'string') ? JSON.parse(rawHistSumin) : rawHistSumin;
+                        if (Array.isArray(parsed)) {
+                            parsedHistorialItems = parsed;
+                        } else if (parsed && typeof parsed === 'object') {
+                            if (Array.isArray(parsed.items)) {
+                                parsedHistorialItems = parsed.items;
+                            }
+                            if (typeof parsed.dias === 'number' && parsed.dias > 0) {
+                                parsedDias = parsed.dias;
+                            }
+                        }
+                    } catch (_) {}
+                }
+
+                if (parsedHistorialItems.length === 0 && suministro && typeof window !== 'undefined' && Array.isArray(window.ejecutadosRecords) && window.ejecutadosRecords.length > 0) {
+                    const cleanSum = String(suministro).trim();
+                    if (cleanSum && cleanSum !== '0' && cleanSum !== 'N/A' && cleanSum !== '-') {
+                        const matches = window.ejecutadosRecords.filter(ex => {
+                            const exSum = String(ex.Suministro || ex.suministro || ex['Objeto Técnico'] || '').trim();
+                            return exSum && exSum === cleanSum;
+                        }).slice(0, 5);
+
+                        if (matches.length > 0) {
+                            parsedHistorialItems = matches.map(ex => ({
+                                t: String(ex.Ticket || ex.ticket || ex.ODM || '').trim(),
+                                f: String(ex['Hora de inicio'] || ex.fecha || ex['Hora de restauración'] || '').trim().slice(0, 16),
+                                falla: String(ex.Falla || ex.falla || ex['Falla ODM2'] || '').trim(),
+                                fr: String(ex['Falla Real'] || ex.falla_real || ex['Objeto Técnico'] || '').trim(),
+                                nota: String(ex['Nota específica'] || ex.nota || ex.Observaciones || '').trim().slice(0, 140),
+                                tec: String(ex.Tecnico || ex.Empresa || '').trim()
+                            }));
+                        }
+                    }
+                }
+
+                const finalSuministroCount = Math.max(suministroCount, (parsedHistorialItems.length > 0 ? parsedHistorialItems.length + 1 : 0));
+                const isSuministroReincidente = finalSuministroCount >= 2 || parsedHistorialItems.length > 0;
+
                 const esCritica = isSedCritica(sed);
                 const prioridad = getProp(item, 'Prioridad', 'PRIORIDAD', 'prioridad');
                 const duracion = getProp(item, 'Duración', 'Duracion', 'Hora Transcurrida', 'hora_transcurrida', 'duracion');
