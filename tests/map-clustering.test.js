@@ -13,7 +13,7 @@ test('el mapa carga el complemento de agrupamiento antes de su módulo', () => {
 });
 
 test('todos los clusters se desactivan desde un único nivel de zoom', () => {
-  assert.match(core, /MAP_CLUSTER_MAX_ZOOM\s*=\s*12/);
+  assert.match(core, /MAP_CLUSTER_MAX_ZOOM\s*=\s*14/);
   assert.match(map, /L\.markerClusterGroup\s*\(/);
   assert.match(map, /disableClusteringAtZoom:\s*MAP_CLUSTER_MAX_ZOOM/);
 });

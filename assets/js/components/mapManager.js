@@ -136,7 +136,7 @@
         L.control.zoom({ position: 'bottomright' }).addTo(mapInstance);
         initLocateControl();
 
-        const clusterMaxZoom = (typeof MAP_CLUSTER_MAX_ZOOM !== 'undefined') ? MAP_CLUSTER_MAX_ZOOM : 12;
+        const clusterMaxZoom = (typeof MAP_CLUSTER_MAX_ZOOM !== 'undefined') ? MAP_CLUSTER_MAX_ZOOM : 14;
         const mg = L.markerClusterGroup({
             disableClusteringAtZoom: clusterMaxZoom,
             maxClusterRadius: 54,

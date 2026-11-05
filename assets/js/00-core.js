@@ -58,7 +58,7 @@
         var leafletMap = null;
         var markersGroup = null;
         const markerMap = (typeof omsStore !== 'undefined' && omsStore.get('markerMap')) || new Map();
-        const MAP_CLUSTER_MAX_ZOOM = 12;
+        const MAP_CLUSTER_MAX_ZOOM = 14;
 
         const escapeHtml = (val) => (typeof DomUtils !== 'undefined' && typeof DomUtils.escapeHtml === 'function')
             ? DomUtils.escapeHtml(val)
