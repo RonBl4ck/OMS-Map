@@ -630,6 +630,9 @@
                             <div class="ticket-cell">
                                 <span class="ticket-number">${escapeHtml(r.ticket)}</span>
                                 <button type="button" class="btn-ticket-pin" onclick="navigateToTicketOnMap('${escapeHtml(r.ticket)}')" title="Localizar ticket #${escapeHtml(r.ticket)} en el mapa" aria-label="Localizar ticket #${escapeHtml(r.ticket)} en el mapa">📍</button>
+                                ${(r.suministro_reincidente || (r.suministro_count >= 2)) ? `
+                                    <button type="button" class="btn-ticket-reinc" onclick="event.stopPropagation(); openSuministroHistoryModal('${escapeHtml(r.ticket)}')" title="⚠️ Suministro Reincidente: ${escapeHtml(r.suministro_count)} fallas (${escapeHtml(r.suministro_ventana_dias || 2)}D). Clic para ver historial de notas">⚠️ x${escapeHtml(r.suministro_count)}</button>
+                                ` : ''}
                             </div>
                         </td>
                         <td data-label="ODM" style="padding: 7px 10px; white-space: nowrap;">${odmCellHtml}</td>
@@ -2200,6 +2203,178 @@
             window.downloadExecutedBase = downloadExecutedBase;
         }
 
+        /**
+         * Abre modal interactivo con el historial de notas y fallas del suministro reincidente.
+         */
+        function openSuministroHistoryModal(ticketId) {
+            if (!ticketId) return;
+            const tStr = String(ticketId).trim();
+
+            let target = null;
+            if (typeof tdOmsRecords !== 'undefined' && Array.isArray(tdOmsRecords)) {
+                target = tdOmsRecords.find(r => String(r.ticket).trim() === tStr);
+            }
+            if (!target && typeof mapLocations !== 'undefined' && Array.isArray(mapLocations)) {
+                target = mapLocations.find(l => String(l.ticket).trim() === tStr);
+            }
+            if (!target && typeof window !== 'undefined' && Array.isArray(window.mapLocations)) {
+                target = window.mapLocations.find(l => String(l.ticket).trim() === tStr);
+            }
+            if (!target && typeof window !== 'undefined' && Array.isArray(window.tdOmsRecords)) {
+                target = window.tdOmsRecords.find(r => String(r.ticket).trim() === tStr);
+            }
+
+            const ticket = tStr;
+            const suministro = target ? (target.suministro || 'N/A') : 'N/A';
+            const sed = target ? (target.sed || 'N/A') : 'N/A';
+            const falla = target ? (target.falla || 'N/A') : 'N/A';
+            const alimentador = target ? (target.alimentador || 'N/A') : 'N/A';
+            const fechaIni = target ? (target.hora_inicio || target.fecha_inicio || target.fecha || '') : '';
+            const sumCount = target ? (parseInt(target.suministro_count, 10) || 2) : 2;
+            const sumDias = target ? (target.suministro_ventana_dias || 2) : 2;
+
+            let historial = (target && Array.isArray(target.suministro_historial)) ? [...target.suministro_historial] : [];
+            if (historial.length === 0 && suministro && suministro !== 'N/A') {
+                const exList = (typeof root !== 'undefined' && Array.isArray(root.ejecutadosRecords))
+                    ? root.ejecutadosRecords
+                    : (typeof window !== 'undefined' && Array.isArray(window.ejecutadosRecords) ? window.ejecutadosRecords : []);
+                if (exList.length > 0) {
+                    const sumNorm = String(suministro).trim().toLowerCase();
+                    const matched = exList.filter(e => String(e.suministro || e.Suministro || '').trim().toLowerCase() === sumNorm);
+                    historial = matched.slice(-6).map(e => ({
+                        t: e.ticket || e.Ticket || '',
+                        f: e.fecha || e.Fecha || e.fecha_inicio || '',
+                        falla: e.falla || e.Falla || '',
+                        fr: e.falla_real || e.fallaReal || e['Falla Real'] || '',
+                        nota: String(e.nota || e.Nota || e.nota_especifica || e['Nota específica'] || '').substring(0, 300),
+                        tec: e.tecnico || e.Tecnico || e.empresa || e.Empresa || ''
+                    }));
+                }
+            }
+
+            let modalEl = document.getElementById('modal-suministro-historial');
+            if (!modalEl && typeof document !== 'undefined') {
+                modalEl = document.createElement('div');
+                modalEl.id = 'modal-suministro-historial';
+                modalEl.className = 'modal-suministro-overlay';
+                document.body.appendChild(modalEl);
+            }
+            if (!modalEl) return;
+
+            const escSafe = (val) => typeof escapeHtml === 'function' ? escapeHtml(val) : String(val == null ? '' : val).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+            let itemsHtml = '';
+            if (historial.length > 0) {
+                itemsHtml = `
+                    <div class="modal-reinc-timeline">
+                        ${historial.map((h) => {
+                            const tk = escSafe(h.t || h.ticket || 'S/N');
+                            const fe = escSafe(h.f || h.fecha || 'Sin fecha');
+                            const falOms = escSafe(h.falla || 'N/A');
+                            const falReal = escSafe(h.fr || h.falla_real || h.fallaReal || '');
+                            const tec = escSafe(h.tec || h.tecnico || h.empresa || 'No registrado');
+                            const nota = escSafe(h.nota || h.comentario || '');
+                            return `
+                                <div class="reinc-timeline-card">
+                                    <div class="reinc-card-head">
+                                        <span class="reinc-card-ticket">#${tk}</span>
+                                        <span class="reinc-card-date">🕒 ${fe}</span>
+                                        <span class="reinc-card-tech">👷 ${tec}</span>
+                                    </div>
+                                    <div class="reinc-card-badges">
+                                        <span class="reinc-badge-oms">Falla OMS: ${falOms}</span>
+                                        ${falReal ? `<span class="reinc-badge-real">Falla Real: ${falReal}</span>` : ''}
+                                    </div>
+                                    ${nota ? `
+                                        <div class="reinc-card-note">
+                                            <span class="reinc-note-label">Nota de cierre:</span>
+                                            <div class="reinc-note-text">"${nota}"</div>
+                                        </div>
+                                    ` : `
+                                        <div class="reinc-card-note-empty">Sin nota de cierre registrada en este ticket.</div>
+                                    `}
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+            } else {
+                itemsHtml = `
+                    <div class="modal-reinc-empty">
+                        <span style="font-size: 24px; display: block; margin-bottom: 6px;">ℹ️</span>
+                        No se registraron notas de cierres previos para el suministro <strong>#${escSafe(suministro)}</strong> en los últimos ${escSafe(sumDias)} días.
+                    </div>
+                `;
+            }
+
+            modalEl.innerHTML = `
+                <div class="modal-suministro-dialog" role="dialog" aria-modal="true" aria-labelledby="modal-reinc-title">
+                    <div class="modal-suministro-header">
+                        <div>
+                            <h3 id="modal-reinc-title" class="modal-suministro-title">
+                                ⚠️ Suministro Reincidente #${escSafe(suministro)}
+                            </h3>
+                            <div class="modal-suministro-subtitle">
+                                Ticket actual: <strong>#${escSafe(ticket)}</strong> · SED: <strong>${escSafe(sed)}</strong> ${alimentador !== 'N/A' ? `· Alim: <strong>${escSafe(alimentador)}</strong>` : ''}
+                            </div>
+                        </div>
+                        <button type="button" class="modal-suministro-close-btn" onclick="closeSuministroHistoryModal()" aria-label="Cerrar modal">&times;</button>
+                    </div>
+                    <div class="modal-suministro-pill-row">
+                        <span class="modal-reinc-kpi-pill">🔥 Reincidencia: ${escSafe(sumCount)} eventos en ${escSafe(sumDias)} días</span>
+                        <span class="modal-reinc-falla-pill">Falla actual: ${escSafe(falla)}</span>
+                        ${fechaIni ? `<span class="modal-reinc-time-pill">Inicio: ${escSafe(fechaIni)}</span>` : ''}
+                    </div>
+                    <div class="modal-suministro-body">
+                        <h4 class="modal-section-title">Historial de Cierres y Notas Anteriores (${historial.length})</h4>
+                        ${itemsHtml}
+                    </div>
+                    <div class="modal-suministro-footer">
+                        <button type="button" class="modal-btn-map" onclick="closeSuministroHistoryModal(); if(typeof navigateToTicketOnMap==='function') navigateToTicketOnMap('${escSafe(ticket)}');">
+                            📍 Ubicar Ticket #${escSafe(ticket)} en Mapa
+                        </button>
+                        <button type="button" class="modal-btn-close" onclick="closeSuministroHistoryModal()">
+                            Cerrar
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            modalEl.style.display = 'flex';
+            if (typeof document !== 'undefined' && document.body) {
+                document.body.style.overflow = 'hidden';
+            }
+
+            modalEl.onclick = (e) => {
+                if (e.target === modalEl) {
+                    closeSuministroHistoryModal();
+                }
+            };
+
+            const onEsc = (e) => {
+                if (e.key === 'Escape') {
+                    closeSuministroHistoryModal();
+                    document.removeEventListener('keydown', onEsc);
+                }
+            };
+            document.addEventListener('keydown', onEsc);
+        }
+
+        function closeSuministroHistoryModal() {
+            const modalEl = document.getElementById('modal-suministro-historial');
+            if (modalEl) {
+                modalEl.style.display = 'none';
+            }
+            if (typeof document !== 'undefined' && document.body) {
+                document.body.style.overflow = '';
+            }
+        }
+
+        if (typeof window !== 'undefined') {
+            window.openSuministroHistoryModal = openSuministroHistoryModal;
+            window.closeSuministroHistoryModal = closeSuministroHistoryModal;
+        }
+
         if (typeof module === 'object' && module.exports) {
             module.exports = {
                 summarizeDeadlineStatus,
@@ -2221,7 +2396,9 @@
                 parseBulkTicketsWithJc,
                 parseBulkTickets,
                 parseDateTimeCandidate,
-                executeBulkPluzEnEjecucion
+                executeBulkPluzEnEjecucion,
+                openSuministroHistoryModal,
+                closeSuministroHistoryModal
             };
         }
 

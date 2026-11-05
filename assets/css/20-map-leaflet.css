@@ -287,3 +287,320 @@ body:not([data-primary-view="map"]) .map-legend {
 .popup-reincidente-card {
     transition: all 0.2s ease;
 }
+
+/* --- BOTÓN DE TICKET REINCIDENTE EN TABLAS --- */
+.btn-ticket-reinc {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    background: #fef3c7;
+    color: #b45309;
+    border: 1px solid #f59e0b;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    margin-left: 4px;
+    cursor: pointer;
+    transition: all 140ms ease;
+    line-height: 1.3;
+    user-select: none;
+    vertical-align: middle;
+}
+
+.btn-ticket-reinc:hover {
+    background: #fde68a;
+    border-color: #d97706;
+    color: #92400e;
+    transform: scale(1.06);
+    box-shadow: 0 2px 6px rgba(217, 119, 6, 0.25);
+}
+
+.btn-ticket-reinc:active {
+    transform: scale(0.96);
+}
+
+/* --- MODAL FLOTANTE DE HISTORIAL DE SUMINISTRO --- */
+.modal-suministro-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100050;
+    padding: 16px;
+    animation: fadeInModal 0.18s ease-out forwards;
+}
+
+@keyframes fadeInModal {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal-suministro-dialog {
+    background: #ffffff;
+    border-radius: 14px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+    max-width: 620px;
+    width: 100%;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+}
+
+.modal-suministro-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 16px 20px 12px;
+    background: #fffbeb;
+    border-bottom: 1px solid #fef3c7;
+}
+
+.modal-suministro-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: #92400e;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.modal-suministro-subtitle {
+    font-size: 11.5px;
+    color: #78350f;
+    margin-top: 3px;
+}
+
+.modal-suministro-close-btn {
+    background: transparent;
+    border: none;
+    font-size: 22px;
+    line-height: 1;
+    color: #92400e;
+    cursor: pointer;
+    padding: 0 4px;
+    border-radius: 4px;
+    transition: background 0.15s;
+}
+
+.modal-suministro-close-btn:hover {
+    background: rgba(180, 83, 9, 0.12);
+}
+
+.modal-suministro-pill-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 20px;
+    background: #ffffff;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.modal-reinc-kpi-pill {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fca5a5;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 6px;
+}
+
+.modal-reinc-falla-pill {
+    background: #eff6ff;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 6px;
+}
+
+.modal-reinc-time-pill {
+    background: #f8fafc;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 6px;
+}
+
+.modal-suministro-body {
+    padding: 16px 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.modal-section-title {
+    margin: 0 0 10px 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.modal-reinc-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.reinc-timeline-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #f59e0b;
+    border-radius: 8px;
+    padding: 10px 12px;
+    transition: box-shadow 0.15s ease;
+}
+
+.reinc-timeline-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.reinc-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 5px;
+}
+
+.reinc-card-ticket {
+    font-weight: 700;
+    color: #0f172a;
+    font-size: 12.5px;
+}
+
+.reinc-card-date {
+    font-size: 11px;
+    color: #64748b;
+}
+
+.reinc-card-tech {
+    font-size: 11px;
+    color: #334155;
+    background: #f1f5f9;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+.reinc-card-badges {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}
+
+.reinc-badge-oms {
+    font-size: 10px;
+    font-weight: 700;
+    color: #1d4ed8;
+    background: #dbeafe;
+    padding: 1px 6px;
+    border-radius: 4px;
+}
+
+.reinc-badge-real {
+    font-size: 10px;
+    font-weight: 700;
+    color: #c2410c;
+    background: #ffedd5;
+    padding: 1px 6px;
+    border-radius: 4px;
+}
+
+.reinc-card-note {
+    background: #fffdf5;
+    border: 1px solid #fef3c7;
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-top: 4px;
+}
+
+.reinc-note-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: #92400e;
+    display: block;
+    margin-bottom: 2px;
+}
+
+.reinc-note-text {
+    font-size: 11.5px;
+    color: #1e293b;
+    font-style: italic;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.reinc-card-note-empty {
+    font-size: 11px;
+    color: #94a3b8;
+    font-style: italic;
+    margin-top: 4px;
+}
+
+.modal-reinc-empty {
+    text-align: center;
+    padding: 24px 16px;
+    color: #64748b;
+    font-size: 12.5px;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px dashed #cbd5e1;
+}
+
+.modal-suministro-footer {
+    padding: 12px 20px;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.modal-btn-map {
+    background: #2563eb;
+    color: #ffffff;
+    border: 1px solid #1d4ed8;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.modal-btn-map:hover {
+    background: #1d4ed8;
+}
+
+.modal-btn-close {
+    background: #ffffff;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.modal-btn-close:hover {
+    background: #f1f5f9;
+    color: #1e293b;
+}

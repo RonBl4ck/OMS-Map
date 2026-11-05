@@ -178,3 +178,45 @@ test('10-map.js define correctamente variables de historial de suministro sin Re
     assert.ok(code.includes('let parsedDias ='), 'Debe definir parsedDias');
     assert.ok(code.includes('const isSuministroReincidente ='), 'Debe definir isSuministroReincidente');
 });
+
+test('20-dashboard.js y dashboardManager.js renderizan botón btn-ticket-reinc y modal openSuministroHistoryModal', () => {
+    const vm = require('node:vm');
+    const dashJs = fs.readFileSync(path.join(root, 'assets', 'js', '20-dashboard.js'), 'utf8');
+    const mgrJs = fs.readFileSync(path.join(root, 'assets', 'js', 'components', 'dashboardManager.js'), 'utf8');
+
+    assert.ok(dashJs.includes('btn-ticket-reinc'), '20-dashboard.js debe incluir botón btn-ticket-reinc');
+    assert.ok(dashJs.includes('openSuministroHistoryModal'), '20-dashboard.js debe definir openSuministroHistoryModal');
+    assert.ok(mgrJs.includes('btn-ticket-reinc'), 'dashboardManager.js debe incluir botón btn-ticket-reinc');
+    assert.ok(mgrJs.includes('openSuministroHistoryModal'), 'dashboardManager.js debe llamar a openSuministroHistoryModal');
+
+    // Comprobar funciones en contexto simulado
+    const element = { addEventListener() {}, style: {}, classList: { add() {}, remove() {} }, innerHTML: '', appendChild() {} };
+    const context = {
+        console,
+        document: {
+            getElementById() { return element; },
+            querySelectorAll() { return []; },
+            createElement() { return element; },
+            body: element,
+            readyState: 'complete',
+            addEventListener() {},
+            removeEventListener() {}
+        },
+        sessionStorage: { getItem() { return '*'; } },
+        module: { exports: {} }
+    };
+    vm.createContext(context);
+    vm.runInContext(dashJs, context);
+
+    assert.equal(typeof context.openSuministroHistoryModal, 'function', 'Debe definir openSuministroHistoryModal');
+    assert.equal(typeof context.closeSuministroHistoryModal, 'function', 'Debe definir closeSuministroHistoryModal');
+    assert.equal(typeof context.module.exports.openSuministroHistoryModal, 'function', 'Debe exportar openSuministroHistoryModal');
+});
+
+test('archivos CSS contienen estilos para .btn-ticket-reinc y .modal-suministro-overlay', () => {
+    const css = fs.readFileSync(path.join(root, 'assets', 'css', '20-map-leaflet.css'), 'utf8');
+    assert.ok(css.includes('.btn-ticket-reinc'), 'Debe incluir estilos para .btn-ticket-reinc');
+    assert.ok(css.includes('.modal-suministro-overlay'), 'Debe incluir estilos para .modal-suministro-overlay');
+    assert.ok(css.includes('.modal-suministro-dialog'), 'Debe incluir estilos para .modal-suministro-dialog');
+    assert.ok(css.includes('.reinc-timeline-card'), 'Debe incluir estilos para .reinc-timeline-card');
+});

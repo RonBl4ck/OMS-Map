@@ -927,14 +927,42 @@
     }
 
     /**
-     * Obtiene lista de tipos de falla (Falla OMS) disponibles.
+     * Estandariza y normaliza categorías de fallas para evitar duplicidades
+     * (por ejemplo unificando 'CNX AEREA' con 'CNX-AEREA', o 'RED SUBTERRANEA' con 'RED-SUBTERRANEA').
+     */
+    function normalizeFaultCategory(val) {
+        if (!val) return '';
+        let s = String(val).trim().toUpperCase();
+        if (s === '-' || s === 'NULL' || s === 'UNDEFINED' || s === 'N/A' || s === 'NAN') return '';
+
+        // Unificar espacios múltiples y guiones bajos a guion estándar
+        s = s.replace(/[\s_]+/g, '-');
+
+        // Mapeos canónicos de alta frecuencia
+        if (s === 'CNX-AEREA' || s === 'CONEXION-AEREA' || s === 'CONEXION-AEREA-BT' || s === 'ACOMETIDA-AEREA') return 'CNX-AEREA';
+        if (s === 'CNX-SUBTERRANEA' || s === 'CONEXION-SUBTERRANEA' || s === 'CONEXION-SUBTERRANEA-BT' || s === 'ACOMETIDA-SUBTERRANEA') return 'CNX-SUBTERRANEA';
+        if (s === 'RED-AEREA' || s === 'RED-AEREA-BT' || s === 'LINEA-AEREA-BT') return 'RED-AEREA';
+        if (s === 'RED-SUBTERRANEA' || s === 'RED-SUBTERRANEA-BT') return 'RED-SUBTERRANEA';
+        if (s.includes('TODO-NORMAL') || s === 'DOMICILIO' || s.includes('INTERIOR') || s === 'SUMINISTRO-SP') return 'DOMICILIO';
+        if (s.includes('FUSIBLE')) return 'FUSIBLE';
+        if (s.includes('LLAVE')) return 'LLAVE';
+        if (s.includes('SECCIONADOR')) return 'SECCIONADOR';
+        if (s.includes('POSTE')) return 'POSTE';
+        if (s.includes('TRAFO') || s.includes('TRANSFORMADOR')) return 'TRANSFORMADOR';
+
+        return s;
+    }
+
+    /**
+     * Obtiene lista de tipos de falla (Falla OMS) disponibles sin duplicados estandarizados.
      */
     function getFallasList(ejecutados, pendientes) {
         const set = new Set();
         const check = r => {
-            const f = extractFallaFromRow(r);
-            if (f && f !== '-' && f !== 'null' && f !== 'undefined' && f !== 'N/A') {
-                set.add(String(f).trim());
+            const raw = extractFallaFromRow(r);
+            if (raw && raw !== '-' && raw !== 'null' && raw !== 'undefined' && raw !== 'N/A') {
+                const norm = normalizeFaultCategory(raw);
+                if (norm) set.add(norm);
             }
         };
         ejecutados.forEach(check);
@@ -943,14 +971,15 @@
     }
 
     /**
-     * Obtiene lista de fallas reales disponibles.
+     * Obtiene lista de fallas reales disponibles sin duplicados estandarizados.
      */
     function getFallasRealesList(ejecutados, pendientes) {
         const set = new Set();
         const check = r => {
-            const fr = extractFallaRealFromRow(r);
-            if (fr && fr !== '-' && fr !== 'null' && fr !== 'undefined' && fr !== 'N/A') {
-                set.add(String(fr).trim());
+            const raw = extractFallaRealFromRow(r);
+            if (raw && raw !== '-' && raw !== 'null' && raw !== 'undefined' && raw !== 'N/A') {
+                const norm = normalizeFaultCategory(raw);
+                if (norm) set.add(norm);
             }
         };
         ejecutados.forEach(check);
@@ -1383,6 +1412,7 @@
         const total7D = Number(item.total7D ?? item.eventos7D ?? item.total ?? 0);
         const pendientesActivos = Number(item.pendientesActivos ?? (item.tienePendiente ? 1 : 0));
         const fallasRealesBreakdown = item.fallasRealesBreakdown || '';
+        const closures = Array.isArray(item.closures) ? item.closures : [];
 
         return {
             sed,
@@ -1390,7 +1420,8 @@
             alimentador,
             total7D,
             pendientesActivos,
-            fallasRealesBreakdown
+            fallasRealesBreakdown,
+            closures
         };
     }
 
@@ -1422,7 +1453,7 @@
     }
 
     /**
-     * Fallback local para SEDs recurrentes en 7D con filtrado estricto a nivel de red.
+     * Fallback local para SEDs recurrentes en 7D con filtrado estricto a nivel de red y recopilación de cierres previos.
      */
     function computeLocalRecurrentSeds(pendientes, ejecutados, options) {
         const opts = options || {};
@@ -1453,7 +1484,8 @@
                     total7D: 0,
                     pendientesActivos: 0,
                     fallasRealesMap: new Map(),
-                    fallasRealesBreakdown: ''
+                    fallasRealesBreakdown: '',
+                    closures: []
                 });
             }
             const item = sedMap.get(sed);
@@ -1462,9 +1494,29 @@
 
             const frRaw = extractFallaRealFromRow(r);
             const fr = (frRaw && frRaw !== '-') ? frRaw : (extractFallaFromRow(r) !== '-' ? extractFallaFromRow(r) : 'RED');
-            if (fr) {
-                const frKey = String(fr).trim().toUpperCase();
+            const frKey = fr ? normalizeFaultCategory(fr) : 'RED';
+            if (frKey) {
                 item.fallasRealesMap.set(frKey, (item.fallasRealesMap.get(frKey) || 0) + 1);
+            }
+
+            if (!isPending) {
+                const tId = r['Ticket'] || r['ticket'] || r['Nro. Ticket'] || r['ODM'] || '';
+                const fClose = r['Hora de restauración'] || r['Fecha de ejecucion'] || r['Hora de inicio'] || r['Fecha'] || '';
+                const tec = r['Tecnico'] || r['Técnico'] || r['Contratista'] || r['Empresa'] || '';
+                const falOms = extractFallaFromRow(r);
+                const nota = r['Nota específica'] || r['Nota especifica'] || r['Observaciones'] || r['Detalle'] || '';
+                const llave = r['Sed-Llave'] || r['sed_llave'] || r['Llave'] || r['Alimentador BT'] || extractAlimentadorFromRow(r) || '-';
+
+                item.closures.push({
+                    ticket: String(tId).trim(),
+                    fecha: String(fClose).trim().slice(0, 16),
+                    tecnico: String(tec).trim() || 'Sin asignar',
+                    llave: String(llave).trim(),
+                    falla: String(falOms).trim() || 'RED',
+                    falla_real: frKey,
+                    fallaReal: frKey,
+                    nota: String(nota).trim() || 'Sin nota de cierre'
+                });
             }
         };
 
@@ -2348,12 +2400,21 @@
 
             return mainRow + detailRow;
         } else {
+            const hasClosures = Array.isArray(item.closures) && item.closures.length > 0;
+            const closuresCount = hasClosures ? item.closures.length : 0;
+
             const breakdownBadge = item.fallasRealesBreakdown
                 ? `<span class="segdia-pill pill-amber" style="font-size: 11px; white-space: normal; display: inline-block; max-width: 260px;" title="${escapeHtml(item.fallasRealesBreakdown)}">⚡ ${escapeHtml(item.fallasRealesBreakdown)}</span>`
                 : '<span style="color: #94a3b8; font-size: 11px;">-</span>';
 
-            return `
-                <tr class="segdia-row-sed">
+            const closuresBtn = hasClosures ? `
+                <button type="button" class="segdia-btn-icon segdia-btn-toggle-closures" data-sed="${escapeHtml(item.sed)}" title="Ver ${closuresCount} atenciones anteriores en SED ${escapeHtml(item.sed)}" style="margin-right: 4px;">
+                    🔍 Cierres (${closuresCount})
+                </button>
+            ` : '';
+
+            const mainRow = `
+                <tr class="segdia-row-sed" data-sed="${escapeHtml(item.sed)}">
                     <td>
                         <span class="segdia-code-badge">${escapeHtml(item.sed)}</span>
                     </td>
@@ -2370,13 +2431,59 @@
                     <td>
                         <span class="segdia-badge-pendientes ${badgeClass}">${badgeText}</span>
                     </td>
-                    <td style="text-align: right;">
+                    <td style="text-align: right; white-space: nowrap;">
+                        ${closuresBtn}
                         <button type="button" class="segdia-btn-icon segdia-btn-focus-sed" data-sed="${escapeHtml(item.sed)}" title="Ubicar en mapa">
                             📍
                         </button>
                     </td>
                 </tr>
             `;
+
+            let detailRow = '';
+            if (hasClosures) {
+                detailRow = `
+                    <tr id="closures-row-sed-${escapeHtml(item.sed)}" class="segdia-closures-row" style="display: none; background: #f8fafc;">
+                        <td colspan="6" style="padding: 10px 16px;">
+                            <div class="segdia-closures-container" style="border: 1px solid #cbd5e1; border-radius: 8px; background: #ffffff; padding: 10px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <span style="font-weight: 700; font-size: 12px; color: #0f172a;">
+                                        🏢 Historial de Fallas de Red (7D) — Subestación SED #${escapeHtml(item.sed)} (${closuresCount} ${closuresCount === 1 ? 'evento' : 'eventos'})
+                                    </span>
+                                </div>
+                                <div style="overflow-x: auto;">
+                                    <table class="segdia-table-nested" style="width: 100%; font-size: 11px; border-collapse: collapse;">
+                                        <thead>
+                                            <tr style="background: #f1f5f9; text-align: left; color: #475569; border-bottom: 1px solid #cbd5e1;">
+                                                <th style="padding: 6px 8px; width: 110px;">Fecha</th>
+                                                <th style="padding: 6px 8px; width: 90px;">Ticket</th>
+                                                <th style="padding: 6px 8px; width: 130px;">Técnico / Empresa</th>
+                                                <th style="padding: 6px 8px; width: 120px;">Llave / Alim.</th>
+                                                <th style="padding: 6px 8px; width: 120px;">Falla Real</th>
+                                                <th style="padding: 6px 8px;">Nota Específica</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${item.closures.map(c => `
+                                                <tr style="border-bottom: 1px solid #e2e8f0;">
+                                                    <td style="padding: 6px 8px; white-space: nowrap; font-variant-numeric: tabular-nums;">${escapeHtml(c.fecha)}</td>
+                                                    <td style="padding: 6px 8px; font-weight: 600; color: #1e40af;">#${escapeHtml(c.ticket)}</td>
+                                                    <td style="padding: 6px 8px;">${escapeHtml(c.tecnico)}</td>
+                                                    <td style="padding: 6px 8px;">${escapeHtml(c.llave || '-')}</td>
+                                                    <td style="padding: 6px 8px;"><span class="segdia-pill pill-amber">${escapeHtml(c.falla_real || c.fallaReal)}</span></td>
+                                                    <td style="padding: 6px 8px; color: #334155; font-style: italic; word-break: break-word;">${escapeHtml(c.nota)}</td>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }
+
+            return mainRow + detailRow;
         }
     }
 
@@ -2432,18 +2539,18 @@
         const contractorParam = (!state.selectedContractor || state.selectedContractor === 'ALL') ? '*' : state.selectedContractor;
         const workTypeParam = (!state.selectedWorkType || state.selectedWorkType === 'ALL') ? '*' : state.selectedWorkType;
 
-        // Filtro doble: Falla (OMS) y Falla Real
-        const filterFalla = (state.selectedFalla && state.selectedFalla !== 'ALL') ? String(state.selectedFalla).toUpperCase() : null;
-        const filterFallaReal = (state.selectedFallaReal && state.selectedFallaReal !== 'ALL') ? String(state.selectedFallaReal).toUpperCase() : null;
+        // Filtro doble: Falla (OMS) y Falla Real (con normalización canónica)
+        const filterFalla = (state.selectedFalla && state.selectedFalla !== 'ALL') ? normalizeFaultCategory(state.selectedFalla) : null;
+        const filterFallaReal = (state.selectedFallaReal && state.selectedFallaReal !== 'ALL') ? normalizeFaultCategory(state.selectedFallaReal) : null;
 
         const matchesFallaFilters = r => {
             if (filterFalla) {
-                const f = String(extractFallaFromRow(r)).toUpperCase();
-                if (!f.includes(filterFalla)) return false;
+                const f = normalizeFaultCategory(extractFallaFromRow(r));
+                if (f !== filterFalla && !f.includes(filterFalla)) return false;
             }
             if (filterFallaReal) {
-                const fr = String(extractFallaRealFromRow(r)).toUpperCase();
-                if (!fr.includes(filterFallaReal)) return false;
+                const fr = normalizeFaultCategory(extractFallaRealFromRow(r));
+                if (fr !== filterFallaReal && !fr.includes(filterFallaReal)) return false;
             }
             return true;
         };
@@ -2858,8 +2965,10 @@
                 const toggleBtn = e.target.closest('.segdia-btn-toggle-closures');
                 if (toggleBtn) {
                     const sumCode = toggleBtn.dataset.suministro;
-                    if (sumCode) {
-                        const row = document.getElementById(`closures-row-${sumCode}`);
+                    const sedCode = toggleBtn.dataset.sed;
+                    const targetId = sumCode ? `closures-row-${sumCode}` : (sedCode ? `closures-row-sed-${sedCode}` : null);
+                    if (targetId) {
+                        const row = document.getElementById(targetId);
                         if (row) {
                             const isHidden = row.style.display === 'none';
                             row.style.display = isHidden ? 'table-row' : 'none';
@@ -2897,17 +3006,17 @@
         const contractorParam = (!state.selectedContractor || state.selectedContractor === 'ALL') ? '*' : state.selectedContractor;
         const workTypeParam = (!state.selectedWorkType || state.selectedWorkType === 'ALL') ? '*' : state.selectedWorkType;
 
-        const filterFalla = (state.selectedFalla && state.selectedFalla !== 'ALL') ? String(state.selectedFalla).toUpperCase() : null;
-        const filterFallaReal = (state.selectedFallaReal && state.selectedFallaReal !== 'ALL') ? String(state.selectedFallaReal).toUpperCase() : null;
+        const filterFalla = (state.selectedFalla && state.selectedFalla !== 'ALL') ? normalizeFaultCategory(state.selectedFalla) : null;
+        const filterFallaReal = (state.selectedFallaReal && state.selectedFallaReal !== 'ALL') ? normalizeFaultCategory(state.selectedFallaReal) : null;
 
         const matchesFallaFilters = r => {
             if (filterFalla) {
-                const f = String(extractFallaFromRow(r)).toUpperCase();
-                if (!f.includes(filterFalla)) return false;
+                const f = normalizeFaultCategory(extractFallaFromRow(r));
+                if (f !== filterFalla && !f.includes(filterFalla)) return false;
             }
             if (filterFallaReal) {
-                const fr = String(extractFallaRealFromRow(r)).toUpperCase();
-                if (!fr.includes(filterFallaReal)) return false;
+                const fr = normalizeFaultCategory(extractFallaRealFromRow(r));
+                if (fr !== filterFallaReal && !fr.includes(filterFallaReal)) return false;
             }
             return true;
         };
@@ -3004,6 +3113,7 @@
     global.renderSeguimientoDia = render;
     global.destroySeguimientoDia = destroyCharts;
     global.isNetworkLevelFaultForSed = isNetworkLevelFaultForSed;
+    global.normalizeFaultCategory = normalizeFaultCategory;
     global.computeLocalRecurrentSeds = computeLocalRecurrentSeds;
     global.computeLocalRecurrentSuministros = computeLocalRecurrentSuministros;
     global.renderTableRow = renderTableRow;
@@ -3019,6 +3129,7 @@
 
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = {
+            normalizeFaultCategory,
             isNetworkLevelFaultForSed,
             computeLocalRecurrentSeds,
             computeLocalRecurrentSuministros,

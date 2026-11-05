@@ -212,3 +212,50 @@ test('renderTableRow: genera fila de SED con badge de desglose de Fallas Reales'
     assert.ok(html.includes('FUSIBLE: 3, RED-AEREA: 1'), 'Debe incluir el badge con el desglose de fallas reales');
 });
 
+test('normalizeFaultCategory: estandariza categorías unificando espacios y guiones', () => {
+    const { normalizeFaultCategory } = SeguimientoDia;
+
+    assert.equal(normalizeFaultCategory('CNX AEREA'), 'CNX-AEREA');
+    assert.equal(normalizeFaultCategory('CNX-AEREA'), 'CNX-AEREA');
+    assert.equal(normalizeFaultCategory('CNX SUBTERRANEA'), 'CNX-SUBTERRANEA');
+    assert.equal(normalizeFaultCategory('CNX-SUBTERRANEA'), 'CNX-SUBTERRANEA');
+    assert.equal(normalizeFaultCategory('RED AEREA'), 'RED-AEREA');
+    assert.equal(normalizeFaultCategory('RED-AEREA'), 'RED-AEREA');
+    assert.equal(normalizeFaultCategory('RED SUBTERRANEA'), 'RED-SUBTERRANEA');
+    assert.equal(normalizeFaultCategory('RED-SUBTERRANEA'), 'RED-SUBTERRANEA');
+    assert.equal(normalizeFaultCategory('TODO NORMAL EN TOMA'), 'DOMICILIO');
+});
+
+test('renderTableRow: genera fila de SED con acordeón desplegable de cierres anteriores', () => {
+    const { renderTableRow } = SeguimientoDia;
+
+    const item = {
+        sed: '04584A',
+        distrito: 'COMAS',
+        alimentador: 'AL-05',
+        total7D: 3,
+        pendientesActivos: 1,
+        fallasRealesBreakdown: 'FUSIBLE: 2',
+        closures: [
+            {
+                ticket: '2600210011',
+                fecha: '03/11 15:40',
+                tecnico: 'PEDRO QUISPE / LARI',
+                llave: '04584A-03SP',
+                falla: 'FUSIBLE',
+                falla_real: 'FUSIBLE',
+                nota: 'Se encontró portafusible sulfatado y fusible de 80A abierto en fase T'
+            }
+        ]
+    };
+
+    const html = renderTableRow(item, false);
+    assert.ok(html.includes('04584A'), 'Debe incluir el código de SED');
+    assert.ok(html.includes('segdia-btn-toggle-closures'), 'Debe incluir botón para desplegar cierres');
+    assert.ok(html.includes('closures-row-sed-04584A'), 'Debe incluir la fila de detalle del acordeón de SED');
+    assert.ok(html.includes('2600210011'), 'Debe incluir el ticket anterior');
+    assert.ok(html.includes('PEDRO QUISPE'), 'Debe incluir al técnico anterior');
+    assert.ok(html.includes('04584A-03SP'), 'Debe incluir la llave o alimentador');
+    assert.ok(html.includes('portafusible sulfatado'), 'Debe incluir la nota específica anterior');
+});
+
