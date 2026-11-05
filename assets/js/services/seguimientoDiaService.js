@@ -467,14 +467,8 @@
             contractor: '*',
             workType: '*',
             startHour: 0,
-            endHour: 23
+            endHour: 24
         }, options);
-
-        const rawStartHour = (opts.startHour !== undefined && opts.startHour !== null) ? parseInt(opts.startHour, 10) : 0;
-        const rawEndHour = (opts.endHour !== undefined && opts.endHour !== null) ? parseInt(opts.endHour, 10) : 23;
-        const startHour = isNaN(rawStartHour) ? 0 : Math.max(0, Math.min(23, rawStartHour));
-        const endHour = isNaN(rawEndHour) ? 23 : Math.max(startHour, Math.min(23, rawEndHour));
-        const isHourInRange = (h) => (h === null || h === undefined || isNaN(h)) ? true : (h >= startHour && h <= endHour);
 
         const safePendientes = Array.isArray(pendientesRecords) ? pendientesRecords : [];
         const safeEjecutados = Array.isArray(ejecutadosRecords) ? ejecutadosRecords : [];

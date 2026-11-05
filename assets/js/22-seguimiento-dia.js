@@ -1244,10 +1244,6 @@
         const targetDate = options.date;
         const contractor = (options.contractor && options.contractor !== 'ALL' && options.contractor !== '*') 
             ? String(options.contractor).toUpperCase() : null;
-        const startHour = (options && options.startHour !== undefined) ? Math.max(0, Math.min(24, parseInt(options.startHour, 10) || 0)) : 0;
-        const endHour = (options && options.endHour !== undefined) ? Math.max(startHour, Math.min(24, parseInt(options.endHour, 10) || 24)) : 24;
-        const isHourInRange = (h) => (h === null || h === undefined || isNaN(h)) ? true : (h >= startHour && (endHour >= 24 ? h <= 23 : h <= endHour));
-
         const startHour = (options.startHour !== undefined && options.startHour !== null) ? Number(options.startHour) : 0;
         const endHour = (options.endHour !== undefined && options.endHour !== null) ? Number(options.endHour) : 24;
         const isHourInRange = (h) => {
@@ -1361,7 +1357,6 @@
                             sumDurationHours += parsed;
                             countDuration++;
                         }
-                    }
                     }
                 }
             });
