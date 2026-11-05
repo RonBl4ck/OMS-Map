@@ -467,8 +467,14 @@
             contractor: '*',
             workType: '*',
             startHour: 0,
-            endHour: 24
+            endHour: 23
         }, options);
+
+        const rawStartHour = (opts.startHour !== undefined && opts.startHour !== null) ? parseInt(opts.startHour, 10) : 0;
+        const rawEndHour = (opts.endHour !== undefined && opts.endHour !== null) ? parseInt(opts.endHour, 10) : 23;
+        const startHour = isNaN(rawStartHour) ? 0 : Math.max(0, Math.min(23, rawStartHour));
+        const endHour = isNaN(rawEndHour) ? 23 : Math.max(startHour, Math.min(23, rawEndHour));
+        const isHourInRange = (h) => (h === null || h === undefined || isNaN(h)) ? true : (h >= startHour && h <= endHour);
 
         const safePendientes = Array.isArray(pendientesRecords) ? pendientesRecords : [];
         const safeEjecutados = Array.isArray(ejecutadosRecords) ? ejecutadosRecords : [];
@@ -557,12 +563,12 @@
                     if (isHourInRange(pStart.hour)) {
                         pendientesDelDia++;
                         ingresosTotal++;
-                        const dEntry = dailyMap.get(pStart.dateStr);
-                        if (dEntry) dEntry.ingresos++;
-                        contractorTracker.record(row, 'ingreso');
-                    }
+                    const dEntry = dailyMap.get(pStart.dateStr);
+                    if (dEntry) dEntry.ingresos++;
+                    contractorTracker.record(row, 'ingreso');
                     if (pStart.hour >= 0 && pStart.hour < 24) {
                         hourlyDistribution[pStart.hour].ingresos++;
+                    }
                     }
                 } else if (pStart && pStart.timestamp < windowStartMs) {
                     pendientesHistoricos++;
@@ -585,9 +591,9 @@
                         const dEntry = dailyMap.get(pStart.dateStr);
                         if (dEntry) dEntry.ingresos++;
                         contractorTracker.record(row, 'ingreso');
-                    }
-                    if (pStart.hour >= 0 && pStart.hour < 24) {
-                        hourlyDistribution[pStart.hour].ingresos++;
+                        if (pStart.hour >= 0 && pStart.hour < 24) {
+                            hourlyDistribution[pStart.hour].ingresos++;
+                        }
                     }
                 }
 
@@ -598,26 +604,26 @@
                         const dEntry = dailyMap.get(pEnd.dateStr);
                         if (dEntry) dEntry.cierres++;
                         contractorTracker.record(row, 'cierre');
+                        if (pEnd.hour >= 0 && pEnd.hour < 24) {
+                            hourlyDistribution[pEnd.hour].cierres++;
+                        }
 
                         // Intradía vs Backlog
-                        const isIntradia = Boolean(pStart && pStart.dateStr === pEnd.dateStr);
-                        if (isIntradia) {
-                            cierresIntradia++;
-                        } else {
-                            cierresBacklog++;
-                        }
+                    const isIntradia = Boolean(pStart && pStart.dateStr === pEnd.dateStr);
+                    if (isIntradia) {
+                        cierresIntradia++;
+                    } else {
+                        cierresBacklog++;
+                    }
 
-                        // TTR
-                        if (pStart && pEnd.timestamp >= pStart.timestamp) {
-                            const diffHours = (pEnd.timestamp - pStart.timestamp) / (1000 * 60 * 60);
-                            if (isFinite(diffHours) && diffHours >= 0) {
-                                ttrSumHours += diffHours;
-                                ttrCount++;
-                            }
+                    // TTR
+                    if (pStart && pEnd.timestamp >= pStart.timestamp) {
+                        const diffHours = (pEnd.timestamp - pStart.timestamp) / (1000 * 60 * 60);
+                        if (isFinite(diffHours) && diffHours >= 0) {
+                            ttrSumHours += diffHours;
+                            ttrCount++;
                         }
                     }
-                    if (pEnd.hour >= 0 && pEnd.hour < 24) {
-                        hourlyDistribution[pEnd.hour].cierres++;
                     }
                 }
             }
@@ -702,9 +708,9 @@
                     pendientesDelDia++;
                     ingresosTotal++;
                     contractorTracker.record(row, 'ingreso');
-                }
-                if (pStart.hour >= 0 && pStart.hour < 24) {
-                    hourlyDistribution[pStart.hour].ingresos++;
+                    if (pStart.hour >= 0 && pStart.hour < 24) {
+                        hourlyDistribution[pStart.hour].ingresos++;
+                    }
                 }
             } else if (pStart && pStart.timestamp < startOfTargetDay) {
                 pendientesHistoricos++;
@@ -726,9 +732,9 @@
                 if (isHourInRange(pStart.hour)) {
                     ingresosTotal++;
                     contractorTracker.record(row, 'ingreso');
-                }
-                if (pStart.hour >= 0 && pStart.hour < 24) {
-                    hourlyDistribution[pStart.hour].ingresos++;
+                    if (pStart.hour >= 0 && pStart.hour < 24) {
+                        hourlyDistribution[pStart.hour].ingresos++;
+                    }
                 }
             }
 
@@ -737,6 +743,9 @@
                 if (isHourInRange(pEnd.hour)) {
                     cierresTotal++;
                     contractorTracker.record(row, 'cierre');
+                    if (pEnd.hour >= 0 && pEnd.hour < 24) {
+                        hourlyDistribution[pEnd.hour].cierres++;
+                    }
 
                     // Intradía vs Backlog
                     const isIntradia = Boolean(pStart && pStart.dateStr === targetDate);
@@ -754,9 +763,6 @@
                             ttrCount++;
                         }
                     }
-                }
-                if (pEnd.hour >= 0 && pEnd.hour < 24) {
-                    hourlyDistribution[pEnd.hour].cierres++;
                 }
             }
         }
@@ -795,6 +801,8 @@
             date: targetDate,
             contractor: opts.contractor || '*',
             workType: opts.workType || '*',
+            startHour,
+            endHour,
             ingresosTotal,
             cierresTotal,
             cierresIntradia,

@@ -42,9 +42,10 @@
         selectedDate: '7D',            // Por defecto: '7D' (Vista General 7 Días)
         selectedContractor: 'ALL',
         selectedWorkType: 'ALL',
+        selectedFalla: 'ALL',
+        selectedFallaReal: 'ALL',
         startHour: 0,
         endHour: 24,
-        isLiveNow: false,
         searchQuery7D: '',
         recurrenceTab: 'SEDS',         // 'SEDS' o 'SUMINISTROS'
         limit7D: 20,
@@ -60,6 +61,7 @@
      * Inyecta los estilos CSS optimizados con micro-interacciones Emil Kowalski.
      */
     function injectStyles() {
+        if (typeof document === 'undefined') return;
         const styleId = 'seguimiento-dia-styles';
         if (document.getElementById(styleId)) return;
 
@@ -80,6 +82,110 @@
 
             .segdia-root *, .segdia-root *::before, .segdia-root *::after {
                 box-sizing: border-box;
+            }
+
+            
+            /* Filtro interactivo de horario y corte acumulado */
+            .segdia-time-filter {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                background: #f8fafc;
+                border: 1px solid #cbd5e1;
+                border-radius: 8px;
+                padding: 4px 10px;
+            }
+
+            .segdia-range-sublabel {
+                font-size: 12px;
+                font-weight: 600;
+                color: #475569;
+                margin: 0 1px 0 2px;
+                user-select: none;
+            }
+
+            .segdia-time-select {
+                appearance: none;
+                -webkit-appearance: none;
+                -moz-appearance: none;
+                background: #ffffff url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%2364748b'%3e%3cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z' clip-rule='evenodd'/%3e%3c/svg%3e") no-repeat right 7px center / 13px;
+                border: 1px solid #cbd5e1;
+                border-radius: 8px;
+                padding: 5px 24px 5px 10px;
+                font-size: 12px;
+                font-weight: 600;
+                color: #1e293b;
+                font-variant-numeric: tabular-nums;
+                cursor: pointer;
+                outline: none;
+                transition: border-color 0.15s ease, box-shadow 0.15s ease;
+                min-width: 76px;
+            }
+
+            .segdia-time-select:hover {
+                border-color: #94a3b8;
+            }
+
+            .segdia-time-select:focus {
+                border-color: #3b82f6;
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+                background-color: #ffffff;
+            }
+
+            .segdia-btn-now {
+                appearance: none;
+                border: none;
+                outline: none;
+                background: #2563eb;
+                color: #ffffff;
+                font-size: 12px;
+                font-weight: 700;
+                padding: 6px 14px;
+                border-radius: 8px;
+                cursor: pointer;
+                display: inline-flex;
+                align-items: center;
+                gap: 5px;
+                transition: background-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+                box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2);
+                user-select: none;
+            }
+
+            .segdia-btn-now:hover {
+                background: #1d4ed8;
+                box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);
+            }
+
+            .segdia-btn-now:active {
+                transform: scale(0.97);
+            }
+
+            .segdia-btn-24h {
+                appearance: none;
+                outline: none;
+                background: #ffffff;
+                border: 1px solid #cbd5e1;
+                color: #334155;
+                font-size: 12px;
+                font-weight: 700;
+                padding: 5px 12px;
+                border-radius: 8px;
+                cursor: pointer;
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                transition: all 0.15s ease;
+                user-select: none;
+            }
+
+            .segdia-btn-24h:hover {
+                background: #f1f5f9;
+                color: #0f172a;
+                border-color: #94a3b8;
+            }
+
+            .segdia-btn-24h:active {
+                transform: scale(0.97);
             }
 
             /* Números tabulares */
@@ -564,6 +670,29 @@
                 font-size: 12px;
                 max-width: 380px;
             }
+
+            .segdia-btn-toggle-closures {
+                background: #f1f5f9;
+                color: #1e40af;
+                border: 1px solid #cbd5e1;
+                border-radius: 6px;
+                font-size: 11px;
+                font-weight: 600;
+                padding: 3px 8px;
+                cursor: pointer;
+                transition: all var(--anim-fast);
+            }
+            .segdia-btn-toggle-closures:hover {
+                background: #e2e8f0;
+                color: #1d4ed8;
+            }
+            .segdia-closures-row {
+                transition: all var(--anim-fast);
+            }
+            .segdia-table-nested th, .segdia-table-nested td {
+                padding: 6px 8px;
+                text-align: left;
+            }
         `;
 
         const style = document.createElement('style');
@@ -740,7 +869,7 @@
      */
     function extractSuministroFromRow(row) {
         if (!row || typeof row !== 'object') return '';
-        const keys = ['Suministro', 'SUMINISTRO', 'suministro', 'Cliente', 'CLIENTE', 'cliente', 'Inscripcion', 'INSCRIPCION', 'inscripcion', 'NIS', 'nis', 'Nis_Rad', 'nis_rad', 'Numero de Cliente', 'COD_CLIENTE'];
+        const keys = ['Suministro', 'SUMINISTRO', 'suministro', 'Objeto Técnico', 'Objeto Tecnico', 'objeto_tecnico', 'OBJETO_TECNICO', 'Cliente', 'CLIENTE', 'cliente', 'Inscripcion', 'INSCRIPCION', 'inscripcion', 'NIS', 'nis', 'Nis_Rad', 'nis_rad', 'Numero de Cliente', 'COD_CLIENTE'];
         for (const k of keys) {
             if (row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== '') {
                 const val = String(row[k]).trim();
@@ -766,6 +895,234 @@
     function extractAlimentadorFromRow(row) {
         if (!row || typeof row !== 'object') return '-';
         return row['Alimentador'] || row['alimentador'] || row['ALIMENTADOR'] || row['CT'] || '-';
+    }
+
+    /**
+     * Helper para extraer Falla OMS / Tipo de falla.
+     */
+    function extractFallaFromRow(row) {
+        if (!row || typeof row !== 'object') return '-';
+        return row['Falla'] || row['falla'] || row['FALLA'] || row['Falla OMS'] || row['falla_odm2'] || row['Falla ODM2'] || row['Tipo de Equipo probable de falla'] || row['tipo_falla'] || row['Tipo de Falla'] || row['Tipo Falla'] || '-';
+    }
+
+    /**
+     * Helper para extraer Falla Real.
+     */
+    function extractFallaRealFromRow(row) {
+        if (!row || typeof row !== 'object') return '-';
+        return row['Falla Real'] || row['falla_real'] || row['fallaReal'] || row['FALLA_REAL'] || row['falla_real_odm2'] || row['Objeto Técnico'] || row['Objeto Tcnico'] || row['Alcance'] || '-';
+    }
+
+    /**
+     * Helper para extraer Ticket / Incidencia.
+     */
+    function extractTicketFromRow(row) {
+        if (!row || typeof row !== 'object') return '-';
+        return row['ticket'] || row['Ticket'] || row['Nro. Ticket'] || row['Numero de averia'] || row['Número de avería'] || row['INCIDENCIA'] || row['Incidencia'] || row['id'] || '-';
+    }
+
+    /**
+     * Helper para extraer Fecha de restauración o inicio.
+     */
+    function extractFechaFromRow(row) {
+        if (!row || typeof row !== 'object') return '-';
+        return row['Hora de restauración'] || row['Hora de restauracion'] || row['fecha_restauracion'] || row['Hora de inicio'] || row['fecha_inicio'] || row['Fecha Inicio'] || '-';
+    }
+
+    /**
+     * Helper para extraer Técnico o Cuadrilla.
+     */
+    function extractTecnicoFromRow(row) {
+        if (!row || typeof row !== 'object') return '-';
+        return row['Técnico'] || row['tecnico'] || row['Tecnico'] || row['Contratista'] || row['Empresa'] || row['EMPRESA'] || '-';
+    }
+
+    /**
+     * Helper para extraer Nota específica / Observaciones.
+     */
+    function extractNotaFromRow(row) {
+        if (!row || typeof row !== 'object') return '-';
+        return row['Nota específica'] || row['nota_especifica'] || row['nota'] || row['Nota'] || row['Observaciones'] || row['Comentario'] || row['observaciones'] || '-';
+    }
+
+    /**
+     * Estandariza y normaliza categorías de fallas para evitar duplicidades
+     * (unificando 'CNX AEREA' con 'CNX-AEREA', y mapeando objetos técnicos a familias estándar).
+     */
+    function normalizeFaultCategory(val) {
+        if (!val) return '';
+        let s = String(val).trim().toUpperCase();
+        if (s === '-' || s === 'NULL' || s === 'UNDEFINED' || s === 'N/A' || s === 'NAN' || s === 'NONE' || s.length <= 1) return '';
+
+        // Eliminar tildes/acentos
+        s = s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+        // Unificar separadores y espacios a guion estándar
+        s = s.replace(/[\s_/\\-]+/g, '-').replace(/^-+|-+$/g, '');
+
+        if (!s || s === 'A' || s === '0') return '';
+
+        // Conexión Subterránea / Acometida Subterránea
+        if (s.includes('ACOMETIDA-SUBTERRANEA') || s.includes('CNX-SUBTERRANEA') || s.includes('CONEXION-SUBTERRANEA')) {
+            return 'CNX-SUBTERRANEA';
+        }
+
+        // Conexión Aérea / Acometida Aérea / Bornes / Conector / Caja Toma / Conexión BT / Banco de Medidores
+        if (s.includes('ACOMETIDA-AEREA') || s.includes('CNX-AEREA') || s.includes('CONEXION-AEREA') ||
+            s.includes('CONEXION') || s.includes('CNX') ||
+            s === 'ACOMETIDA' || s.includes('BORNE') || s.includes('CONECTOR') || s.includes('BANCO-DE-MEDIDOR') ||
+            s.includes('CORTACIRCUITO') || s.includes('CAJA-TOMA') || s.includes('FUSIBLE-SUMINISTRO')) {
+            return 'CNX-AEREA';
+        }
+
+        // Red Subterránea (cables subterráneos, empalmes, terminales)
+        if (s.includes('RED-SUBTERRANEA') || s.includes('NKY') || s.includes('NYY') || s.includes('UNIPOLAR-COBRE') ||
+            s.includes('EMPALME') || s.includes('TERMINAL')) {
+            return 'RED-SUBTERRANEA';
+        }
+
+        // Red Aérea (cables aéreos, aluminio, autosoportado, pasante)
+        if (s.includes('RED-AEREA') || s.includes('LINEA-AEREA') || s.includes('AUTOSOPORTADO') ||
+            s.includes('ALUMINIO') || s.includes('COMUNICACION') || s === 'CABLE' || s.startsWith('CABLE-')) {
+            return 'RED-AEREA';
+        }
+
+        // Fusible
+        if (s.includes('FUSIBLE') || s.includes('PIZARRA') || s.includes('LOZA') || s.includes('BASE-UNIPOLAR')) {
+            return 'FUSIBLE';
+        }
+
+        // Llave / Interruptor / Tablero
+        if (s.includes('LLAVE') || s.includes('TERMOMAGNETIC') || s.includes('TABLERO') ||
+            s.includes('INTERRUPTOR') || s.includes('BARRA') || s.includes('REDUCTOR') || s.includes('OTROS-SED')) {
+            return 'LLAVE';
+        }
+
+        // Seccionador
+        if (s.includes('SECCIONADOR') || s.includes('CUTOUT')) return 'SECCIONADOR';
+
+        // Poste / Pastoral
+        if (s.includes('POSTE') || s.includes('PASTORAL')) return 'POSTE';
+
+        // Transformador
+        if (s.includes('TRAFO') || s.includes('TRANSFORMADOR')) return 'TRANSFORMADOR';
+
+        // Alumbrado Público
+        if (s.includes('ALUMBRADO')) return 'ALUMBRADO-PUBLICO';
+
+        // Domicilio / Cliente / Medidor / Defecto interno
+        if (s.includes('TODO-NORMAL') || s === 'DOMICILIO' || s.includes('INTERIOR') || s.includes('SUMINISTRO-SP') ||
+            s.includes('CLIENTE') || s.includes('INSTALACION') || s.includes('MEDIDOR') || s.includes('DEFECTO') ||
+            s.includes('NO-SE-UBICA') || s.includes('LUNA') || s.includes('MICA') || s.includes('CHAPA') ||
+            s.includes('TAPA') || s.includes('INCONCLUSO') || s === 'OTROS') {
+            return 'DOMICILIO';
+        }
+
+        return s;
+    }
+
+    /**
+     * Obtiene lista de tipos de falla (Falla OMS) disponibles sin duplicados estandarizados.
+     */
+    function getFallasList(ejecutados, pendientes) {
+        const set = new Set();
+        const check = r => {
+            const raw = extractFallaFromRow(r);
+            if (raw && raw !== '-' && raw !== 'null' && raw !== 'undefined' && raw !== 'N/A') {
+                const norm = normalizeFaultCategory(raw);
+                if (norm) set.add(norm);
+            }
+        };
+        ejecutados.forEach(check);
+        pendientes.forEach(check);
+        return Array.from(set).sort();
+    }
+
+    /**
+     * Obtiene lista de fallas reales disponibles sin duplicados estandarizados.
+     */
+    function getFallasRealesList(ejecutados, pendientes) {
+        const set = new Set();
+        const check = r => {
+            const raw = extractFallaRealFromRow(r);
+            if (raw && raw !== '-' && raw !== 'null' && raw !== 'undefined' && raw !== 'N/A') {
+                const norm = normalizeFaultCategory(raw);
+                if (norm) set.add(norm);
+            }
+        };
+        ejecutados.forEach(check);
+        pendientes.forEach(check);
+        return Array.from(set).sort();
+    }
+
+    /**
+     * Clasificación estricta de fallas a nivel de red para SEDs.
+     * Excluye fallas individuales de cliente/conexión/acometida y
+     * acepta exclusivamente fallas de red (FUSIBLE a más).
+     * @param {Object} record
+     * @returns {boolean}
+     */
+    function isNetworkLevelFaultForSed(record) {
+        if (!record || typeof record !== 'object') return false;
+
+        const getVal = (...keys) => {
+            for (const k of keys) {
+                if (record[k] !== undefined && record[k] !== null && String(record[k]).trim() !== '') {
+                    return String(record[k]).trim();
+                }
+            }
+            return '';
+        };
+
+        const fallaReal = getVal('falla_real', 'Falla Real', 'fallaReal', 'FALLA_REAL', 'falla_real_odm2').toUpperCase();
+        const falla = getVal('falla', 'Falla', 'FALLA', 'falla_odm2', 'Falla ODM2', 'tipo_falla', 'Tipo de Falla', 'Tipo Falla').toUpperCase();
+        const alcance = getVal('alcance', 'Alcance', 'ALCANCE', 'tipo_red', 'Tipo de Red').toUpperCase();
+
+        const afectacionRaw = record['afectacion'] ?? record['Afectacion'] ?? record['AFECTACION'] ??
+                              record['Clientes Afectados'] ?? record['clientes_afectados'] ??
+                              record['cant_clientes'] ?? record['Afectación'] ?? record['Clientes_Afectados'] ?? null;
+        const afectacion = (afectacionRaw !== null && afectacionRaw !== '' && !isNaN(Number(afectacionRaw))) 
+            ? Number(afectacionRaw) : null;
+
+        const EXCLUDE_WORDS = [
+            'SUMINISTRO', 'DOMICILIO', 'CNX', 'CONEXION', 'CONEXION BT',
+            'ACOMETIDA', 'MEDIDOR', 'BORNERA', 'INTERIOR', 'CLIENTE', 'SIN SERVICIO'
+        ];
+
+        const INCLUDE_WORDS = [
+            'FUSIBLE', 'LLAVE', 'RED-AEREA', 'RED_AEREA', 'RED AEREA',
+            'RED-SUBTERRANEA', 'RED_SUBTERRANEA', 'RED SUBTERRANEA',
+            'DAM', 'POSTE', 'TRAFO', 'SUBESTACION', 'CONDUCTOR', 'CABLE', 'FASE', 'MT'
+        ];
+
+        const containsAny = (str, list) => {
+            if (!str) return false;
+            return list.some(w => str.includes(w));
+        };
+
+        // 1. Exclusión prioritaria por falla_real
+        if (fallaReal) {
+            if (containsAny(fallaReal, EXCLUDE_WORDS)) return false;
+            if (containsAny(fallaReal, INCLUDE_WORDS)) return true;
+        }
+
+        // 2. Si alcance es SUMINISTRO y afectación <= 1
+        if (alcance.includes('SUMINISTRO') && (afectacion === null || afectacion <= 1)) {
+            return false;
+        }
+
+        // 3. Evaluar falla / tipo_falla
+        if (falla) {
+            if (containsAny(falla, EXCLUDE_WORDS)) return false;
+            if (containsAny(falla, INCLUDE_WORDS)) return true;
+        }
+
+        // 4. Si el alcance es SED o afectación > 1 (falla masiva BT o red)
+        if (alcance.includes('SED') || (afectacion !== null && afectacion > 1)) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -887,6 +1244,9 @@
         const targetDate = options.date;
         const contractor = (options.contractor && options.contractor !== 'ALL' && options.contractor !== '*') 
             ? String(options.contractor).toUpperCase() : null;
+        const startHour = (options && options.startHour !== undefined) ? Math.max(0, Math.min(24, parseInt(options.startHour, 10) || 0)) : 0;
+        const endHour = (options && options.endHour !== undefined) ? Math.max(startHour, Math.min(24, parseInt(options.endHour, 10) || 24)) : 24;
+        const isHourInRange = (h) => (h === null || h === undefined || isNaN(h)) ? true : (h >= startHour && (endHour >= 24 ? h <= 23 : h <= endHour));
 
         const startHour = (options.startHour !== undefined && options.startHour !== null) ? Number(options.startHour) : 0;
         const endHour = (options.endHour !== undefined && options.endHour !== null) ? Number(options.endHour) : 24;
@@ -960,8 +1320,8 @@
                     if (isHourInRange(h)) {
                         ingresosTotal++;
                         recordContractor(r, 'ingreso');
+                        if (h !== null && h >= 0 && h < 24) hourlyDist[h].ingresos++;
                     }
-                    if (h !== null && h >= 0 && h < 24) hourlyDist[h].ingresos++;
                 }
             });
 
@@ -973,7 +1333,10 @@
                 const fOpenRaw = r['Hora de inicio'] || r['Fecha de creación'] || r['Fecha Creación'] || r['Fecha'];
                 const dmyOpen = parseDateToDmy(fOpenRaw);
                 if (dmyOpen && dmyOpen === targetDate) {
-                    recordContractor(r, 'ingreso');
+                    const hOpen = parseHour(fOpenRaw);
+                    if (isHourInRange(hOpen)) {
+                        recordContractor(r, 'ingreso');
+                    }
                 }
 
                 if (dmyClose === targetDate) {
@@ -981,6 +1344,7 @@
                     if (isHourInRange(h)) {
                         cierresTotal++;
                         recordContractor(r, 'cierre');
+                        if (h !== null && h >= 0 && h < 24) hourlyDist[h].cierres++;
 
                         if (dmyOpen && dmyOpen === targetDate) {
                             cierresIntradia++;
@@ -997,6 +1361,7 @@
                             sumDurationHours += parsed;
                             countDuration++;
                         }
+                    }
                     }
                 }
             });
@@ -1059,13 +1424,13 @@
             pendientes.forEach(r => {
                 if (!matchContractor(r)) return;
                 const fRaw = r['Hora de inicio'] || r['Fecha de creación'] || r['Fecha'];
-                if (parseDateToDmy(fRaw) === dmy) ingresos++;
+                if (parseDateToDmy(fRaw) === dmy && isHourInRange(parseHour(fRaw))) ingresos++;
             });
 
             ejecutados.forEach(r => {
                 if (!matchContractor(r)) return;
                 const fCloseRaw = r['Hora de restauración'] || r['Fecha de ejecucion'] || r['Fecha'];
-                if (parseDateToDmy(fCloseRaw) === dmy) cierres++;
+                if (parseDateToDmy(fCloseRaw) === dmy && isHourInRange(parseHour(fCloseRaw))) cierres++;
             });
 
             const parts = dmy.split('/');
@@ -1112,27 +1477,9 @@
      * Obtiene registros de SEDs o Suministros recurrentes en los últimos 7 días.
      */
     function computeRecurrentItems(pendientes, ejecutados, options, tab) {
-        const service = window.SeguimientoDiaService || (typeof SeguimientoDiaService !== 'undefined' ? SeguimientoDiaService : null);
-
         if (tab === 'SUMINISTROS') {
-            if (service && typeof service.getRecurrentSuministros7D === 'function') {
-                try {
-                    const res = service.getRecurrentSuministros7D(pendientes, ejecutados, options);
-                    if (Array.isArray(res)) return res.map(normalizeSuministroItem);
-                } catch (err) {
-                    console.warn('[SeguimientoDia] Error en getRecurrentSuministros7D:', err);
-                }
-            }
             return computeLocalRecurrentSuministros(pendientes, ejecutados, options);
         } else {
-            if (service && typeof service.getRecurrentSeds7D === 'function') {
-                try {
-                    const res = service.getRecurrentSeds7D(pendientes, ejecutados, options);
-                    if (Array.isArray(res)) return res.map(normalizeSedItem);
-                } catch (err) {
-                    console.warn('[SeguimientoDia] Error en getRecurrentSeds7D:', err);
-                }
-            }
             return computeLocalRecurrentSeds(pendientes, ejecutados, options);
         }
     }
@@ -1147,13 +1494,17 @@
         const alimentador = item.alimentador || item.ct || '-';
         const total7D = Number(item.total7D ?? item.eventos7D ?? item.total ?? 0);
         const pendientesActivos = Number(item.pendientesActivos ?? (item.tienePendiente ? 1 : 0));
+        const fallasRealesBreakdown = item.fallasRealesBreakdown || '';
+        const closures = Array.isArray(item.closures) ? item.closures : [];
 
         return {
             sed,
             distrito,
             alimentador,
             total7D,
-            pendientesActivos
+            pendientesActivos,
+            fallasRealesBreakdown,
+            closures
         };
     }
 
@@ -1168,6 +1519,8 @@
         const alimentador = item.alimentador || '-';
         const total7D = Number(item.total7D ?? item.eventos7D ?? item.total ?? 0);
         const pendientesActivos = Number(item.pendientesActivos ?? (item.tienePendiente ? 1 : 0));
+        const fallaReal = item.fallaReal || item.falla_real || '-';
+        const closures = Array.isArray(item.closures) ? item.closures : [];
 
         return {
             suministro,
@@ -1175,16 +1528,20 @@
             distrito,
             alimentador,
             total7D,
-            pendientesActivos
+            pendientesActivos,
+            fallaReal,
+            falla_real: fallaReal,
+            closures
         };
     }
 
     /**
-     * Fallback local para SEDs recurrentes en 7D.
+     * Fallback local para SEDs recurrentes en 7D con filtrado estricto a nivel de red y recopilación de cierres previos.
      */
     function computeLocalRecurrentSeds(pendientes, ejecutados, options) {
-        const contractor = (options.contractor && options.contractor !== 'ALL' && options.contractor !== '*') 
-            ? String(options.contractor).toUpperCase() : null;
+        const opts = options || {};
+        const contractor = (opts.contractor && opts.contractor !== 'ALL' && opts.contractor !== '*') 
+            ? String(opts.contractor).toUpperCase() : null;
 
         const matchContractor = r => {
             if (!contractor) return true;
@@ -1196,6 +1553,9 @@
 
         const processRecord = (r, isPending) => {
             if (!matchContractor(r)) return;
+            // FILTRADO ESTRICTO DE RED (excluye suministros/conexiones/acometidas)
+            if (!isNetworkLevelFaultForSed(r)) return;
+
             const sed = extractSedFromRow(r);
             if (!sed) return;
 
@@ -1205,16 +1565,51 @@
                     distrito: extractDistritoFromRow(r),
                     alimentador: extractAlimentadorFromRow(r),
                     total7D: 0,
-                    pendientesActivos: 0
+                    pendientesActivos: 0,
+                    fallasRealesMap: new Map(),
+                    fallasRealesBreakdown: '',
+                    closures: []
                 });
             }
             const item = sedMap.get(sed);
             item.total7D++;
             if (isPending) item.pendientesActivos++;
+
+            const frRaw = extractFallaRealFromRow(r);
+            const fr = (frRaw && frRaw !== '-') ? frRaw : (extractFallaFromRow(r) !== '-' ? extractFallaFromRow(r) : 'RED');
+            const frKey = fr ? normalizeFaultCategory(fr) : 'RED';
+            if (frKey) {
+                item.fallasRealesMap.set(frKey, (item.fallasRealesMap.get(frKey) || 0) + 1);
+            }
+
+            if (!isPending) {
+                const tId = r['Ticket'] || r['ticket'] || r['Nro. Ticket'] || r['ODM'] || '';
+                const fClose = r['Hora de restauración'] || r['Fecha de ejecucion'] || r['Hora de inicio'] || r['Fecha'] || '';
+                const tec = r['Tecnico'] || r['Técnico'] || r['Contratista'] || r['Empresa'] || '';
+                const falOms = extractFallaFromRow(r);
+                const nota = r['Nota específica'] || r['Nota especifica'] || r['Observaciones'] || r['Detalle'] || '';
+                const llave = r['Sed-Llave'] || r['sed_llave'] || r['Llave'] || r['Alimentador BT'] || extractAlimentadorFromRow(r) || '-';
+
+                item.closures.push({
+                    ticket: String(tId).trim(),
+                    fecha: String(fClose).trim().slice(0, 16),
+                    tecnico: String(tec).trim() || 'Sin asignar',
+                    llave: String(llave).trim(),
+                    falla: String(falOms).trim() || 'RED',
+                    falla_real: frKey,
+                    fallaReal: frKey,
+                    nota: String(nota).trim() || 'Sin nota de cierre'
+                });
+            }
         };
 
         pendientes.forEach(r => processRecord(r, true));
         ejecutados.forEach(r => processRecord(r, false));
+
+        sedMap.forEach(item => {
+            const sortedFr = Array.from(item.fallasRealesMap.entries()).sort((a, b) => b[1] - a[1]);
+            item.fallasRealesBreakdown = sortedFr.map(([fName, count]) => `${fName}: ${count}`).join(', ');
+        });
 
         const result = Array.from(sedMap.values());
         result.sort((a, b) => {
@@ -1228,11 +1623,12 @@
     }
 
     /**
-     * Fallback local para Suministros recurrentes en 7D.
+     * Fallback local para Suministros recurrentes en 7D con agrupación de cierres anteriores y Falla Real.
      */
     function computeLocalRecurrentSuministros(pendientes, ejecutados, options) {
-        const contractor = (options.contractor && options.contractor !== 'ALL' && options.contractor !== '*') 
-            ? String(options.contractor).toUpperCase() : null;
+        const opts = options || {};
+        const contractor = (opts.contractor && opts.contractor !== 'ALL' && opts.contractor !== '*') 
+            ? String(opts.contractor).toUpperCase() : null;
 
         const matchContractor = r => {
             if (!contractor) return true;
@@ -1242,13 +1638,7 @@
 
         const sumMap = new Map();
 
-        const processRecord = (r, isPending) => {
-            if (!matchContractor(r)) return;
-            const suministro = extractSuministroFromRow(r);
-            if (!suministro) return;
-
-            const sed = extractSedFromRow(r);
-
+        const getOrCreateSuministroItem = (r, suministro, sed) => {
             if (!sumMap.has(suministro)) {
                 sumMap.set(suministro, {
                     suministro,
@@ -1256,17 +1646,100 @@
                     distrito: extractDistritoFromRow(r),
                     alimentador: extractAlimentadorFromRow(r),
                     total7D: 0,
-                    pendientesActivos: 0
+                    pendientesActivos: 0,
+                    falla: '-',
+                    fallaReal: '-',
+                    falla_real: '-',
+                    closures: []
                 });
             }
             const item = sumMap.get(suministro);
-            item.total7D++;
-            if (isPending) item.pendientesActivos++;
             if ((!item.sed || item.sed === '-') && sed) item.sed = sed;
+            const frRaw = extractFallaRealFromRow(r);
+            const fr = (frRaw && frRaw !== '-') ? (normalizeFaultCategory(frRaw) || frRaw) : '-';
+            if (fr && fr !== '-' && (!item.fallaReal || item.fallaReal === '-')) {
+                item.fallaReal = fr;
+                item.falla_real = fr;
+            }
+            const f = extractFallaFromRow(r);
+            if (f && f !== '-' && (!item.falla || item.falla === '-')) {
+                item.falla = f;
+            }
+            return item;
         };
 
-        pendientes.forEach(r => processRecord(r, true));
-        ejecutados.forEach(r => processRecord(r, false));
+        // Procesar pendientes
+        pendientes.forEach(r => {
+            if (!matchContractor(r)) return;
+            const suministro = extractSuministroFromRow(r);
+            if (!suministro) return;
+            const sed = extractSedFromRow(r);
+
+            const item = getOrCreateSuministroItem(r, suministro, sed);
+            item.total7D++;
+            item.pendientesActivos++;
+
+            // Si contiene HISTORIAL_SUMINISTRO_JSON en pendientes
+            if (r['HISTORIAL_SUMINISTRO_JSON']) {
+                try {
+                    const parsed = typeof r['HISTORIAL_SUMINISTRO_JSON'] === 'string'
+                        ? JSON.parse(r['HISTORIAL_SUMINISTRO_JSON'])
+                        : r['HISTORIAL_SUMINISTRO_JSON'];
+                    const items = Array.isArray(parsed) ? parsed : (parsed.items || []);
+                    items.forEach(h => {
+                        const tk = h.t || h.ticket;
+                        if (tk && !item.closures.some(c => c.ticket === tk)) {
+                            item.closures.push({
+                                ticket: tk,
+                                fecha: h.f || h.fecha || '-',
+                                tecnico: h.tec || h.tecnico || '-',
+                                falla: h.falla || '-',
+                                falla_real: h.fr || h.falla_real || h.fallaReal || '-',
+                                fallaReal: h.fr || h.falla_real || h.fallaReal || '-',
+                                nota: h.nota || '-'
+                            });
+                        }
+                    });
+                } catch (e) { /* ignore parse error */ }
+            }
+        });
+
+        // Procesar ejecutados (cierres previos)
+        ejecutados.forEach(r => {
+            if (!matchContractor(r)) return;
+            const suministro = extractSuministroFromRow(r);
+            if (!suministro) return;
+            const sed = extractSedFromRow(r);
+
+            const item = getOrCreateSuministroItem(r, suministro, sed);
+            item.total7D++;
+
+            const tk = extractTicketFromRow(r);
+            const fecha = extractFechaFromRow(r);
+            const tecnico = extractTecnicoFromRow(r);
+            const falla = extractFallaFromRow(r);
+            const frRaw = extractFallaRealFromRow(r);
+            const fallaReal = (frRaw && frRaw !== '-') ? (normalizeFaultCategory(frRaw) || frRaw) : '-';
+            const nota = extractNotaFromRow(r);
+
+            if (fallaReal && fallaReal !== '-') {
+                item.fallaReal = fallaReal;
+                item.falla_real = fallaReal;
+            }
+
+            // Evitar duplicar el mismo ticket en closures
+            if (!item.closures.some(c => c.ticket === tk && tk !== '-')) {
+                item.closures.push({
+                    ticket: tk,
+                    fecha: fecha,
+                    tecnico: tecnico,
+                    falla: falla,
+                    falla_real: fallaReal,
+                    fallaReal: fallaReal,
+                    nota: nota
+                });
+            }
+        });
 
         const result = Array.from(sumMap.values());
         result.sort((a, b) => {
@@ -1440,38 +1913,37 @@
                         },
                         y: {
                             beginAtZero: true,
-                            grace: '10%',
+                            grace: '14%',
                             grid: { color: '#f1f5f9' },
                             ticks: { color: '#64748b', font: { size: 10.5 }, precision: 0 }
                         }
                     }
                 },
                 plugins: [{
-                    id: 'daily7DBarLabels',
+                    id: 'evolucion7DValueLabels',
                     afterDatasetsDraw(chart) {
                         const { ctx } = chart;
                         chart.data.datasets.forEach((dataset, datasetIdx) => {
                             const meta = chart.getDatasetMeta(datasetIdx);
-                            if (!meta || !meta.data) return;
+                            if (!meta || meta.hidden) return;
+
+                            ctx.save();
+                            ctx.font = '700 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'bottom';
+
                             meta.data.forEach((bar, idx) => {
                                 const val = dataset.data[idx];
                                 if (val === undefined || val === null || val === 0) return;
+
                                 const text = String(val);
-                                const barHeight = Math.abs(bar.base - bar.y);
-                                ctx.save();
-                                ctx.font = '600 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-                                ctx.textAlign = 'center';
-                                if (barHeight >= 18) {
-                                    ctx.fillStyle = '#ffffff';
-                                    ctx.textBaseline = 'middle';
-                                    ctx.fillText(text, bar.x, (bar.y + bar.base) / 2);
-                                } else {
-                                    ctx.fillStyle = '#1e293b';
-                                    ctx.textBaseline = 'bottom';
-                                    ctx.fillText(text, bar.x, bar.y - 3);
-                                }
-                                ctx.restore();
+                                const x = bar.x;
+                                const y = Math.min(bar.y, bar.base) - 3;
+
+                                ctx.fillStyle = datasetIdx === 0 ? '#1D4ED8' : '#047857';
+                                ctx.fillText(text, x, y);
                             });
+                            ctx.restore();
                         });
                     }
                 }]
@@ -1922,12 +2394,28 @@
      * Genera la fila de la tabla para SED o Suministro.
      */
     function renderTableRow(item, isSuministro) {
+        const isPluz = typeof isCurrentUserAdmin === 'function' 
+            ? isCurrentUserAdmin() 
+            : (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('oms_user_role') === 'admin' || sessionStorage.getItem('oms_user_role') === '*') : true);
         const badgeClass = item.pendientesActivos > 0 ? 'is-active' : 'is-zero';
         const badgeText = `${item.pendientesActivos} pendientes`;
 
         if (isSuministro) {
-            return `
-                <tr>
+            const hasClosures = isPluz && Array.isArray(item.closures) && item.closures.length > 0;
+            const closuresCount = hasClosures ? item.closures.length : 0;
+            const frText = item.fallaReal || item.falla_real || '-';
+            const fallaRealBadge = (frText && frText !== '-')
+                ? `<span class="segdia-pill pill-amber" style="font-size: 11px;">⚡ ${escapeHtml(frText)}</span>`
+                : `<span style="color: #94a3b8; font-size: 11px;">-</span>`;
+
+            const closuresBtn = hasClosures ? `
+                <button type="button" class="segdia-btn-icon segdia-btn-toggle-closures" data-suministro="${escapeHtml(item.suministro)}" title="Ver ${closuresCount} cierres anteriores" style="margin-right: 4px;">
+                    🔍 Cierres (${closuresCount})
+                </button>
+            ` : '';
+
+            const mainRow = `
+                <tr class="segdia-row-suministro" data-suministro="${escapeHtml(item.suministro)}">
                     <td>
                         <span class="segdia-code-badge" style="color: #1e40af; background: ${PALETTE.ingresosLight};">
                             ${escapeHtml(item.suministro)}
@@ -1937,22 +2425,84 @@
                         <div style="font-weight: 600; color: #1e293b;">SED: ${escapeHtml(item.sed)}</div>
                         <div style="font-size: 11px; color: ${PALETTE.textMuted};">${escapeHtml(item.distrito)}</div>
                     </td>
+                    <td>
+                        ${fallaRealBadge}
+                    </td>
                     <td class="is-num" style="text-align: center;">
                         <span class="segdia-badge-val" style="font-size: 13px; font-weight: 700; color: #0f172a;">${item.total7D}</span>
                     </td>
                     <td>
                         <span class="segdia-badge-pendientes ${badgeClass}">${badgeText}</span>
                     </td>
-                    <td style="text-align: right;">
+                    <td style="text-align: right; white-space: nowrap;">
+                        ${closuresBtn}
                         <button type="button" class="segdia-btn-icon segdia-btn-focus-sed" data-sed="${escapeHtml(item.sed)}" data-suministro="${escapeHtml(item.suministro)}" title="Ubicar en mapa">
-                            🔍
+                            📍
                         </button>
                     </td>
                 </tr>
             `;
+
+            let detailRow = '';
+            if (hasClosures) {
+                detailRow = `
+                    <tr id="closures-row-${escapeHtml(item.suministro)}" class="segdia-closures-row" style="display: none; background: #f8fafc;">
+                        <td colspan="6" style="padding: 10px 16px;">
+                            <div class="segdia-closures-container" style="border: 1px solid #cbd5e1; border-radius: 8px; background: #ffffff; padding: 10px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <span style="font-weight: 700; font-size: 12px; color: #0f172a;">
+                                        📋 Historial de Cierres Anteriores — Suministro #${escapeHtml(item.suministro)} (${closuresCount} ${closuresCount === 1 ? 'cierre' : 'cierres'})
+                                    </span>
+                                </div>
+                                <div style="overflow-x: auto;">
+                                    <table class="segdia-table-nested" style="width: 100%; font-size: 11px; border-collapse: collapse;">
+                                        <thead>
+                                            <tr style="background: #f1f5f9; text-align: left; color: #475569; border-bottom: 1px solid #cbd5e1;">
+                                                <th style="padding: 6px 8px; width: 110px;">Fecha</th>
+                                                <th style="padding: 6px 8px; width: 90px;">Ticket</th>
+                                                <th style="padding: 6px 8px; width: 130px;">Técnico / Empresa</th>
+                                                <th style="padding: 6px 8px; width: 130px;">Falla (OMS)</th>
+                                                <th style="padding: 6px 8px; width: 120px;">Falla Real</th>
+                                                <th style="padding: 6px 8px;">Nota Específica</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${item.closures.map(c => `
+                                                <tr style="border-bottom: 1px solid #e2e8f0;">
+                                                    <td style="padding: 6px 8px; white-space: nowrap; font-variant-numeric: tabular-nums;">${escapeHtml(c.fecha)}</td>
+                                                    <td style="padding: 6px 8px; font-weight: 600; color: #1e40af;">#${escapeHtml(c.ticket)}</td>
+                                                    <td style="padding: 6px 8px;">${escapeHtml(c.tecnico)}</td>
+                                                    <td style="padding: 6px 8px;"><span class="segdia-pill pill-blue">${escapeHtml(c.falla)}</span></td>
+                                                    <td style="padding: 6px 8px;"><span class="segdia-pill pill-amber">${escapeHtml(c.falla_real || c.fallaReal)}</span></td>
+                                                    <td style="padding: 6px 8px; color: #334155; font-style: italic; word-break: break-word;">${escapeHtml(c.nota)}</td>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }
+
+            return mainRow + detailRow;
         } else {
-            return `
-                <tr>
+            const hasClosures = isPluz && Array.isArray(item.closures) && item.closures.length > 0;
+            const closuresCount = hasClosures ? item.closures.length : 0;
+
+            const breakdownBadge = (isPluz && item.fallasRealesBreakdown)
+                ? `<span class="segdia-pill pill-amber" style="font-size: 11px; white-space: normal; display: inline-block; max-width: 260px;" title="${escapeHtml(item.fallasRealesBreakdown)}">⚡ ${escapeHtml(item.fallasRealesBreakdown)}</span>`
+                : '<span style="color: #94a3b8; font-size: 11px;">-</span>';
+
+            const closuresBtn = hasClosures ? `
+                <button type="button" class="segdia-btn-icon segdia-btn-toggle-closures" data-sed="${escapeHtml(item.sed)}" title="Ver ${closuresCount} atenciones anteriores en SED ${escapeHtml(item.sed)}" style="margin-right: 4px;">
+                    🔍 Cierres (${closuresCount})
+                </button>
+            ` : '';
+
+            const mainRow = `
+                <tr class="segdia-row-sed" data-sed="${escapeHtml(item.sed)}">
                     <td>
                         <span class="segdia-code-badge">${escapeHtml(item.sed)}</span>
                     </td>
@@ -1960,19 +2510,68 @@
                         <div style="font-weight: 600; color: #1e293b;">${escapeHtml(item.distrito)}</div>
                         <div style="font-size: 11px; color: ${PALETTE.textMuted};">CT: ${escapeHtml(item.alimentador)}</div>
                     </td>
+                    <td>
+                        ${breakdownBadge}
+                    </td>
                     <td class="is-num" style="text-align: center;">
                         <span class="segdia-badge-val" style="font-size: 13px; font-weight: 700; color: #0f172a;">${item.total7D}</span>
                     </td>
                     <td>
                         <span class="segdia-badge-pendientes ${badgeClass}">${badgeText}</span>
                     </td>
-                    <td style="text-align: right;">
+                    <td style="text-align: right; white-space: nowrap;">
+                        ${closuresBtn}
                         <button type="button" class="segdia-btn-icon segdia-btn-focus-sed" data-sed="${escapeHtml(item.sed)}" title="Ubicar en mapa">
-                            🔍
+                            📍
                         </button>
                     </td>
                 </tr>
             `;
+
+            let detailRow = '';
+            if (hasClosures) {
+                detailRow = `
+                    <tr id="closures-row-sed-${escapeHtml(item.sed)}" class="segdia-closures-row" style="display: none; background: #f8fafc;">
+                        <td colspan="6" style="padding: 10px 16px;">
+                            <div class="segdia-closures-container" style="border: 1px solid #cbd5e1; border-radius: 8px; background: #ffffff; padding: 10px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <span style="font-weight: 700; font-size: 12px; color: #0f172a;">
+                                        🏢 Historial de Fallas de Red (7D) — Subestación SED #${escapeHtml(item.sed)} (${closuresCount} ${closuresCount === 1 ? 'evento' : 'eventos'})
+                                    </span>
+                                </div>
+                                <div style="overflow-x: auto;">
+                                    <table class="segdia-table-nested" style="width: 100%; font-size: 11px; border-collapse: collapse;">
+                                        <thead>
+                                            <tr style="background: #f1f5f9; text-align: left; color: #475569; border-bottom: 1px solid #cbd5e1;">
+                                                <th style="padding: 6px 8px; width: 110px;">Fecha</th>
+                                                <th style="padding: 6px 8px; width: 90px;">Ticket</th>
+                                                <th style="padding: 6px 8px; width: 130px;">Técnico / Empresa</th>
+                                                <th style="padding: 6px 8px; width: 120px;">Llave / Alim.</th>
+                                                <th style="padding: 6px 8px; width: 120px;">Falla Real</th>
+                                                <th style="padding: 6px 8px;">Nota Específica</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${item.closures.map(c => `
+                                                <tr style="border-bottom: 1px solid #e2e8f0;">
+                                                    <td style="padding: 6px 8px; white-space: nowrap; font-variant-numeric: tabular-nums;">${escapeHtml(c.fecha)}</td>
+                                                    <td style="padding: 6px 8px; font-weight: 600; color: #1e40af;">#${escapeHtml(c.ticket)}</td>
+                                                    <td style="padding: 6px 8px;">${escapeHtml(c.tecnico)}</td>
+                                                    <td style="padding: 6px 8px;">${escapeHtml(c.llave || '-')}</td>
+                                                    <td style="padding: 6px 8px;"><span class="segdia-pill pill-amber">${escapeHtml(c.falla_real || c.fallaReal)}</span></td>
+                                                    <td style="padding: 6px 8px; color: #334155; font-style: italic; word-break: break-word;">${escapeHtml(c.nota)}</td>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }
+
+            return mainRow + detailRow;
         }
     }
 
@@ -2022,19 +2621,43 @@
         }
 
         const contractors = getContractorsList(ejecutados, pendientes);
+        const fallasList = getFallasList(ejecutados, pendientes);
+        const fallasRealesList = getFallasRealesList(ejecutados, pendientes);
+
         const contractorParam = (!state.selectedContractor || state.selectedContractor === 'ALL') ? '*' : state.selectedContractor;
         const workTypeParam = (!state.selectedWorkType || state.selectedWorkType === 'ALL') ? '*' : state.selectedWorkType;
 
+        // Filtro doble: Falla (OMS) y Falla Real (con normalización canónica)
+        const filterFalla = (state.selectedFalla && state.selectedFalla !== 'ALL') ? normalizeFaultCategory(state.selectedFalla) : null;
+        const filterFallaReal = (state.selectedFallaReal && state.selectedFallaReal !== 'ALL') ? normalizeFaultCategory(state.selectedFallaReal) : null;
+
+        const matchesFallaFilters = r => {
+            if (filterFalla) {
+                const f = normalizeFaultCategory(extractFallaFromRow(r));
+                if (f !== filterFalla && !f.includes(filterFalla)) return false;
+            }
+            if (filterFallaReal) {
+                const fr = normalizeFaultCategory(extractFallaRealFromRow(r));
+                if (fr !== filterFallaReal && !fr.includes(filterFallaReal)) return false;
+            }
+            return true;
+        };
+
+        const filteredPendientes = pendientes.filter(matchesFallaFilters);
+        const filteredEjecutados = ejecutados.filter(matchesFallaFilters);
+
         // Calcular datos según fecha seleccionada ('7D' o día específico)
-        const productivity = computeDailyProductivity(pendientes, ejecutados, {
+        const productivity = computeDailyProductivity(filteredPendientes, filteredEjecutados, {
             date: state.selectedDate,
             contractor: contractorParam,
-            workType: workTypeParam
+            workType: workTypeParam,
+            startHour: state.startHour,
+            endHour: state.endHour
         });
 
         // Monitor dual de recurrencia (SEDs vs Suministros)
         const isSuministrosTab = state.recurrenceTab === 'SUMINISTROS';
-        const recurrentItems = computeRecurrentItems(pendientes, ejecutados, {
+        const recurrentItems = computeRecurrentItems(filteredPendientes, filteredEjecutados, {
             contractor: contractorParam,
             workType: workTypeParam
         }, state.recurrenceTab);
@@ -2114,27 +2737,45 @@
                             ${contractors.map(c => `<option value="${c}" ${c === state.selectedContractor ? 'selected' : ''}>${c}</option>`).join('')}
                         </select>
 
-                        <label class="segdia-filter-label" for="segdiaSelectStartHour">Desde:</label>
-                        <select id="segdiaSelectStartHour" class="segdia-select" aria-label="Hora de inicio">
-                            ${Array.from({ length: 24 }, (_, i) => `<option value="${i}" ${state.startHour === i ? 'selected' : ''}>${String(i).padStart(2, '0')}:00</option>`).join('')}
+                        <label class="segdia-filter-label" for="segFilterFalla">Falla (OMS):</label>
+                        <select id="segFilterFalla" class="segdia-select" aria-label="Seleccionar falla OMS">
+                            <option value="ALL" ${state.selectedFalla === 'ALL' ? 'selected' : ''}>Todas las fallas</option>
+                            ${fallasList.map(f => `<option value="${escapeHtml(f)}" ${f === state.selectedFalla ? 'selected' : ''}>${escapeHtml(f)}</option>`).join('')}
                         </select>
 
-                        <label class="segdia-filter-label" for="segdiaSelectEndHour">Hasta:</label>
-                        <select id="segdiaSelectEndHour" class="segdia-select" aria-label="Hora de fin">
-                            ${Array.from({ length: 24 }, (_, i) => {
-                                const val = i + 1;
-                                const lbl = val === 24 ? '24:00 (Fin)' : `${String(val).padStart(2, '0')}:00`;
-                                return `<option value="${val}" ${state.endHour === val ? 'selected' : ''}>${lbl}</option>`;
-                            }).join('')}
+                        <label class="segdia-filter-label" for="segFilterFallaReal">Falla Real:</label>
+                        <select id="segFilterFallaReal" class="segdia-select" aria-label="Seleccionar falla real">
+                            <option value="ALL" ${state.selectedFallaReal === 'ALL' ? 'selected' : ''}>Todas las fallas reales</option>
+                            ${fallasRealesList.map(fr => `<option value="${escapeHtml(fr)}" ${fr === state.selectedFallaReal ? 'selected' : ''}>${escapeHtml(fr)}</option>`).join('')}
                         </select>
 
-                        <button type="button" id="btnSegdiaNow" class="segdia-btn ${state.isLiveNow ? 'segdia-btn-now is-active' : 'segdia-btn-now'}" title="Fijar corte hasta la hora actual">
-                            ⚡ Ahora
-                        </button>
+                        
+                        <!-- FILTRO HORARIO INTERACTIVO (DESDE / HASTA / AHORA / 24H) -->
+                        <div class="segdia-time-filter">
+                            <label for="segdiaSelectStartHour" class="segdia-range-sublabel">Desde:</label>
+                            <select id="segdiaSelectStartHour" class="segdia-time-select" aria-label="Hora de inicio" title="Hora de inicio">
+                                ${Array.from({ length: 24 }, (_, i) => {
+                                    const hStr = String(i).padStart(2, '0') + ':00';
+                                    return `<option value="${i}" ${i === state.startHour ? 'selected' : ''}>${hStr}</option>`;
+                                }).join('')}
+                            </select>
 
-                        <button type="button" id="btnSegdiaRefresh" class="segdia-btn" title="Recalcular métricas">
-                            🔄 Actualizar
-                        </button>
+                            <label for="segdiaSelectEndHour" class="segdia-range-sublabel">Hasta:</label>
+                            <select id="segdiaSelectEndHour" class="segdia-time-select" aria-label="Hora de corte" title="Hora de corte">
+                                ${Array.from({ length: 25 }, (_, i) => {
+                                    const hStr = String(i).padStart(2, '0') + ':00';
+                                    return `<option value="${i}" ${i === state.endHour ? 'selected' : ''}>${hStr}</option>`;
+                                }).join('')}
+                            </select>
+
+                            <button type="button" id="btnSegdiaNow" class="segdia-btn-now" title="Ajustar corte hasta la hora actual (Ahora)">
+                                ⚡ Ahora
+                            </button>
+
+                            <button type="button" id="btnSegdia24h" class="segdia-btn-24h" title="Restablecer a jornada completa (24 horas)">
+                                24h
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -2251,9 +2892,10 @@
                                     <tr>
                                         <th style="width: 140px;">${isSuministrosTab ? 'Suministro' : 'SED'}</th>
                                         <th>${isSuministrosTab ? 'SED Asignada / Distrito' : 'Ubicación / CT'}</th>
-                                        <th style="width: 100px; text-align: center;">Eventos 7D</th>
-                                        <th style="width: 140px;">Pendientes</th>
-                                        <th style="width: 70px; text-align: right;">Acción</th>
+                                        <th style="width: 150px;">${isSuministrosTab ? 'Falla Real' : 'Fallas Reales'}</th>
+                                        <th style="width: 90px; text-align: center;">Eventos 7D</th>
+                                        <th style="width: 120px;">Pendientes</th>
+                                        <th style="width: 120px; text-align: right;">Acción</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -2308,48 +2950,69 @@
             });
         }
 
-        const startHourSelect = document.getElementById('segdiaSelectStartHour');
-        if (startHourSelect) {
-            startHourSelect.addEventListener('change', (e) => {
+        const filterFallaSelect = document.getElementById('segFilterFalla');
+        if (filterFallaSelect) {
+            filterFallaSelect.addEventListener('change', (e) => {
+                state.selectedFalla = e.target.value;
+                render();
+            });
+        }
+
+        const filterFallaRealSelect = document.getElementById('segFilterFallaReal');
+        if (filterFallaRealSelect) {
+            filterFallaRealSelect.addEventListener('change', (e) => {
+                state.selectedFallaReal = e.target.value;
+                render();
+            });
+        }
+
+        
+        // Filtro de horario interactivo: Desde / Hasta con selección directa
+        const selectStartHour = document.getElementById('segdiaSelectStartHour');
+        const selectEndHour = document.getElementById('segdiaSelectEndHour');
+
+        if (selectStartHour) {
+            selectStartHour.addEventListener('change', (e) => {
                 const val = parseInt(e.target.value, 10) || 0;
                 state.startHour = val;
-                if (state.endHour <= state.startHour) {
-                    state.endHour = Math.min(24, state.startHour + 1);
+                if (state.startHour > state.endHour) {
+                    state.endHour = state.startHour;
                 }
-                state.isLiveNow = false;
                 render();
             });
         }
 
-        const endHourSelect = document.getElementById('segdiaSelectEndHour');
-        if (endHourSelect) {
-            endHourSelect.addEventListener('change', (e) => {
-                const val = parseInt(e.target.value, 10) || 24;
-                state.endHour = val;
-                if (state.startHour >= state.endHour) {
-                    state.startHour = Math.max(0, state.endHour - 1);
+        if (selectEndHour) {
+            selectEndHour.addEventListener('change', (e) => {
+                const val = parseInt(e.target.value, 10);
+                const endVal = isNaN(val) ? 24 : val;
+                state.endHour = endVal;
+                if (state.endHour < state.startHour) {
+                    state.startHour = state.endHour;
                 }
-                state.isLiveNow = false;
                 render();
             });
         }
 
-        const nowBtn = document.getElementById('btnSegdiaNow');
-        if (nowBtn) {
-            nowBtn.addEventListener('click', () => {
-                const currentHour = new Date().getHours();
-                state.endHour = currentHour;
+        // Botón "Ahora" (corte hasta la hora actual)
+        const btnNow = document.getElementById('btnSegdiaNow');
+        if (btnNow) {
+            btnNow.addEventListener('click', () => {
+                const nowHour = new Date().getHours();
+                state.endHour = Math.min(24, Math.max(0, nowHour));
                 if (state.startHour > state.endHour) {
                     state.startHour = 0;
                 }
-                state.isLiveNow = true;
                 render();
             });
         }
 
-        const refreshBtn = document.getElementById('btnSegdiaRefresh');
-        if (refreshBtn) {
-            refreshBtn.addEventListener('click', () => {
+        // Botón "24h" (jornada completa 00:00 a 24:00)
+        const btn24h = document.getElementById('btnSegdia24h');
+        if (btn24h) {
+            btn24h.addEventListener('click', () => {
+                state.startHour = 0;
+                state.endHour = 24;
                 render();
             });
         }
@@ -2383,10 +3046,28 @@
             });
         }
 
-        // Delegación de eventos para botones de ubicar SED en mapa
+        // Delegación de eventos para acordeón y botones de ubicar SED en mapa
         const tableContainer = document.querySelector('.segdia-table-container');
         if (tableContainer) {
             tableContainer.addEventListener('click', (e) => {
+                const toggleBtn = e.target.closest('.segdia-btn-toggle-closures');
+                if (toggleBtn) {
+                    const sumCode = toggleBtn.dataset.suministro;
+                    const sedCode = toggleBtn.dataset.sed;
+                    const targetId = sumCode ? `closures-row-${sumCode}` : (sedCode ? `closures-row-sed-${sedCode}` : null);
+                    if (targetId) {
+                        const row = document.getElementById(targetId);
+                        if (row) {
+                            const isHidden = row.style.display === 'none';
+                            row.style.display = isHidden ? 'table-row' : 'none';
+                            const matchNum = toggleBtn.title.match(/\d+/);
+                            const numStr = matchNum ? ` (${matchNum[0]})` : '';
+                            toggleBtn.textContent = isHidden ? '▲ Ocultar' : `🔍 Cierres${numStr}`;
+                        }
+                    }
+                    return;
+                }
+
                 const btn = e.target.closest('.segdia-btn-focus-sed');
                 if (btn) {
                     const sed = btn.dataset.sed;
@@ -2413,8 +3094,26 @@
         const contractorParam = (!state.selectedContractor || state.selectedContractor === 'ALL') ? '*' : state.selectedContractor;
         const workTypeParam = (!state.selectedWorkType || state.selectedWorkType === 'ALL') ? '*' : state.selectedWorkType;
 
+        const filterFalla = (state.selectedFalla && state.selectedFalla !== 'ALL') ? normalizeFaultCategory(state.selectedFalla) : null;
+        const filterFallaReal = (state.selectedFallaReal && state.selectedFallaReal !== 'ALL') ? normalizeFaultCategory(state.selectedFallaReal) : null;
+
+        const matchesFallaFilters = r => {
+            if (filterFalla) {
+                const f = normalizeFaultCategory(extractFallaFromRow(r));
+                if (f !== filterFalla && !f.includes(filterFalla)) return false;
+            }
+            if (filterFallaReal) {
+                const fr = normalizeFaultCategory(extractFallaRealFromRow(r));
+                if (fr !== filterFallaReal && !fr.includes(filterFallaReal)) return false;
+            }
+            return true;
+        };
+
+        const filteredPendientes = pendientes.filter(matchesFallaFilters);
+        const filteredEjecutados = ejecutados.filter(matchesFallaFilters);
+
         const isSuministrosTab = state.recurrenceTab === 'SUMINISTROS';
-        const recurrentItems = computeRecurrentItems(pendientes, ejecutados, {
+        const recurrentItems = computeRecurrentItems(filteredPendientes, filteredEjecutados, {
             contractor: contractorParam,
             workType: workTypeParam
         }, state.recurrenceTab);
@@ -2454,9 +3153,10 @@
                     <tr>
                         <th style="width: 140px;">${isSuministrosTab ? 'Suministro' : 'SED'}</th>
                         <th>${isSuministrosTab ? 'SED Asignada / Distrito' : 'Ubicación / CT'}</th>
-                        <th style="width: 100px; text-align: center;">Eventos 7D</th>
-                        <th style="width: 140px;">Pendientes</th>
-                        <th style="width: 70px; text-align: right;">Acción</th>
+                        <th style="width: 150px;">${isSuministrosTab ? 'Falla Real' : 'Fallas Reales'}</th>
+                        <th style="width: 90px; text-align: center;">Eventos 7D</th>
+                        <th style="width: 120px;">Pendientes</th>
+                        <th style="width: 120px; text-align: right;">Acción</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -2500,12 +3200,32 @@
     global.initSeguimientoDia = initSeguimientoDia;
     global.renderSeguimientoDia = render;
     global.destroySeguimientoDia = destroyCharts;
+    global.isNetworkLevelFaultForSed = isNetworkLevelFaultForSed;
+    global.normalizeFaultCategory = normalizeFaultCategory;
+    global.computeLocalRecurrentSeds = computeLocalRecurrentSeds;
+    global.computeLocalRecurrentSuministros = computeLocalRecurrentSuministros;
+    global.renderTableRow = renderTableRow;
 
     // Auto-inicialización si el elemento contenedor ya está presente en el DOM
-    document.addEventListener('DOMContentLoaded', () => {
-        if (document.getElementById('seguimientoDiaContainer')) {
-            initSeguimientoDia('seguimientoDiaContainer');
-        }
-    });
+    if (typeof document !== 'undefined') {
+        document.addEventListener('DOMContentLoaded', () => {
+            if (document.getElementById('seguimientoDiaContainer')) {
+                initSeguimientoDia('seguimientoDiaContainer');
+            }
+        });
+    }
 
-})(typeof window !== 'undefined' ? window : this);
+    if (typeof module !== 'undefined' && module.exports) {
+        module.exports = {
+            normalizeFaultCategory,
+            isNetworkLevelFaultForSed,
+            computeLocalRecurrentSeds,
+            computeLocalRecurrentSuministros,
+            renderTableRow,
+            initSeguimientoDia,
+            renderSeguimientoDia,
+            destroySeguimientoDia
+        };
+    }
+
+})(typeof window !== 'undefined' ? window : (typeof global !== 'undefined' ? global : this));

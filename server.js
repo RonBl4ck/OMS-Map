@@ -3,6 +3,41 @@ const fs = require('fs');
 const path = require('path');
 const { resolvePublicFile, cacheControlFor, securityHeaders } = require('./server-utils');
 
+// Cargar variables de entorno locales (.env.local o .env) de forma segura y sin dependencias externas
+(function loadLocalEnv() {
+    const envFiles = ['.env.local', '.env'];
+    for (const file of envFiles) {
+        const fullPath = path.join(__dirname, file);
+        if (fs.existsSync(fullPath)) {
+            if (typeof process.loadEnvFile === 'function') {
+                try {
+                    process.loadEnvFile(fullPath);
+                    break;
+                } catch (_) {}
+            }
+            try {
+                const content = fs.readFileSync(fullPath, 'utf-8');
+                content.split(/\r?\n/).forEach(line => {
+                    const trimmed = line.trim();
+                    if (!trimmed || trimmed.startsWith('#')) return;
+                    const eqIndex = trimmed.indexOf('=');
+                    if (eqIndex > 0) {
+                        const key = trimmed.slice(0, eqIndex).trim();
+                        let val = trimmed.slice(eqIndex + 1).trim();
+                        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+                            val = val.slice(1, -1);
+                        }
+                        if (process.env[key] === undefined) {
+                            process.env[key] = val;
+                        }
+                    }
+                });
+                break;
+            } catch (_) {}
+        }
+    }
+})();
+
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = __dirname;
 

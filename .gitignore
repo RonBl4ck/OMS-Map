@@ -26,6 +26,7 @@ config.local.json
 !config.example.json
 
 # Datos generados localmente (Google Sheets / APIs externas son la fuente)
+data/
 data.json
 data_ejecutados.json
 data_tecnicos.json
