@@ -50,7 +50,7 @@
             const safeSla = String(sla.label || '').replace(/"/g, '&quot;');
             const isSuministroReinc = Boolean(loc.suministro_reincidente || (loc.suministro_count >= 2));
             const sumCount = parseInt(loc.suministro_count || 1, 10);
-            const sumDias = loc.suministro_ventana_dias || 2;
+            const sumDias = loc.suministro_ventana_dias || 7;
             let titleText = `Ticket: ${safeTicket} | ${safeFalla} | Plazo: ${safeSla}`;
             if (isSuministroReinc) {
                 titleText += ` | ⚠️ S. REINCIDENTE (${sumCount} fallas en ${sumDias} días)`;

@@ -891,7 +891,7 @@
      */
     function extractFallaRealFromRow(row) {
         if (!row || typeof row !== 'object') return '-';
-        return row['Falla Real'] || row['falla_real'] || row['fallaReal'] || row['FALLA_REAL'] || row['falla_real_odm2'] || '-';
+        return row['Falla Real'] || row['falla_real'] || row['fallaReal'] || row['FALLA_REAL'] || row['falla_real_odm2'] || row['Objeto Técnico'] || row['Objeto Tcnico'] || row['Alcance'] || '-';
     }
 
     /**
@@ -928,27 +928,76 @@
 
     /**
      * Estandariza y normaliza categorías de fallas para evitar duplicidades
-     * (por ejemplo unificando 'CNX AEREA' con 'CNX-AEREA', o 'RED SUBTERRANEA' con 'RED-SUBTERRANEA').
+     * (unificando 'CNX AEREA' con 'CNX-AEREA', y mapeando objetos técnicos a familias estándar).
      */
     function normalizeFaultCategory(val) {
         if (!val) return '';
         let s = String(val).trim().toUpperCase();
-        if (s === '-' || s === 'NULL' || s === 'UNDEFINED' || s === 'N/A' || s === 'NAN') return '';
+        if (s === '-' || s === 'NULL' || s === 'UNDEFINED' || s === 'N/A' || s === 'NAN' || s === 'NONE' || s.length <= 1) return '';
 
-        // Unificar espacios múltiples y guiones bajos a guion estándar
-        s = s.replace(/[\s_]+/g, '-');
+        // Eliminar tildes/acentos
+        s = s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-        // Mapeos canónicos de alta frecuencia
-        if (s === 'CNX-AEREA' || s === 'CONEXION-AEREA' || s === 'CONEXION-AEREA-BT' || s === 'ACOMETIDA-AEREA') return 'CNX-AEREA';
-        if (s === 'CNX-SUBTERRANEA' || s === 'CONEXION-SUBTERRANEA' || s === 'CONEXION-SUBTERRANEA-BT' || s === 'ACOMETIDA-SUBTERRANEA') return 'CNX-SUBTERRANEA';
-        if (s === 'RED-AEREA' || s === 'RED-AEREA-BT' || s === 'LINEA-AEREA-BT') return 'RED-AEREA';
-        if (s === 'RED-SUBTERRANEA' || s === 'RED-SUBTERRANEA-BT') return 'RED-SUBTERRANEA';
-        if (s.includes('TODO-NORMAL') || s === 'DOMICILIO' || s.includes('INTERIOR') || s === 'SUMINISTRO-SP') return 'DOMICILIO';
-        if (s.includes('FUSIBLE')) return 'FUSIBLE';
-        if (s.includes('LLAVE')) return 'LLAVE';
-        if (s.includes('SECCIONADOR')) return 'SECCIONADOR';
-        if (s.includes('POSTE')) return 'POSTE';
+        // Unificar separadores y espacios a guion estándar
+        s = s.replace(/[\s_/\\-]+/g, '-').replace(/^-+|-+$/g, '');
+
+        if (!s || s === 'A' || s === '0') return '';
+
+        // Conexión Subterránea / Acometida Subterránea
+        if (s.includes('ACOMETIDA-SUBTERRANEA') || s.includes('CNX-SUBTERRANEA') || s.includes('CONEXION-SUBTERRANEA')) {
+            return 'CNX-SUBTERRANEA';
+        }
+
+        // Conexión Aérea / Acometida Aérea / Bornes / Conector / Caja Toma / Conexión BT / Banco de Medidores
+        if (s.includes('ACOMETIDA-AEREA') || s.includes('CNX-AEREA') || s.includes('CONEXION-AEREA') ||
+            s.includes('CONEXION') || s.includes('CNX') ||
+            s === 'ACOMETIDA' || s.includes('BORNE') || s.includes('CONECTOR') || s.includes('BANCO-DE-MEDIDOR') ||
+            s.includes('CORTACIRCUITO') || s.includes('CAJA-TOMA') || s.includes('FUSIBLE-SUMINISTRO')) {
+            return 'CNX-AEREA';
+        }
+
+        // Red Subterránea (cables subterráneos, empalmes, terminales)
+        if (s.includes('RED-SUBTERRANEA') || s.includes('NKY') || s.includes('NYY') || s.includes('UNIPOLAR-COBRE') ||
+            s.includes('EMPALME') || s.includes('TERMINAL')) {
+            return 'RED-SUBTERRANEA';
+        }
+
+        // Red Aérea (cables aéreos, aluminio, autosoportado, pasante)
+        if (s.includes('RED-AEREA') || s.includes('LINEA-AEREA') || s.includes('AUTOSOPORTADO') ||
+            s.includes('ALUMINIO') || s.includes('COMUNICACION') || s === 'CABLE' || s.startsWith('CABLE-')) {
+            return 'RED-AEREA';
+        }
+
+        // Fusible
+        if (s.includes('FUSIBLE') || s.includes('PIZARRA') || s.includes('LOZA') || s.includes('BASE-UNIPOLAR')) {
+            return 'FUSIBLE';
+        }
+
+        // Llave / Interruptor / Tablero
+        if (s.includes('LLAVE') || s.includes('TERMOMAGNETIC') || s.includes('TABLERO') ||
+            s.includes('INTERRUPTOR') || s.includes('BARRA') || s.includes('REDUCTOR') || s.includes('OTROS-SED')) {
+            return 'LLAVE';
+        }
+
+        // Seccionador
+        if (s.includes('SECCIONADOR') || s.includes('CUTOUT')) return 'SECCIONADOR';
+
+        // Poste / Pastoral
+        if (s.includes('POSTE') || s.includes('PASTORAL')) return 'POSTE';
+
+        // Transformador
         if (s.includes('TRAFO') || s.includes('TRANSFORMADOR')) return 'TRANSFORMADOR';
+
+        // Alumbrado Público
+        if (s.includes('ALUMBRADO')) return 'ALUMBRADO-PUBLICO';
+
+        // Domicilio / Cliente / Medidor / Defecto interno
+        if (s.includes('TODO-NORMAL') || s === 'DOMICILIO' || s.includes('INTERIOR') || s.includes('SUMINISTRO-SP') ||
+            s.includes('CLIENTE') || s.includes('INSTALACION') || s.includes('MEDIDOR') || s.includes('DEFECTO') ||
+            s.includes('NO-SE-UBICA') || s.includes('LUNA') || s.includes('MICA') || s.includes('CHAPA') ||
+            s.includes('TAPA') || s.includes('INCONCLUSO') || s === 'OTROS') {
+            return 'DOMICILIO';
+        }
 
         return s;
     }
@@ -1572,7 +1621,8 @@
             }
             const item = sumMap.get(suministro);
             if ((!item.sed || item.sed === '-') && sed) item.sed = sed;
-            const fr = extractFallaRealFromRow(r);
+            const frRaw = extractFallaRealFromRow(r);
+            const fr = (frRaw && frRaw !== '-') ? (normalizeFaultCategory(frRaw) || frRaw) : '-';
             if (fr && fr !== '-' && (!item.fallaReal || item.fallaReal === '-')) {
                 item.fallaReal = fr;
                 item.falla_real = fr;
@@ -1634,7 +1684,8 @@
             const fecha = extractFechaFromRow(r);
             const tecnico = extractTecnicoFromRow(r);
             const falla = extractFallaFromRow(r);
-            const fallaReal = extractFallaRealFromRow(r);
+            const frRaw = extractFallaRealFromRow(r);
+            const fallaReal = (frRaw && frRaw !== '-') ? (normalizeFaultCategory(frRaw) || frRaw) : '-';
             const nota = extractNotaFromRow(r);
 
             if (fallaReal && fallaReal !== '-') {

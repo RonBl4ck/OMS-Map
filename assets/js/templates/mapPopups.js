@@ -74,7 +74,7 @@
                 if (exList.length > 0) {
                     const sumNorm = String(loc.suministro).trim().toLowerCase();
                     const matched = exList.filter(e => String(e.suministro || e.Suministro || '').trim().toLowerCase() === sumNorm);
-                    historial = matched.slice(-5).map(e => ({
+                    historial = matched.slice(-10).map(e => ({
                         t: e.ticket || e.Ticket || '',
                         f: e.fecha || e.Fecha || e.fecha_inicio || '',
                         falla: e.falla || e.Falla || '',
@@ -85,7 +85,7 @@
                 }
             }
             const sumCount = parseInt(loc.suministro_count || (historial.length ? historial.length + 1 : 2), 10);
-            const sumDias = loc.suministro_ventana_dias || 2;
+            const sumDias = loc.suministro_ventana_dias || 7;
 
             let itemsHtml = '';
             if (historial.length > 0) {
@@ -185,7 +185,7 @@
                 <b>Falla:</b> ${escapeHtml(loc.falla)}<br>
                 <b>SED Llave:</b> ${escapeHtml(loc.sed)} ${sedBadgeHtml}<br>
                 <b>Alimentador:</b> ${escapeHtml(loc.alimentador || 'N/A')}<br>
-                <b>Suministro:</b> ${escapeHtml(loc.suministro)} ${isSuministroReinc ? `<span style="font-size:10px; font-weight:bold; color:#b45309; background:#fef3c7; border:1px solid #fcd34d; padding:1px 6px; border-radius:4px;">(${escapeHtml(loc.suministro_ventana_dias || 2)}D: ${escapeHtml(loc.suministro_count || 2)} fallas ⚠️)</span>` : (loc.suministro_count > 0 ? `<span style="font-size:10px; font-weight:bold; color:#0d9488; background:#ccfbf1; padding:1px 6px; border-radius:4px;">(7D: ${escapeHtml(loc.suministro_count)} fallas)</span>` : '')}<br>
+                <b>Suministro:</b> ${escapeHtml(loc.suministro)} ${isSuministroReinc ? `<span style="font-size:10px; font-weight:bold; color:#b45309; background:#fef3c7; border:1px solid #fcd34d; padding:1px 6px; border-radius:4px;">(${escapeHtml(loc.suministro_ventana_dias || 7)}D: ${escapeHtml(loc.suministro_count || 2)} fallas ⚠️)</span>` : (loc.suministro_count > 0 ? `<span style="font-size:10px; font-weight:bold; color:#0d9488; background:#ccfbf1; padding:1px 6px; border-radius:4px;">(7D: ${escapeHtml(loc.suministro_count)} fallas)</span>` : '')}<br>
                 ${reincCardHtml}
                 <b>Llamadas:</b> ${escapeHtml(llamadasLabel)} ${numLlamadas >= 7 ? `<span style="font-size:10px; font-weight:bold; color:#be123c; background:#ffe4e6; border:1px solid #fecdd3; padding:1px 6px; border-radius:4px;">📞 ≥7 LLAMADAS</span>` : ''}<br>
                 <b>Fecha Inicio:</b> ${escapeHtml(loc.fecha_inicio)}<br>
@@ -254,7 +254,7 @@
 
         const isSuministroReinc = Boolean(loc.suministro_reincidente || (loc.suministro_count >= 2));
         const sumCount = parseInt(loc.suministro_count || (isSuministroReinc ? ((loc.suministro_historial && loc.suministro_historial.length) ? loc.suministro_historial.length + 1 : 2) : 1), 10);
-        const sumDias = loc.suministro_ventana_dias || 2;
+        const sumDias = loc.suministro_ventana_dias || 7;
 
         let titleText = `Ticket: ${escapeHtml(loc.ticket)} | ${escapeHtml(loc.falla)} | Plazo: ${escapeHtml(sla.label)}`;
         if (isSuministroReinc) {

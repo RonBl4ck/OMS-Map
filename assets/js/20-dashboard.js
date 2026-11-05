@@ -631,7 +631,7 @@
                                 <span class="ticket-number">${escapeHtml(r.ticket)}</span>
                                 <button type="button" class="btn-ticket-pin" onclick="navigateToTicketOnMap('${escapeHtml(r.ticket)}')" title="Localizar ticket #${escapeHtml(r.ticket)} en el mapa" aria-label="Localizar ticket #${escapeHtml(r.ticket)} en el mapa">📍</button>
                                 ${(r.suministro_reincidente || (r.suministro_count >= 2)) ? `
-                                    <button type="button" class="btn-ticket-reinc" onclick="event.stopPropagation(); openSuministroHistoryModal('${escapeHtml(r.ticket)}')" title="⚠️ Suministro Reincidente: ${escapeHtml(r.suministro_count)} fallas (${escapeHtml(r.suministro_ventana_dias || 2)}D). Clic para ver historial de notas">⚠️ x${escapeHtml(r.suministro_count)}</button>
+                                    <button type="button" class="btn-ticket-reinc" onclick="event.stopPropagation(); openSuministroHistoryModal('${escapeHtml(r.ticket)}')" title="⚠️ Suministro Reincidente: ${escapeHtml(r.suministro_count)} fallas (${escapeHtml(r.suministro_ventana_dias || 7)}D). Clic para ver historial de notas">⚠️ x${escapeHtml(r.suministro_count)}</button>
                                 ` : ''}
                             </div>
                         </td>
@@ -2231,7 +2231,7 @@
             const alimentador = target ? (target.alimentador || 'N/A') : 'N/A';
             const fechaIni = target ? (target.hora_inicio || target.fecha_inicio || target.fecha || '') : '';
             const sumCount = target ? (parseInt(target.suministro_count, 10) || 2) : 2;
-            const sumDias = target ? (target.suministro_ventana_dias || 2) : 2;
+            const sumDias = target ? (target.suministro_ventana_dias || 7) : 7;
 
             let historial = (target && Array.isArray(target.suministro_historial)) ? [...target.suministro_historial] : [];
             if (historial.length === 0 && suministro && suministro !== 'N/A') {
@@ -2241,7 +2241,7 @@
                 if (exList.length > 0) {
                     const sumNorm = String(suministro).trim().toLowerCase();
                     const matched = exList.filter(e => String(e.suministro || e.Suministro || '').trim().toLowerCase() === sumNorm);
-                    historial = matched.slice(-6).map(e => ({
+                    historial = matched.slice(-10).map(e => ({
                         t: e.ticket || e.Ticket || '',
                         f: e.fecha || e.Fecha || e.fecha_inicio || '',
                         falla: e.falla || e.Falla || '',

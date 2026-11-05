@@ -145,7 +145,7 @@ test('computeLocalRecurrentSuministros: agrupa por suministro y almacena closure
     assert.ok(c1, 'Debe encontrarse el cierre TK-E1');
     assert.equal(c1.tecnico, 'JUAN PEREZ');
     assert.equal(c1.falla, 'SUMINISTRO SIN LUZ');
-    assert.equal(c1.falla_real, 'CONEXION BT');
+    assert.equal(c1.falla_real, 'CNX-AEREA');
     assert.equal(c1.nota, 'Se reparó borne quemado en acometida');
 
     const c2 = item.closures.find(c => c.ticket === 'TK-E2');
@@ -224,6 +224,24 @@ test('normalizeFaultCategory: estandariza categorías unificando espacios y guio
     assert.equal(normalizeFaultCategory('RED SUBTERRANEA'), 'RED-SUBTERRANEA');
     assert.equal(normalizeFaultCategory('RED-SUBTERRANEA'), 'RED-SUBTERRANEA');
     assert.equal(normalizeFaultCategory('TODO NORMAL EN TOMA'), 'DOMICILIO');
+
+    // Casos específicos del dropdown de objetos técnicos
+    assert.equal(normalizeFaultCategory('A'), '', 'Debe descartar inicial o letra A');
+    assert.equal(normalizeFaultCategory('ACOMETIDA'), 'CNX-AEREA');
+    assert.equal(normalizeFaultCategory('ACOMETIDA-AÉREA'), 'CNX-AEREA');
+    assert.equal(normalizeFaultCategory('ACOMETIDA-SUBTERRÁNEA'), 'CNX-SUBTERRANEA');
+    assert.equal(normalizeFaultCategory('BANCO-DE-MEDIDORES'), 'CNX-AEREA');
+    assert.equal(normalizeFaultCategory('BORNES'), 'CNX-AEREA');
+    assert.equal(normalizeFaultCategory('CONECTOR'), 'CNX-AEREA');
+    assert.equal(normalizeFaultCategory('CABLE'), 'RED-AEREA');
+    assert.equal(normalizeFaultCategory('CABLE-ALUMINIO'), 'RED-AEREA');
+    assert.equal(normalizeFaultCategory('CABLE-AUTOSOPORTADO'), 'RED-AEREA');
+    assert.equal(normalizeFaultCategory('CABLE-COMUNICACION'), 'RED-AEREA');
+    assert.equal(normalizeFaultCategory('CABLE-DE-COMUNICACIÓN---PASANTE'), 'RED-AEREA');
+    assert.equal(normalizeFaultCategory('CABLE-NKY'), 'RED-SUBTERRANEA');
+    assert.equal(normalizeFaultCategory('CABLE-NYY'), 'RED-SUBTERRANEA');
+    assert.equal(normalizeFaultCategory('CABLE-UNIPOLAR-COBRE'), 'RED-SUBTERRANEA');
+    assert.equal(normalizeFaultCategory('SUMINISTRO SP'), 'DOMICILIO');
 });
 
 test('renderTableRow: genera fila de SED con acordeón desplegable de cierres anteriores', () => {

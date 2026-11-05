@@ -290,10 +290,10 @@
                 const rawSuminCount = getProp(item, 'Conteo_Fallas_Suministro_7D', 'Fallas_Suministro_7D');
                 const suministroCount = parseInt(rawSuminCount, 10) || 0;
 
-                // Historial de reincidencias de suministros (JSON y fallback)
+                // Historial de reincidencias de suministros (JSON y fallback - ventana 7 días)
                 const rawHistSumin = getProp(item, 'HISTORIAL_SUMINISTRO_JSON', 'historial_suministro_json', 'Historial_Suministro_JSON', 'HISTORIAL_JSON');
                 let parsedHistorialItems = [];
-                let parsedDias = 2;
+                let parsedDias = 7;
 
                 if (rawHistSumin) {
                     try {
@@ -317,7 +317,7 @@
                         const matches = window.ejecutadosRecords.filter(ex => {
                             const exSum = String(ex.Suministro || ex.suministro || ex['Objeto Técnico'] || '').trim();
                             return exSum && exSum === cleanSum;
-                        }).slice(0, 5);
+                        }).slice(-10);
 
                         if (matches.length > 0) {
                             parsedHistorialItems = matches.map(ex => ({
