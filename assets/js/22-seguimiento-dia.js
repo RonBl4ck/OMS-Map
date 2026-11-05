@@ -42,6 +42,8 @@
         selectedDate: '7D',            // Por defecto: '7D' (Vista General 7 Días)
         selectedContractor: 'ALL',
         selectedWorkType: 'ALL',
+        selectedFalla: 'ALL',
+        selectedFallaReal: 'ALL',
         startHour: 0,
         endHour: 24,
         searchQuery7D: '',
@@ -59,6 +61,7 @@
      * Inyecta los estilos CSS optimizados con micro-interacciones Emil Kowalski.
      */
     function injectStyles() {
+        if (typeof document === 'undefined') return;
         const styleId = 'seguimiento-dia-styles';
         if (document.getElementById(styleId)) return;
 
@@ -648,6 +651,29 @@
                 font-size: 12px;
                 max-width: 380px;
             }
+
+            .segdia-btn-toggle-closures {
+                background: #f1f5f9;
+                color: #1e40af;
+                border: 1px solid #cbd5e1;
+                border-radius: 6px;
+                font-size: 11px;
+                font-weight: 600;
+                padding: 3px 8px;
+                cursor: pointer;
+                transition: all var(--anim-fast);
+            }
+            .segdia-btn-toggle-closures:hover {
+                background: #e2e8f0;
+                color: #1d4ed8;
+            }
+            .segdia-closures-row {
+                transition: all var(--anim-fast);
+            }
+            .segdia-table-nested th, .segdia-table-nested td {
+                padding: 6px 8px;
+                text-align: left;
+            }
         `;
 
         const style = document.createElement('style');
@@ -824,7 +850,7 @@
      */
     function extractSuministroFromRow(row) {
         if (!row || typeof row !== 'object') return '';
-        const keys = ['Suministro', 'SUMINISTRO', 'suministro', 'Cliente', 'CLIENTE', 'cliente', 'Inscripcion', 'INSCRIPCION', 'inscripcion', 'NIS', 'nis', 'Nis_Rad', 'nis_rad', 'Numero de Cliente', 'COD_CLIENTE'];
+        const keys = ['Suministro', 'SUMINISTRO', 'suministro', 'Objeto Técnico', 'Objeto Tecnico', 'objeto_tecnico', 'OBJETO_TECNICO', 'Cliente', 'CLIENTE', 'cliente', 'Inscripcion', 'INSCRIPCION', 'inscripcion', 'NIS', 'nis', 'Nis_Rad', 'nis_rad', 'Numero de Cliente', 'COD_CLIENTE'];
         for (const k of keys) {
             if (row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== '') {
                 const val = String(row[k]).trim();
@@ -850,6 +876,156 @@
     function extractAlimentadorFromRow(row) {
         if (!row || typeof row !== 'object') return '-';
         return row['Alimentador'] || row['alimentador'] || row['ALIMENTADOR'] || row['CT'] || '-';
+    }
+
+    /**
+     * Helper para extraer Falla OMS / Tipo de falla.
+     */
+    function extractFallaFromRow(row) {
+        if (!row || typeof row !== 'object') return '-';
+        return row['Falla'] || row['falla'] || row['FALLA'] || row['Falla OMS'] || row['falla_odm2'] || row['Falla ODM2'] || row['tipo_falla'] || row['Tipo de Falla'] || row['Tipo Falla'] || '-';
+    }
+
+    /**
+     * Helper para extraer Falla Real.
+     */
+    function extractFallaRealFromRow(row) {
+        if (!row || typeof row !== 'object') return '-';
+        return row['Falla Real'] || row['falla_real'] || row['fallaReal'] || row['FALLA_REAL'] || row['falla_real_odm2'] || '-';
+    }
+
+    /**
+     * Helper para extraer Ticket / Incidencia.
+     */
+    function extractTicketFromRow(row) {
+        if (!row || typeof row !== 'object') return '-';
+        return row['ticket'] || row['Ticket'] || row['Nro. Ticket'] || row['Numero de averia'] || row['Número de avería'] || row['INCIDENCIA'] || row['Incidencia'] || row['id'] || '-';
+    }
+
+    /**
+     * Helper para extraer Fecha de restauración o inicio.
+     */
+    function extractFechaFromRow(row) {
+        if (!row || typeof row !== 'object') return '-';
+        return row['Hora de restauración'] || row['Hora de restauracion'] || row['fecha_restauracion'] || row['Hora de inicio'] || row['fecha_inicio'] || row['Fecha Inicio'] || '-';
+    }
+
+    /**
+     * Helper para extraer Técnico o Cuadrilla.
+     */
+    function extractTecnicoFromRow(row) {
+        if (!row || typeof row !== 'object') return '-';
+        return row['Técnico'] || row['tecnico'] || row['Tecnico'] || row['Contratista'] || row['Empresa'] || row['EMPRESA'] || '-';
+    }
+
+    /**
+     * Helper para extraer Nota específica / Observaciones.
+     */
+    function extractNotaFromRow(row) {
+        if (!row || typeof row !== 'object') return '-';
+        return row['Nota específica'] || row['nota_especifica'] || row['nota'] || row['Nota'] || row['Observaciones'] || row['Comentario'] || row['observaciones'] || '-';
+    }
+
+    /**
+     * Obtiene lista de tipos de falla (Falla OMS) disponibles.
+     */
+    function getFallasList(ejecutados, pendientes) {
+        const set = new Set();
+        const check = r => {
+            const f = extractFallaFromRow(r);
+            if (f && f !== '-' && f !== 'null' && f !== 'undefined' && f !== 'N/A') {
+                set.add(String(f).trim());
+            }
+        };
+        ejecutados.forEach(check);
+        pendientes.forEach(check);
+        return Array.from(set).sort();
+    }
+
+    /**
+     * Obtiene lista de fallas reales disponibles.
+     */
+    function getFallasRealesList(ejecutados, pendientes) {
+        const set = new Set();
+        const check = r => {
+            const fr = extractFallaRealFromRow(r);
+            if (fr && fr !== '-' && fr !== 'null' && fr !== 'undefined' && fr !== 'N/A') {
+                set.add(String(fr).trim());
+            }
+        };
+        ejecutados.forEach(check);
+        pendientes.forEach(check);
+        return Array.from(set).sort();
+    }
+
+    /**
+     * Clasificación estricta de fallas a nivel de red para SEDs.
+     * Excluye fallas individuales de cliente/conexión/acometida y
+     * acepta exclusivamente fallas de red (FUSIBLE a más).
+     * @param {Object} record
+     * @returns {boolean}
+     */
+    function isNetworkLevelFaultForSed(record) {
+        if (!record || typeof record !== 'object') return false;
+
+        const getVal = (...keys) => {
+            for (const k of keys) {
+                if (record[k] !== undefined && record[k] !== null && String(record[k]).trim() !== '') {
+                    return String(record[k]).trim();
+                }
+            }
+            return '';
+        };
+
+        const fallaReal = getVal('falla_real', 'Falla Real', 'fallaReal', 'FALLA_REAL', 'falla_real_odm2').toUpperCase();
+        const falla = getVal('falla', 'Falla', 'FALLA', 'falla_odm2', 'Falla ODM2', 'tipo_falla', 'Tipo de Falla', 'Tipo Falla').toUpperCase();
+        const alcance = getVal('alcance', 'Alcance', 'ALCANCE', 'tipo_red', 'Tipo de Red').toUpperCase();
+
+        const afectacionRaw = record['afectacion'] ?? record['Afectacion'] ?? record['AFECTACION'] ??
+                              record['Clientes Afectados'] ?? record['clientes_afectados'] ??
+                              record['cant_clientes'] ?? record['Afectación'] ?? record['Clientes_Afectados'] ?? null;
+        const afectacion = (afectacionRaw !== null && afectacionRaw !== '' && !isNaN(Number(afectacionRaw))) 
+            ? Number(afectacionRaw) : null;
+
+        const EXCLUDE_WORDS = [
+            'SUMINISTRO', 'DOMICILIO', 'CNX', 'CONEXION', 'CONEXION BT',
+            'ACOMETIDA', 'MEDIDOR', 'BORNERA', 'INTERIOR', 'CLIENTE', 'SIN SERVICIO'
+        ];
+
+        const INCLUDE_WORDS = [
+            'FUSIBLE', 'LLAVE', 'RED-AEREA', 'RED_AEREA', 'RED AEREA',
+            'RED-SUBTERRANEA', 'RED_SUBTERRANEA', 'RED SUBTERRANEA',
+            'DAM', 'POSTE', 'TRAFO', 'SUBESTACION', 'CONDUCTOR', 'CABLE', 'FASE', 'MT'
+        ];
+
+        const containsAny = (str, list) => {
+            if (!str) return false;
+            return list.some(w => str.includes(w));
+        };
+
+        // 1. Exclusión prioritaria por falla_real
+        if (fallaReal) {
+            if (containsAny(fallaReal, EXCLUDE_WORDS)) return false;
+            if (containsAny(fallaReal, INCLUDE_WORDS)) return true;
+        }
+
+        // 2. Si alcance es SUMINISTRO y afectación <= 1
+        if (alcance.includes('SUMINISTRO') && (afectacion === null || afectacion <= 1)) {
+            return false;
+        }
+
+        // 3. Evaluar falla / tipo_falla
+        if (falla) {
+            if (containsAny(falla, EXCLUDE_WORDS)) return false;
+            if (containsAny(falla, INCLUDE_WORDS)) return true;
+        }
+
+        // 4. Si el alcance es SED o afectación > 1 (falla masiva BT o red)
+        if (alcance.includes('SED') || (afectacion !== null && afectacion > 1)) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -1189,27 +1365,9 @@
      * Obtiene registros de SEDs o Suministros recurrentes en los últimos 7 días.
      */
     function computeRecurrentItems(pendientes, ejecutados, options, tab) {
-        const service = window.SeguimientoDiaService || (typeof SeguimientoDiaService !== 'undefined' ? SeguimientoDiaService : null);
-
         if (tab === 'SUMINISTROS') {
-            if (service && typeof service.getRecurrentSuministros7D === 'function') {
-                try {
-                    const res = service.getRecurrentSuministros7D(pendientes, ejecutados, options);
-                    if (Array.isArray(res)) return res.map(normalizeSuministroItem);
-                } catch (err) {
-                    console.warn('[SeguimientoDia] Error en getRecurrentSuministros7D:', err);
-                }
-            }
             return computeLocalRecurrentSuministros(pendientes, ejecutados, options);
         } else {
-            if (service && typeof service.getRecurrentSeds7D === 'function') {
-                try {
-                    const res = service.getRecurrentSeds7D(pendientes, ejecutados, options);
-                    if (Array.isArray(res)) return res.map(normalizeSedItem);
-                } catch (err) {
-                    console.warn('[SeguimientoDia] Error en getRecurrentSeds7D:', err);
-                }
-            }
             return computeLocalRecurrentSeds(pendientes, ejecutados, options);
         }
     }
@@ -1224,13 +1382,15 @@
         const alimentador = item.alimentador || item.ct || '-';
         const total7D = Number(item.total7D ?? item.eventos7D ?? item.total ?? 0);
         const pendientesActivos = Number(item.pendientesActivos ?? (item.tienePendiente ? 1 : 0));
+        const fallasRealesBreakdown = item.fallasRealesBreakdown || '';
 
         return {
             sed,
             distrito,
             alimentador,
             total7D,
-            pendientesActivos
+            pendientesActivos,
+            fallasRealesBreakdown
         };
     }
 
@@ -1245,6 +1405,8 @@
         const alimentador = item.alimentador || '-';
         const total7D = Number(item.total7D ?? item.eventos7D ?? item.total ?? 0);
         const pendientesActivos = Number(item.pendientesActivos ?? (item.tienePendiente ? 1 : 0));
+        const fallaReal = item.fallaReal || item.falla_real || '-';
+        const closures = Array.isArray(item.closures) ? item.closures : [];
 
         return {
             suministro,
@@ -1252,16 +1414,20 @@
             distrito,
             alimentador,
             total7D,
-            pendientesActivos
+            pendientesActivos,
+            fallaReal,
+            falla_real: fallaReal,
+            closures
         };
     }
 
     /**
-     * Fallback local para SEDs recurrentes en 7D.
+     * Fallback local para SEDs recurrentes en 7D con filtrado estricto a nivel de red.
      */
     function computeLocalRecurrentSeds(pendientes, ejecutados, options) {
-        const contractor = (options.contractor && options.contractor !== 'ALL' && options.contractor !== '*') 
-            ? String(options.contractor).toUpperCase() : null;
+        const opts = options || {};
+        const contractor = (opts.contractor && opts.contractor !== 'ALL' && opts.contractor !== '*') 
+            ? String(opts.contractor).toUpperCase() : null;
 
         const matchContractor = r => {
             if (!contractor) return true;
@@ -1273,6 +1439,9 @@
 
         const processRecord = (r, isPending) => {
             if (!matchContractor(r)) return;
+            // FILTRADO ESTRICTO DE RED (excluye suministros/conexiones/acometidas)
+            if (!isNetworkLevelFaultForSed(r)) return;
+
             const sed = extractSedFromRow(r);
             if (!sed) return;
 
@@ -1282,16 +1451,30 @@
                     distrito: extractDistritoFromRow(r),
                     alimentador: extractAlimentadorFromRow(r),
                     total7D: 0,
-                    pendientesActivos: 0
+                    pendientesActivos: 0,
+                    fallasRealesMap: new Map(),
+                    fallasRealesBreakdown: ''
                 });
             }
             const item = sedMap.get(sed);
             item.total7D++;
             if (isPending) item.pendientesActivos++;
+
+            const frRaw = extractFallaRealFromRow(r);
+            const fr = (frRaw && frRaw !== '-') ? frRaw : (extractFallaFromRow(r) !== '-' ? extractFallaFromRow(r) : 'RED');
+            if (fr) {
+                const frKey = String(fr).trim().toUpperCase();
+                item.fallasRealesMap.set(frKey, (item.fallasRealesMap.get(frKey) || 0) + 1);
+            }
         };
 
         pendientes.forEach(r => processRecord(r, true));
         ejecutados.forEach(r => processRecord(r, false));
+
+        sedMap.forEach(item => {
+            const sortedFr = Array.from(item.fallasRealesMap.entries()).sort((a, b) => b[1] - a[1]);
+            item.fallasRealesBreakdown = sortedFr.map(([fName, count]) => `${fName}: ${count}`).join(', ');
+        });
 
         const result = Array.from(sedMap.values());
         result.sort((a, b) => {
@@ -1305,11 +1488,12 @@
     }
 
     /**
-     * Fallback local para Suministros recurrentes en 7D.
+     * Fallback local para Suministros recurrentes en 7D con agrupación de cierres anteriores y Falla Real.
      */
     function computeLocalRecurrentSuministros(pendientes, ejecutados, options) {
-        const contractor = (options.contractor && options.contractor !== 'ALL' && options.contractor !== '*') 
-            ? String(options.contractor).toUpperCase() : null;
+        const opts = options || {};
+        const contractor = (opts.contractor && opts.contractor !== 'ALL' && opts.contractor !== '*') 
+            ? String(opts.contractor).toUpperCase() : null;
 
         const matchContractor = r => {
             if (!contractor) return true;
@@ -1319,13 +1503,7 @@
 
         const sumMap = new Map();
 
-        const processRecord = (r, isPending) => {
-            if (!matchContractor(r)) return;
-            const suministro = extractSuministroFromRow(r);
-            if (!suministro) return;
-
-            const sed = extractSedFromRow(r);
-
+        const getOrCreateSuministroItem = (r, suministro, sed) => {
             if (!sumMap.has(suministro)) {
                 sumMap.set(suministro, {
                     suministro,
@@ -1333,17 +1511,98 @@
                     distrito: extractDistritoFromRow(r),
                     alimentador: extractAlimentadorFromRow(r),
                     total7D: 0,
-                    pendientesActivos: 0
+                    pendientesActivos: 0,
+                    falla: '-',
+                    fallaReal: '-',
+                    falla_real: '-',
+                    closures: []
                 });
             }
             const item = sumMap.get(suministro);
-            item.total7D++;
-            if (isPending) item.pendientesActivos++;
             if ((!item.sed || item.sed === '-') && sed) item.sed = sed;
+            const fr = extractFallaRealFromRow(r);
+            if (fr && fr !== '-' && (!item.fallaReal || item.fallaReal === '-')) {
+                item.fallaReal = fr;
+                item.falla_real = fr;
+            }
+            const f = extractFallaFromRow(r);
+            if (f && f !== '-' && (!item.falla || item.falla === '-')) {
+                item.falla = f;
+            }
+            return item;
         };
 
-        pendientes.forEach(r => processRecord(r, true));
-        ejecutados.forEach(r => processRecord(r, false));
+        // Procesar pendientes
+        pendientes.forEach(r => {
+            if (!matchContractor(r)) return;
+            const suministro = extractSuministroFromRow(r);
+            if (!suministro) return;
+            const sed = extractSedFromRow(r);
+
+            const item = getOrCreateSuministroItem(r, suministro, sed);
+            item.total7D++;
+            item.pendientesActivos++;
+
+            // Si contiene HISTORIAL_SUMINISTRO_JSON en pendientes
+            if (r['HISTORIAL_SUMINISTRO_JSON']) {
+                try {
+                    const parsed = typeof r['HISTORIAL_SUMINISTRO_JSON'] === 'string'
+                        ? JSON.parse(r['HISTORIAL_SUMINISTRO_JSON'])
+                        : r['HISTORIAL_SUMINISTRO_JSON'];
+                    const items = Array.isArray(parsed) ? parsed : (parsed.items || []);
+                    items.forEach(h => {
+                        const tk = h.t || h.ticket;
+                        if (tk && !item.closures.some(c => c.ticket === tk)) {
+                            item.closures.push({
+                                ticket: tk,
+                                fecha: h.f || h.fecha || '-',
+                                tecnico: h.tec || h.tecnico || '-',
+                                falla: h.falla || '-',
+                                falla_real: h.fr || h.falla_real || h.fallaReal || '-',
+                                fallaReal: h.fr || h.falla_real || h.fallaReal || '-',
+                                nota: h.nota || '-'
+                            });
+                        }
+                    });
+                } catch (e) { /* ignore parse error */ }
+            }
+        });
+
+        // Procesar ejecutados (cierres previos)
+        ejecutados.forEach(r => {
+            if (!matchContractor(r)) return;
+            const suministro = extractSuministroFromRow(r);
+            if (!suministro) return;
+            const sed = extractSedFromRow(r);
+
+            const item = getOrCreateSuministroItem(r, suministro, sed);
+            item.total7D++;
+
+            const tk = extractTicketFromRow(r);
+            const fecha = extractFechaFromRow(r);
+            const tecnico = extractTecnicoFromRow(r);
+            const falla = extractFallaFromRow(r);
+            const fallaReal = extractFallaRealFromRow(r);
+            const nota = extractNotaFromRow(r);
+
+            if (fallaReal && fallaReal !== '-') {
+                item.fallaReal = fallaReal;
+                item.falla_real = fallaReal;
+            }
+
+            // Evitar duplicar el mismo ticket en closures
+            if (!item.closures.some(c => c.ticket === tk && tk !== '-')) {
+                item.closures.push({
+                    ticket: tk,
+                    fecha: fecha,
+                    tecnico: tecnico,
+                    falla: falla,
+                    falla_real: fallaReal,
+                    fallaReal: fallaReal,
+                    nota: nota
+                });
+            }
+        });
 
         const result = Array.from(sumMap.values());
         result.sort((a, b) => {
@@ -2002,8 +2261,21 @@
         const badgeText = `${item.pendientesActivos} pendientes`;
 
         if (isSuministro) {
-            return `
-                <tr>
+            const hasClosures = Array.isArray(item.closures) && item.closures.length > 0;
+            const closuresCount = hasClosures ? item.closures.length : 0;
+            const frText = item.fallaReal || item.falla_real || '-';
+            const fallaRealBadge = (frText && frText !== '-')
+                ? `<span class="segdia-pill pill-amber" style="font-size: 11px;">⚡ ${escapeHtml(frText)}</span>`
+                : `<span style="color: #94a3b8; font-size: 11px;">-</span>`;
+
+            const closuresBtn = hasClosures ? `
+                <button type="button" class="segdia-btn-icon segdia-btn-toggle-closures" data-suministro="${escapeHtml(item.suministro)}" title="Ver ${closuresCount} cierres anteriores" style="margin-right: 4px;">
+                    🔍 Cierres (${closuresCount})
+                </button>
+            ` : '';
+
+            const mainRow = `
+                <tr class="segdia-row-suministro" data-suministro="${escapeHtml(item.suministro)}">
                     <td>
                         <span class="segdia-code-badge" style="color: #1e40af; background: ${PALETTE.ingresosLight};">
                             ${escapeHtml(item.suministro)}
@@ -2013,28 +2285,84 @@
                         <div style="font-weight: 600; color: #1e293b;">SED: ${escapeHtml(item.sed)}</div>
                         <div style="font-size: 11px; color: ${PALETTE.textMuted};">${escapeHtml(item.distrito)}</div>
                     </td>
+                    <td>
+                        ${fallaRealBadge}
+                    </td>
                     <td class="is-num" style="text-align: center;">
                         <span class="segdia-badge-val" style="font-size: 13px; font-weight: 700; color: #0f172a;">${item.total7D}</span>
                     </td>
                     <td>
                         <span class="segdia-badge-pendientes ${badgeClass}">${badgeText}</span>
                     </td>
-                    <td style="text-align: right;">
+                    <td style="text-align: right; white-space: nowrap;">
+                        ${closuresBtn}
                         <button type="button" class="segdia-btn-icon segdia-btn-focus-sed" data-sed="${escapeHtml(item.sed)}" data-suministro="${escapeHtml(item.suministro)}" title="Ubicar en mapa">
-                            🔍
+                            📍
                         </button>
                     </td>
                 </tr>
             `;
+
+            let detailRow = '';
+            if (hasClosures) {
+                detailRow = `
+                    <tr id="closures-row-${escapeHtml(item.suministro)}" class="segdia-closures-row" style="display: none; background: #f8fafc;">
+                        <td colspan="6" style="padding: 10px 16px;">
+                            <div class="segdia-closures-container" style="border: 1px solid #cbd5e1; border-radius: 8px; background: #ffffff; padding: 10px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <span style="font-weight: 700; font-size: 12px; color: #0f172a;">
+                                        📋 Historial de Cierres Anteriores — Suministro #${escapeHtml(item.suministro)} (${closuresCount} ${closuresCount === 1 ? 'cierre' : 'cierres'})
+                                    </span>
+                                </div>
+                                <div style="overflow-x: auto;">
+                                    <table class="segdia-table-nested" style="width: 100%; font-size: 11px; border-collapse: collapse;">
+                                        <thead>
+                                            <tr style="background: #f1f5f9; text-align: left; color: #475569; border-bottom: 1px solid #cbd5e1;">
+                                                <th style="padding: 6px 8px; width: 110px;">Fecha</th>
+                                                <th style="padding: 6px 8px; width: 90px;">Ticket</th>
+                                                <th style="padding: 6px 8px; width: 130px;">Técnico / Empresa</th>
+                                                <th style="padding: 6px 8px; width: 130px;">Falla (OMS)</th>
+                                                <th style="padding: 6px 8px; width: 120px;">Falla Real</th>
+                                                <th style="padding: 6px 8px;">Nota Específica</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${item.closures.map(c => `
+                                                <tr style="border-bottom: 1px solid #e2e8f0;">
+                                                    <td style="padding: 6px 8px; white-space: nowrap; font-variant-numeric: tabular-nums;">${escapeHtml(c.fecha)}</td>
+                                                    <td style="padding: 6px 8px; font-weight: 600; color: #1e40af;">#${escapeHtml(c.ticket)}</td>
+                                                    <td style="padding: 6px 8px;">${escapeHtml(c.tecnico)}</td>
+                                                    <td style="padding: 6px 8px;"><span class="segdia-pill pill-blue">${escapeHtml(c.falla)}</span></td>
+                                                    <td style="padding: 6px 8px;"><span class="segdia-pill pill-amber">${escapeHtml(c.falla_real || c.fallaReal)}</span></td>
+                                                    <td style="padding: 6px 8px; color: #334155; font-style: italic; word-break: break-word;">${escapeHtml(c.nota)}</td>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }
+
+            return mainRow + detailRow;
         } else {
+            const breakdownBadge = item.fallasRealesBreakdown
+                ? `<span class="segdia-pill pill-amber" style="font-size: 11px; white-space: normal; display: inline-block; max-width: 260px;" title="${escapeHtml(item.fallasRealesBreakdown)}">⚡ ${escapeHtml(item.fallasRealesBreakdown)}</span>`
+                : '<span style="color: #94a3b8; font-size: 11px;">-</span>';
+
             return `
-                <tr>
+                <tr class="segdia-row-sed">
                     <td>
                         <span class="segdia-code-badge">${escapeHtml(item.sed)}</span>
                     </td>
                     <td>
                         <div style="font-weight: 600; color: #1e293b;">${escapeHtml(item.distrito)}</div>
                         <div style="font-size: 11px; color: ${PALETTE.textMuted};">CT: ${escapeHtml(item.alimentador)}</div>
+                    </td>
+                    <td>
+                        ${breakdownBadge}
                     </td>
                     <td class="is-num" style="text-align: center;">
                         <span class="segdia-badge-val" style="font-size: 13px; font-weight: 700; color: #0f172a;">${item.total7D}</span>
@@ -2044,7 +2372,7 @@
                     </td>
                     <td style="text-align: right;">
                         <button type="button" class="segdia-btn-icon segdia-btn-focus-sed" data-sed="${escapeHtml(item.sed)}" title="Ubicar en mapa">
-                            🔍
+                            📍
                         </button>
                     </td>
                 </tr>
@@ -2098,11 +2426,33 @@
         }
 
         const contractors = getContractorsList(ejecutados, pendientes);
+        const fallasList = getFallasList(ejecutados, pendientes);
+        const fallasRealesList = getFallasRealesList(ejecutados, pendientes);
+
         const contractorParam = (!state.selectedContractor || state.selectedContractor === 'ALL') ? '*' : state.selectedContractor;
         const workTypeParam = (!state.selectedWorkType || state.selectedWorkType === 'ALL') ? '*' : state.selectedWorkType;
 
+        // Filtro doble: Falla (OMS) y Falla Real
+        const filterFalla = (state.selectedFalla && state.selectedFalla !== 'ALL') ? String(state.selectedFalla).toUpperCase() : null;
+        const filterFallaReal = (state.selectedFallaReal && state.selectedFallaReal !== 'ALL') ? String(state.selectedFallaReal).toUpperCase() : null;
+
+        const matchesFallaFilters = r => {
+            if (filterFalla) {
+                const f = String(extractFallaFromRow(r)).toUpperCase();
+                if (!f.includes(filterFalla)) return false;
+            }
+            if (filterFallaReal) {
+                const fr = String(extractFallaRealFromRow(r)).toUpperCase();
+                if (!fr.includes(filterFallaReal)) return false;
+            }
+            return true;
+        };
+
+        const filteredPendientes = pendientes.filter(matchesFallaFilters);
+        const filteredEjecutados = ejecutados.filter(matchesFallaFilters);
+
         // Calcular datos según fecha seleccionada ('7D' o día específico)
-        const productivity = computeDailyProductivity(pendientes, ejecutados, {
+        const productivity = computeDailyProductivity(filteredPendientes, filteredEjecutados, {
             date: state.selectedDate,
             contractor: contractorParam,
             workType: workTypeParam,
@@ -2112,7 +2462,7 @@
 
         // Monitor dual de recurrencia (SEDs vs Suministros)
         const isSuministrosTab = state.recurrenceTab === 'SUMINISTROS';
-        const recurrentItems = computeRecurrentItems(pendientes, ejecutados, {
+        const recurrentItems = computeRecurrentItems(filteredPendientes, filteredEjecutados, {
             contractor: contractorParam,
             workType: workTypeParam
         }, state.recurrenceTab);
@@ -2190,6 +2540,18 @@
                         <select id="segdiaSelectContractor" class="segdia-select" aria-label="Seleccionar contratista">
                             <option value="ALL" ${state.selectedContractor === 'ALL' ? 'selected' : ''}>Todas las empresas</option>
                             ${contractors.map(c => `<option value="${c}" ${c === state.selectedContractor ? 'selected' : ''}>${c}</option>`).join('')}
+                        </select>
+
+                        <label class="segdia-filter-label" for="segFilterFalla">Falla (OMS):</label>
+                        <select id="segFilterFalla" class="segdia-select" aria-label="Seleccionar falla OMS">
+                            <option value="ALL" ${state.selectedFalla === 'ALL' ? 'selected' : ''}>Todas las fallas</option>
+                            ${fallasList.map(f => `<option value="${escapeHtml(f)}" ${f === state.selectedFalla ? 'selected' : ''}>${escapeHtml(f)}</option>`).join('')}
+                        </select>
+
+                        <label class="segdia-filter-label" for="segFilterFallaReal">Falla Real:</label>
+                        <select id="segFilterFallaReal" class="segdia-select" aria-label="Seleccionar falla real">
+                            <option value="ALL" ${state.selectedFallaReal === 'ALL' ? 'selected' : ''}>Todas las fallas reales</option>
+                            ${fallasRealesList.map(fr => `<option value="${escapeHtml(fr)}" ${fr === state.selectedFallaReal ? 'selected' : ''}>${escapeHtml(fr)}</option>`).join('')}
                         </select>
 
                         
@@ -2335,9 +2697,10 @@
                                     <tr>
                                         <th style="width: 140px;">${isSuministrosTab ? 'Suministro' : 'SED'}</th>
                                         <th>${isSuministrosTab ? 'SED Asignada / Distrito' : 'Ubicación / CT'}</th>
-                                        <th style="width: 100px; text-align: center;">Eventos 7D</th>
-                                        <th style="width: 140px;">Pendientes</th>
-                                        <th style="width: 70px; text-align: right;">Acción</th>
+                                        <th style="width: 150px;">${isSuministrosTab ? 'Falla Real' : 'Fallas Reales'}</th>
+                                        <th style="width: 90px; text-align: center;">Eventos 7D</th>
+                                        <th style="width: 120px;">Pendientes</th>
+                                        <th style="width: 120px; text-align: right;">Acción</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -2388,6 +2751,22 @@
         if (contractorSelect) {
             contractorSelect.addEventListener('change', (e) => {
                 state.selectedContractor = e.target.value;
+                render();
+            });
+        }
+
+        const filterFallaSelect = document.getElementById('segFilterFalla');
+        if (filterFallaSelect) {
+            filterFallaSelect.addEventListener('change', (e) => {
+                state.selectedFalla = e.target.value;
+                render();
+            });
+        }
+
+        const filterFallaRealSelect = document.getElementById('segFilterFallaReal');
+        if (filterFallaRealSelect) {
+            filterFallaRealSelect.addEventListener('change', (e) => {
+                state.selectedFallaReal = e.target.value;
                 render();
             });
         }
@@ -2472,10 +2851,26 @@
             });
         }
 
-        // Delegación de eventos para botones de ubicar SED en mapa
+        // Delegación de eventos para acordeón y botones de ubicar SED en mapa
         const tableContainer = document.querySelector('.segdia-table-container');
         if (tableContainer) {
             tableContainer.addEventListener('click', (e) => {
+                const toggleBtn = e.target.closest('.segdia-btn-toggle-closures');
+                if (toggleBtn) {
+                    const sumCode = toggleBtn.dataset.suministro;
+                    if (sumCode) {
+                        const row = document.getElementById(`closures-row-${sumCode}`);
+                        if (row) {
+                            const isHidden = row.style.display === 'none';
+                            row.style.display = isHidden ? 'table-row' : 'none';
+                            const matchNum = toggleBtn.title.match(/\d+/);
+                            const numStr = matchNum ? ` (${matchNum[0]})` : '';
+                            toggleBtn.textContent = isHidden ? '▲ Ocultar' : `🔍 Cierres${numStr}`;
+                        }
+                    }
+                    return;
+                }
+
                 const btn = e.target.closest('.segdia-btn-focus-sed');
                 if (btn) {
                     const sed = btn.dataset.sed;
@@ -2502,8 +2897,26 @@
         const contractorParam = (!state.selectedContractor || state.selectedContractor === 'ALL') ? '*' : state.selectedContractor;
         const workTypeParam = (!state.selectedWorkType || state.selectedWorkType === 'ALL') ? '*' : state.selectedWorkType;
 
+        const filterFalla = (state.selectedFalla && state.selectedFalla !== 'ALL') ? String(state.selectedFalla).toUpperCase() : null;
+        const filterFallaReal = (state.selectedFallaReal && state.selectedFallaReal !== 'ALL') ? String(state.selectedFallaReal).toUpperCase() : null;
+
+        const matchesFallaFilters = r => {
+            if (filterFalla) {
+                const f = String(extractFallaFromRow(r)).toUpperCase();
+                if (!f.includes(filterFalla)) return false;
+            }
+            if (filterFallaReal) {
+                const fr = String(extractFallaRealFromRow(r)).toUpperCase();
+                if (!fr.includes(filterFallaReal)) return false;
+            }
+            return true;
+        };
+
+        const filteredPendientes = pendientes.filter(matchesFallaFilters);
+        const filteredEjecutados = ejecutados.filter(matchesFallaFilters);
+
         const isSuministrosTab = state.recurrenceTab === 'SUMINISTROS';
-        const recurrentItems = computeRecurrentItems(pendientes, ejecutados, {
+        const recurrentItems = computeRecurrentItems(filteredPendientes, filteredEjecutados, {
             contractor: contractorParam,
             workType: workTypeParam
         }, state.recurrenceTab);
@@ -2543,9 +2956,10 @@
                     <tr>
                         <th style="width: 140px;">${isSuministrosTab ? 'Suministro' : 'SED'}</th>
                         <th>${isSuministrosTab ? 'SED Asignada / Distrito' : 'Ubicación / CT'}</th>
-                        <th style="width: 100px; text-align: center;">Eventos 7D</th>
-                        <th style="width: 140px;">Pendientes</th>
-                        <th style="width: 70px; text-align: right;">Acción</th>
+                        <th style="width: 150px;">${isSuministrosTab ? 'Falla Real' : 'Fallas Reales'}</th>
+                        <th style="width: 90px; text-align: center;">Eventos 7D</th>
+                        <th style="width: 120px;">Pendientes</th>
+                        <th style="width: 120px; text-align: right;">Acción</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -2589,12 +3003,30 @@
     global.initSeguimientoDia = initSeguimientoDia;
     global.renderSeguimientoDia = render;
     global.destroySeguimientoDia = destroyCharts;
+    global.isNetworkLevelFaultForSed = isNetworkLevelFaultForSed;
+    global.computeLocalRecurrentSeds = computeLocalRecurrentSeds;
+    global.computeLocalRecurrentSuministros = computeLocalRecurrentSuministros;
+    global.renderTableRow = renderTableRow;
 
     // Auto-inicialización si el elemento contenedor ya está presente en el DOM
-    document.addEventListener('DOMContentLoaded', () => {
-        if (document.getElementById('seguimientoDiaContainer')) {
-            initSeguimientoDia('seguimientoDiaContainer');
-        }
-    });
+    if (typeof document !== 'undefined') {
+        document.addEventListener('DOMContentLoaded', () => {
+            if (document.getElementById('seguimientoDiaContainer')) {
+                initSeguimientoDia('seguimientoDiaContainer');
+            }
+        });
+    }
 
-})(typeof window !== 'undefined' ? window : this);
+    if (typeof module !== 'undefined' && module.exports) {
+        module.exports = {
+            isNetworkLevelFaultForSed,
+            computeLocalRecurrentSeds,
+            computeLocalRecurrentSuministros,
+            renderTableRow,
+            initSeguimientoDia,
+            renderSeguimientoDia,
+            destroySeguimientoDia
+        };
+    }
+
+})(typeof window !== 'undefined' ? window : (typeof global !== 'undefined' ? global : this));

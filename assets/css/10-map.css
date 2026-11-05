@@ -690,3 +690,31 @@
         .sed-polygon-tooltip::before {
             border-top-color: rgba(15, 23, 42, 0.92) !important;
         }
+
+
+/* --- RESALTADO DE SUMINISTRO REINCIDENTE --- */
+.marker-sla-badge.is-suministro-reincidente {
+    border: 2px solid #f59e0b !important;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.45), 0 2px 6px rgba(15, 23, 42, 0.25) !important;
+}
+
+.marker-reinc-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background: #dc2626;
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1.2;
+    padding: 1px 5px;
+    border-radius: 9999px;
+    border: 1.5px solid #ffffff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+    z-index: 5;
+    pointer-events: none;
+}
+
+.popup-reincidente-card {
+    transition: all 0.2s ease;
+}

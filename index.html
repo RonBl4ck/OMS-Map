@@ -206,9 +206,9 @@
                     <input type="checkbox" id="chkReincSedMap" data-requires-primary-data style="cursor: pointer; accent-color: #dc2626; width: 13px; height: 13px;">
                     <span>🚨 SED >2</span>
                 </label>
-                <label class="checkbox-filter-label" style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; background: #ccfbf1; border: 1px solid #99f6e4; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; color: #0d9488; user-select: none;" title="Filtrar por Suministros con 2 o más fallas en los últimos 7 días">
+                <label id="lblReincSuminMap" class="checkbox-filter-label" style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; background: #ccfbf1; border: 1px solid #99f6e4; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; color: #0d9488; user-select: none;" title="Filtrar Suministros Reincidentes (≥2 fallas en la ventana configurada)">
                     <input type="checkbox" id="chkReincSuminMap" data-requires-primary-data style="cursor: pointer; accent-color: #0d9488; width: 13px; height: 13px;">
-                    <span>👤 Sum. ≥2</span>
+                    <span>👤 S. Reincidentes</span>
                 </label>
                 <label id="lblCriticaMap" class="checkbox-filter-label" style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; background: #fef3c7; border: 1px solid #fcd34d; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; color: #b45309; user-select: none;" title="Filtrar por SEDs más críticas y reincidentes (Top de Severidad)">
                     <input type="checkbox" id="chkCriticaMap" data-requires-primary-data style="cursor: pointer; accent-color: #d97706; width: 13px; height: 13px;">
@@ -343,9 +343,9 @@
                             <input type="checkbox" id="chkReincSedModal" style="cursor: pointer; accent-color: #dc2626; width: 15px; height: 15px;">
                             <span>🚨 SED >2 Fallas (7D)</span>
                         </label>
-                        <label class="checkbox-filter-label" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #ccfbf1; border: 1px solid #99f6e4; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700; color: #0d9488; user-select: none;" title="Filtrar por Suministros con 2 o más fallas en 7 días">
+                        <label id="lblReincSuminModal" class="checkbox-filter-label" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #ccfbf1; border: 1px solid #99f6e4; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700; color: #0d9488; user-select: none;" title="Filtrar Suministros Reincidentes (≥2 fallas en la ventana configurada)">
                             <input type="checkbox" id="chkReincSuminModal" style="cursor: pointer; accent-color: #0d9488; width: 15px; height: 15px;">
-                            <span>👤 Sum. ≥2 Fallas (7D)</span>
+                            <span>👤 S. Reincidentes</span>
                         </label>
                         <label id="lblCriticaModal" class="checkbox-filter-label" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #fef3c7; border: 1px solid #fcd34d; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700; color: #b45309; user-select: none;" title="Filtrar por SEDs más críticas y reincidentes (Top de Severidad)">
                             <input type="checkbox" id="chkCriticaModal" style="cursor: pointer; accent-color: #d97706; width: 15px; height: 15px;">

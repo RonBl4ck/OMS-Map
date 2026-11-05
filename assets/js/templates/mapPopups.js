@@ -62,6 +62,72 @@
             sedBadgeHtml = `<span style="font-size:10px; font-weight:bold; color:#2b4791; background:#dbeafe; padding:1px 6px; border-radius:4px;">(7D: ${loc.sed_count} fallas)</span>`;
         }
 
+        // Historial y tarjeta de suministro reincidente
+        const isSuministroReinc = Boolean(loc.suministro_reincidente || (loc.suministro_count >= 2));
+        let reincCardHtml = '';
+        if (isSuministroReinc) {
+            let historial = Array.isArray(loc.suministro_historial) ? [...loc.suministro_historial] : [];
+            if (historial.length === 0 && loc.suministro && loc.suministro !== 'N/A') {
+                const exList = (typeof root !== 'undefined' && Array.isArray(root.ejecutadosRecords))
+                    ? root.ejecutadosRecords
+                    : (typeof window !== 'undefined' && Array.isArray(window.ejecutadosRecords) ? window.ejecutadosRecords : []);
+                if (exList.length > 0) {
+                    const sumNorm = String(loc.suministro).trim().toLowerCase();
+                    const matched = exList.filter(e => String(e.suministro || e.Suministro || '').trim().toLowerCase() === sumNorm);
+                    historial = matched.slice(-5).map(e => ({
+                        t: e.ticket || e.Ticket || '',
+                        f: e.fecha || e.Fecha || e.fecha_inicio || '',
+                        falla: e.falla || e.Falla || '',
+                        fr: e.falla_real || e.fallaReal || e['Falla Real'] || '',
+                        nota: String(e.nota || e.Nota || e.nota_especifica || e['Nota específica'] || '').substring(0, 140),
+                        tec: e.tecnico || e.Tecnico || e.empresa || e.Empresa || ''
+                    }));
+                }
+            }
+            const sumCount = parseInt(loc.suministro_count || (historial.length ? historial.length + 1 : 2), 10);
+            const sumDias = loc.suministro_ventana_dias || 2;
+
+            let itemsHtml = '';
+            if (historial.length > 0) {
+                itemsHtml = `
+                    <div style="margin-top:6px; display:flex; flex-direction:column; gap:5px;">
+                        ${historial.map(h => {
+                            const tk = escapeHtml(h.t || h.ticket || 'S/N');
+                            const fe = escapeHtml(h.f || h.fecha || '');
+                            const falOms = escapeHtml(h.falla || 'N/A');
+                            const falReal = escapeHtml(h.fr || h.falla_real || h.fallaReal || '');
+                            const tec = escapeHtml(h.tec || h.tecnico || h.empresa || '');
+                            const nota = escapeHtml(h.nota || h.comentario || '');
+                            return `
+                                <div style="background:#ffffff; border:1px solid #fde68a; border-radius:5px; padding:5px 7px; font-size:11px; line-height:1.35;">
+                                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:4px; margin-bottom:2px;">
+                                        <span style="font-weight:700; color:#b45309;">#${tk}${fe ? ` · 🕒 ${fe}` : ''}</span>
+                                        ${tec ? `<span style="font-size:10px; color:#475569; background:#f1f5f9; padding:1px 5px; border-radius:3px;">👷 ${tec}</span>` : ''}
+                                    </div>
+                                    <div style="display:flex; gap:4px; flex-wrap:wrap; margin:2px 0 3px 0;">
+                                        <span style="font-size:9.5px; font-weight:700; color:#1e40af; background:#dbeafe; padding:1px 5px; border-radius:3px;">OMS: ${falOms}</span>
+                                        ${falReal ? `<span style="font-size:9.5px; font-weight:700; color:#9a3412; background:#ffedd5; padding:1px 5px; border-radius:3px;">Real: ${falReal}</span>` : ''}
+                                    </div>
+                                    ${nota ? `<div style="font-size:10.5px; background:#fffdf5; padding:4px 6px; border-radius:4px; border:1px solid #fef3c7; color:#334155; font-style:italic; margin-top:3px;">"${nota}"</div>` : ''}
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+            } else {
+                itemsHtml = `<div style="font-size:10.5px; color:#78350f; font-style:italic; margin-top:4px;">No se registran notas de cierres previos en el rango.</div>`;
+            }
+
+            reincCardHtml = `
+                <div class="popup-reincidente-card" style="margin-top:8px; padding:8px; border:1px solid #f59e0b; background:#fffbeb; border-radius:6px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <b style="color:#b45309; font-size:11.5px;">🚨 Suministro Reincidente: ${escapeHtml(sumCount)} fallas (${escapeHtml(sumDias)}D)</b>
+                    </div>
+                    ${itemsHtml}
+                </div>
+            `;
+        }
+
         let supCardHtml = '';
         if (isAdmin) {
             const supData = (typeof getSupervisorDataForTicket === 'function') ? getSupervisorDataForTicket(loc.ticket) : null;
@@ -119,7 +185,8 @@
                 <b>Falla:</b> ${escapeHtml(loc.falla)}<br>
                 <b>SED Llave:</b> ${escapeHtml(loc.sed)} ${sedBadgeHtml}<br>
                 <b>Alimentador:</b> ${escapeHtml(loc.alimentador || 'N/A')}<br>
-                <b>Suministro:</b> ${escapeHtml(loc.suministro)} ${loc.suministro_count > 0 ? `<span style="font-size:10px; font-weight:bold; color:#0d9488; background:#ccfbf1; padding:1px 6px; border-radius:4px;">(7D: ${loc.suministro_count} fallas)</span>` : ''}<br>
+                <b>Suministro:</b> ${escapeHtml(loc.suministro)} ${isSuministroReinc ? `<span style="font-size:10px; font-weight:bold; color:#b45309; background:#fef3c7; border:1px solid #fcd34d; padding:1px 6px; border-radius:4px;">(${escapeHtml(loc.suministro_ventana_dias || 2)}D: ${escapeHtml(loc.suministro_count || 2)} fallas ⚠️)</span>` : (loc.suministro_count > 0 ? `<span style="font-size:10px; font-weight:bold; color:#0d9488; background:#ccfbf1; padding:1px 6px; border-radius:4px;">(7D: ${escapeHtml(loc.suministro_count)} fallas)</span>` : '')}<br>
+                ${reincCardHtml}
                 <b>Llamadas:</b> ${escapeHtml(llamadasLabel)} ${numLlamadas >= 7 ? `<span style="font-size:10px; font-weight:bold; color:#be123c; background:#ffe4e6; border:1px solid #fecdd3; padding:1px 6px; border-radius:4px;">📞 ≥7 LLAMADAS</span>` : ''}<br>
                 <b>Fecha Inicio:</b> ${escapeHtml(loc.fecha_inicio)}<br>
                 <b>Dirección:</b> ${escapeHtml(loc.direccion)}<br>
@@ -185,8 +252,18 @@
             ? getFaultIconHtml(loc.falla) 
             : '⚡';
 
+        const isSuministroReinc = Boolean(loc.suministro_reincidente || (loc.suministro_count >= 2));
+        const sumCount = parseInt(loc.suministro_count || (isSuministroReinc ? ((loc.suministro_historial && loc.suministro_historial.length) ? loc.suministro_historial.length + 1 : 2) : 1), 10);
+        const sumDias = loc.suministro_ventana_dias || 2;
+
+        let titleText = `Ticket: ${escapeHtml(loc.ticket)} | ${escapeHtml(loc.falla)} | Plazo: ${escapeHtml(sla.label)}`;
+        if (isSuministroReinc) {
+            titleText += ` | ⚠️ S. REINCIDENTE (${sumCount} fallas en ${sumDias} días)`;
+        }
+
         return `
-            <div class="marker-sla-badge ${sla.statusClass}${isExecution ? ' is-execution' : ''}${loc.es_top_critica ? ' is-sed-critica-pulse' : ''}" title="Ticket: ${escapeHtml(loc.ticket)} | ${escapeHtml(loc.falla)} | Plazo: ${escapeHtml(sla.label)}">
+            <div class="marker-sla-badge ${sla.statusClass}${isExecution ? ' is-execution' : ''}${loc.es_top_critica ? ' is-sed-critica-pulse' : ''}${isSuministroReinc ? ' is-suministro-reincidente' : ''}" title="${titleText}">
+                ${isSuministroReinc ? `<span class="marker-reinc-badge" title="Falla recurrente: ${escapeHtml(sumCount)} veces">x${escapeHtml(sumCount)}</span>` : ''}
                 ${isExecution ? '<span class="marker-vehicle-backdrop" aria-hidden="true">🚚</span>' : ''}
                 <span class="marker-fault-icon">${faultIconHtml}</span>
             </div>

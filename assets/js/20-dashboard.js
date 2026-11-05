@@ -49,7 +49,7 @@
                 const numLlamadas = parseInt(r.llamadas || 0, 10) || 0;
                 const matchLlamadas = !only7Llamadas || numLlamadas >= 7;
                 const matchSed = !onlyReincSed || (r.sed_reincidente || r.sed_count > 2);
-                const matchSum = !onlyReincSum || (r.suministro_count >= 2);
+                const matchSum = !onlyReincSum || (r.suministro_reincidente || r.suministro_count >= 2);
                 const matchCrit = !onlyCritModal || r.es_top_critica;
                 const matchDia = matchesMultiSelection(r.dia, selDias) && (!tdFilterDia || r.dia === tdFilterDia);
 

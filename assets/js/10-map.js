@@ -311,7 +311,7 @@
                 const record = {
                     lat, lon, ticket, odm, estado: est, empresa: emp, falla: fal, prioridad, duracion, sla,
                     sla_max_horas: slaMaxHoras, fecha_limite_sla: fechaLimiteSla,
-                    cadena, suministro, suministro_count: suministroCount, fecha_inicio: fechaIni, hora_inicio: fechaIni,
+                    cadena, suministro, suministro_count: finalSuministroCount, suministro_historial: parsedHistorialItems, suministro_ventana_dias: parsedDias, suministro_reincidente: isSuministroReincidente, fecha_inicio: fechaIni, hora_inicio: fechaIni,
                     direccion, distrito, intervalo, dia, sed: (sedCanonica !== 'N/A' && sedCanonica) ? sedCanonica : sed,
                     alimentador, sed_count: sedCount, sed_reincidente: sedReincidente, es_sed_critica: esCritica, afectacion, llamadas,
                     latitud: latitudVal, longitud: longitudVal, emoji: getEmoji(fal),
@@ -1146,7 +1146,7 @@
                 const numLlamadas = parseInt(item.llamadas || 0, 10) || 0;
                 const matchLlamadas = !only7Llamadas || numLlamadas >= 7;
                 const matchSed = !onlyReincSed || (item.sed_reincidente || item.sed_count > 2);
-                const matchSum = !onlyReincSum || (item.suministro_count >= 2);
+                const matchSum = !onlyReincSum || (item.suministro_reincidente || item.suministro_count >= 2);
                 const isTopCrit = isAdmin && (typeof isTopCriticalSed === 'function' ? isTopCriticalSed(item.sed) : !!item.es_top_critica);
                 const matchCrit = !onlyCritica || isTopCrit;
 

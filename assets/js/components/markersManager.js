@@ -48,8 +48,16 @@
             const safeTicket = String(loc.ticket || '').replace(/"/g, '&quot;');
             const safeFalla = String(loc.falla || '').replace(/"/g, '&quot;');
             const safeSla = String(sla.label || '').replace(/"/g, '&quot;');
+            const isSuministroReinc = Boolean(loc.suministro_reincidente || (loc.suministro_count >= 2));
+            const sumCount = parseInt(loc.suministro_count || 1, 10);
+            const sumDias = loc.suministro_ventana_dias || 2;
+            let titleText = `Ticket: ${safeTicket} | ${safeFalla} | Plazo: ${safeSla}`;
+            if (isSuministroReinc) {
+                titleText += ` | ⚠️ S. REINCIDENTE (${sumCount} fallas en ${sumDias} días)`;
+            }
             iconHtml = `
-                <div class="marker-sla-badge ${sla.statusClass}${isExecution ? ' is-execution' : ''}${loc.es_top_critica ? ' is-sed-critica-pulse' : ''}" title="Ticket: ${safeTicket} | ${safeFalla} | Plazo: ${safeSla}">
+                <div class="marker-sla-badge ${sla.statusClass}${isExecution ? ' is-execution' : ''}${loc.es_top_critica ? ' is-sed-critica-pulse' : ''}${isSuministroReinc ? ' is-suministro-reincidente' : ''}" title="${titleText}">
+                    ${isSuministroReinc ? `<span class="marker-reinc-badge" title="Falla recurrente: ${sumCount} veces">x${sumCount}</span>` : ''}
                     ${isExecution ? '<span class="marker-vehicle-backdrop" aria-hidden="true">🚚</span>' : ''}
                     <span class="marker-fault-icon">${faultIcon}</span>
                 </div>
@@ -205,7 +213,7 @@
             const numLlamadas = parseInt(item.llamadas || 0, 10) || 0;
             const matchLlamadas = !only7Llamadas || numLlamadas >= 7;
             const matchSed = !onlyReincSed || (item.sed_reincidente || item.sed_count > 2);
-            const matchSum = !onlyReincSum || (item.suministro_count >= 2);
+            const matchSum = !onlyReincSum || (item.suministro_reincidente || item.suministro_count >= 2);
             const isTopCrit = isAdmin && (typeof isTopCriticalSed === 'function' ? isTopCriticalSed(item.sed) : !!item.es_top_critica);
             const matchCrit = !onlyCritica || isTopCrit;
 
