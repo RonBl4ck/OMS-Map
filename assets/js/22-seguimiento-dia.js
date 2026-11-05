@@ -2360,11 +2360,14 @@
      * Genera la fila de la tabla para SED o Suministro.
      */
     function renderTableRow(item, isSuministro) {
+        const isPluz = typeof isCurrentUserAdmin === 'function' 
+            ? isCurrentUserAdmin() 
+            : (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('oms_user_role') === 'admin' || sessionStorage.getItem('oms_user_role') === '*') : true);
         const badgeClass = item.pendientesActivos > 0 ? 'is-active' : 'is-zero';
         const badgeText = `${item.pendientesActivos} pendientes`;
 
         if (isSuministro) {
-            const hasClosures = Array.isArray(item.closures) && item.closures.length > 0;
+            const hasClosures = isPluz && Array.isArray(item.closures) && item.closures.length > 0;
             const closuresCount = hasClosures ? item.closures.length : 0;
             const frText = item.fallaReal || item.falla_real || '-';
             const fallaRealBadge = (frText && frText !== '-')
@@ -2451,10 +2454,10 @@
 
             return mainRow + detailRow;
         } else {
-            const hasClosures = Array.isArray(item.closures) && item.closures.length > 0;
+            const hasClosures = isPluz && Array.isArray(item.closures) && item.closures.length > 0;
             const closuresCount = hasClosures ? item.closures.length : 0;
 
-            const breakdownBadge = item.fallasRealesBreakdown
+            const breakdownBadge = (isPluz && item.fallasRealesBreakdown)
                 ? `<span class="segdia-pill pill-amber" style="font-size: 11px; white-space: normal; display: inline-block; max-width: 260px;" title="${escapeHtml(item.fallasRealesBreakdown)}">⚡ ${escapeHtml(item.fallasRealesBreakdown)}</span>`
                 : '<span style="color: #94a3b8; font-size: 11px;">-</span>';
 

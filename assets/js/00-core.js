@@ -162,6 +162,7 @@
             }
         }
         if (typeof window !== 'undefined') {
+            window.isCurrentUserAdmin = isCurrentUserAdmin;
             window.cleanSupVal = cleanSupVal;
             window.getSupervisorDataForTicket = getSupervisorDataForTicket;
             window.getSupervisorLogsForSed = getSupervisorLogsForSed;

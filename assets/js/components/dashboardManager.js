@@ -394,7 +394,7 @@
                         <div class="ticket-cell">
                             <span class="ticket-number">${esc(r.ticket)}</span>
                             <button type="button" class="btn-ticket-pin" onclick="navigateToTicketOnMap('${esc(r.ticket)}')" title="Localizar ticket #${esc(r.ticket)} en el mapa" aria-label="Localizar ticket #${esc(r.ticket)} en el mapa">📍</button>
-                            ${(r.suministro_reincidente || (r.suministro_count >= 2)) ? `
+                            ${(isPluz && (r.suministro_reincidente || (r.suministro_count >= 2))) ? `
                                 <button type="button" class="btn-ticket-reinc" onclick="event.stopPropagation(); openSuministroHistoryModal('${esc(r.ticket)}')" title="⚠️ Suministro Reincidente: ${esc(r.suministro_count)} fallas (${esc(r.suministro_ventana_dias || 7)}D). Clic para ver historial de notas">⚠️ x${esc(r.suministro_count)}</button>
                             ` : ''}
                         </div>

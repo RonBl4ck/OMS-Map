@@ -189,3 +189,21 @@ test('tab Productividad se oculta por defecto en index.html y se reserva a perfi
     const navJs = fs.readFileSync(path.join(root, 'assets', 'js', '50-navigation.js'), 'utf8');
     assert.match(navJs, /function showSeguimientoDiaView\(\)[\s\S]*?sessionStorage\.getItem\(['"]oms_user_role['"]\)\s*!==\s*['"]admin['"]/, 'showSeguimientoDiaView debe bloquearse si no es admin');
 });
+
+test('historial de fallas y notas es exclusivo para el perfil PLUZ', () => {
+    const dashJs = fs.readFileSync(path.join(root, 'assets', 'js', '20-dashboard.js'), 'utf8');
+    const mgrJs = fs.readFileSync(path.join(root, 'assets', 'js', 'components', 'dashboardManager.js'), 'utf8');
+    const popupsJs = fs.readFileSync(path.join(root, 'assets', 'js', 'templates', 'mapPopups.js'), 'utf8');
+    const segDiaJs = fs.readFileSync(path.join(root, 'assets', 'js', '22-seguimiento-dia.js'), 'utf8');
+
+    // Dashboard y componente: botón [⚠️ xN] condicionado a isPluz
+    assert.ok(dashJs.includes('isPluz && (r.suministro_reincidente'), '20-dashboard.js debe restringir botón btn-ticket-reinc a isPluz');
+    assert.ok(mgrJs.includes('isPluz && (r.suministro_reincidente'), 'dashboardManager.js debe restringir botón btn-ticket-reinc a isPluz');
+    assert.ok(dashJs.includes('openSuministroHistoryModal') && dashJs.includes('Acceso restringido'), 'openSuministroHistoryModal debe validar perfil PLUZ');
+
+    // Popups del mapa: tarjeta reincidente condicionada a perfil PLUZ (isAdmin)
+    assert.ok(popupsJs.includes('isAdmin && Boolean(loc.suministro_reincidente'), 'mapPopups.js debe restringir reincidencia a isAdmin');
+
+    // Balance Diario: cierres previos condicionados a isPluz
+    assert.ok(segDiaJs.includes('hasClosures = isPluz &&'), '22-seguimiento-dia.js debe restringir acordéon de cierres a isPluz');
+});

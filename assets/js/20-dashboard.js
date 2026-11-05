@@ -630,7 +630,7 @@
                             <div class="ticket-cell">
                                 <span class="ticket-number">${escapeHtml(r.ticket)}</span>
                                 <button type="button" class="btn-ticket-pin" onclick="navigateToTicketOnMap('${escapeHtml(r.ticket)}')" title="Localizar ticket #${escapeHtml(r.ticket)} en el mapa" aria-label="Localizar ticket #${escapeHtml(r.ticket)} en el mapa">📍</button>
-                                ${(r.suministro_reincidente || (r.suministro_count >= 2)) ? `
+                                ${(isPluz && (r.suministro_reincidente || (r.suministro_count >= 2))) ? `
                                     <button type="button" class="btn-ticket-reinc" onclick="event.stopPropagation(); openSuministroHistoryModal('${escapeHtml(r.ticket)}')" title="⚠️ Suministro Reincidente: ${escapeHtml(r.suministro_count)} fallas (${escapeHtml(r.suministro_ventana_dias || 7)}D). Clic para ver historial de notas">⚠️ x${escapeHtml(r.suministro_count)}</button>
                                 ` : ''}
                             </div>
@@ -2208,6 +2208,13 @@
          */
         function openSuministroHistoryModal(ticketId) {
             if (!ticketId) return;
+            const isPluz = typeof isCurrentUserAdmin === 'function'
+                ? isCurrentUserAdmin()
+                : (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('oms_user_role') === 'admin' || sessionStorage.getItem('oms_user_role') === '*') : true);
+            if (!isPluz) {
+                console.warn("Acceso restringido: El historial de fallas y notas es exclusivo para el perfil PLUZ.");
+                return;
+            }
             const tStr = String(ticketId).trim();
 
             let target = null;

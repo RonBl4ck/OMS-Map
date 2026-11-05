@@ -44,7 +44,7 @@
 
         const isAdmin = typeof isCurrentUserAdmin === 'function' 
             ? isCurrentUserAdmin() 
-            : (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('oms_user_role') === 'admin');
+            : (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('oms_user_role') === 'admin' || sessionStorage.getItem('oms_user_role') === '*') : true);
 
         const stateClass = (typeof getOmsStatusClass === 'function') 
             ? getOmsStatusClass(loc.estado) 
@@ -58,12 +58,12 @@
         if (isSedCrit) {
             const countTxt = loc.sed_count > 0 ? ` (7D: ${loc.sed_count}${loc.sed_reincidente ? ' 🚨' : ''})` : '';
             sedBadgeHtml = `<span style="font-size:10px; font-weight:bold; color:#b91c1c; background:#fee2e2; border:1px solid #fca5a5; padding:1px 6px; border-radius:4px;">🚨 CRÍTICA${countTxt}</span>`;
-        } else if (loc.sed_count > 0) {
+        } else if (isAdmin && loc.sed_count > 0) {
             sedBadgeHtml = `<span style="font-size:10px; font-weight:bold; color:#2b4791; background:#dbeafe; padding:1px 6px; border-radius:4px;">(7D: ${loc.sed_count} fallas)</span>`;
         }
 
-        // Historial y tarjeta de suministro reincidente
-        const isSuministroReinc = Boolean(loc.suministro_reincidente || (loc.suministro_count >= 2));
+        // Historial y tarjeta de suministro reincidente (Exclusivo Perfil PLUZ)
+        const isSuministroReinc = isAdmin && Boolean(loc.suministro_reincidente || (loc.suministro_count >= 2));
         let reincCardHtml = '';
         if (isSuministroReinc) {
             let historial = Array.isArray(loc.suministro_historial) ? [...loc.suministro_historial] : [];
@@ -252,7 +252,11 @@
             ? getFaultIconHtml(loc.falla) 
             : '⚡';
 
-        const isSuministroReinc = Boolean(loc.suministro_reincidente || (loc.suministro_count >= 2));
+        const isAdmin = typeof isCurrentUserAdmin === 'function' 
+            ? isCurrentUserAdmin() 
+            : (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('oms_user_role') === 'admin' || sessionStorage.getItem('oms_user_role') === '*') : true);
+
+        const isSuministroReinc = isAdmin && Boolean(loc.suministro_reincidente || (loc.suministro_count >= 2));
         const sumCount = parseInt(loc.suministro_count || (isSuministroReinc ? ((loc.suministro_historial && loc.suministro_historial.length) ? loc.suministro_historial.length + 1 : 2) : 1), 10);
         const sumDias = loc.suministro_ventana_dias || 7;
 
