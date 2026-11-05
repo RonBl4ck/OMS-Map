@@ -43,7 +43,7 @@
         selectedContractor: 'ALL',
         selectedWorkType: 'ALL',
         startHour: 0,
-        endHour: 23,
+        endHour: 24,
         searchQuery7D: '',
         recurrenceTab: 'SEDS',         // 'SEDS' o 'SUMINISTROS'
         limit7D: 20,
@@ -91,59 +91,98 @@
                 border: 1px solid #cbd5e1;
                 border-radius: 8px;
                 padding: 4px 10px;
-                box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03);
-            }
-
-            .segdia-range-group {
-                display: inline-flex;
-                align-items: center;
-                gap: 6px;
             }
 
             .segdia-range-sublabel {
-                font-size: 11px;
+                font-size: 12px;
                 font-weight: 600;
-                color: #64748b;
-                margin-left: 2px;
+                color: #475569;
+                margin: 0 1px 0 2px;
+                user-select: none;
             }
 
-            .segdia-range-input {
-                width: 72px;
-                height: 5px;
-                accent-color: #2563eb;
-                cursor: pointer;
-                border-radius: 4px;
-                background: #cbd5e1;
-                vertical-align: middle;
-            }
-
-            .segdia-range-badge {
-                font-size: 11px;
-                font-weight: 700;
+            .segdia-time-select {
+                appearance: none;
+                -webkit-appearance: none;
+                -moz-appearance: none;
+                background: #ffffff url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%2364748b'%3e%3cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z' clip-rule='evenodd'/%3e%3c/svg%3e") no-repeat right 7px center / 13px;
+                border: 1px solid #cbd5e1;
+                border-radius: 8px;
+                padding: 5px 24px 5px 10px;
+                font-size: 12px;
+                font-weight: 600;
                 color: #1e293b;
                 font-variant-numeric: tabular-nums;
-                background: #ffffff;
-                border: 1px solid #e2e8f0;
-                border-radius: 4px;
-                padding: 1px 5px;
-                min-width: 44px;
-                text-align: center;
-                display: inline-block;
+                cursor: pointer;
+                outline: none;
+                transition: border-color 0.15s ease, box-shadow 0.15s ease;
+                min-width: 76px;
+            }
+
+            .segdia-time-select:hover {
+                border-color: #94a3b8;
+            }
+
+            .segdia-time-select:focus {
+                border-color: #3b82f6;
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+                background-color: #ffffff;
             }
 
             .segdia-btn-now {
-                padding: 4px 10px;
-                font-size: 11px;
-                background: #eff6ff;
-                color: #1d4ed8;
-                border: 1px solid #bfdbfe;
+                appearance: none;
+                border: none;
+                outline: none;
+                background: #2563eb;
+                color: #ffffff;
+                font-size: 12px;
                 font-weight: 700;
-                border-radius: 6px;
+                padding: 6px 14px;
+                border-radius: 8px;
+                cursor: pointer;
+                display: inline-flex;
+                align-items: center;
+                gap: 5px;
+                transition: background-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+                box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2);
+                user-select: none;
             }
 
             .segdia-btn-now:hover {
-                background: #dbeafe;
-                color: #1e40af;
+                background: #1d4ed8;
+                box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);
+            }
+
+            .segdia-btn-now:active {
+                transform: scale(0.97);
+            }
+
+            .segdia-btn-24h {
+                appearance: none;
+                outline: none;
+                background: #ffffff;
+                border: 1px solid #cbd5e1;
+                color: #334155;
+                font-size: 12px;
+                font-weight: 700;
+                padding: 5px 12px;
+                border-radius: 8px;
+                cursor: pointer;
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                transition: all 0.15s ease;
+                user-select: none;
+            }
+
+            .segdia-btn-24h:hover {
+                background: #f1f5f9;
+                color: #0f172a;
+                border-color: #94a3b8;
+            }
+
+            .segdia-btn-24h:active {
+                transform: scale(0.97);
             }
 
             /* Números tabulares */
@@ -928,9 +967,9 @@
         const targetDate = options.date;
         const contractor = (options.contractor && options.contractor !== 'ALL' && options.contractor !== '*') 
             ? String(options.contractor).toUpperCase() : null;
-        const startHour = (options && options.startHour !== undefined) ? Math.max(0, Math.min(23, parseInt(options.startHour, 10) || 0)) : 0;
-        const endHour = (options && options.endHour !== undefined) ? Math.max(startHour, Math.min(23, parseInt(options.endHour, 10) || 23)) : 23;
-        const isHourInRange = (h) => (h === null || h === undefined || isNaN(h)) ? true : (h >= startHour && h <= endHour);
+        const startHour = (options && options.startHour !== undefined) ? Math.max(0, Math.min(24, parseInt(options.startHour, 10) || 0)) : 0;
+        const endHour = (options && options.endHour !== undefined) ? Math.max(startHour, Math.min(24, parseInt(options.endHour, 10) || 24)) : 24;
+        const isHourInRange = (h) => (h === null || h === undefined || isNaN(h)) ? true : (h >= startHour && (endHour >= 24 ? h <= 23 : h <= endHour));
 
         const matchContractor = r => {
             if (!contractor) return true;
@@ -2154,26 +2193,32 @@
                         </select>
 
                         
-                        <!-- FILTRO HORARIO INTERACTIVO (DESPLAZABLE CON INICIO / FIN / AHORA) -->
+                        <!-- FILTRO HORARIO INTERACTIVO (DESDE / HASTA / AHORA / 24H) -->
                         <div class="segdia-time-filter">
-                            <span class="segdia-filter-label" title="Filtrar casos por franja horaria">⏱️ Horario:</span>
-                            <div class="segdia-range-group">
-                                <label for="segdiaStartHour" class="segdia-range-sublabel" title="Hora de inicio">Desde:</label>
-                                <input type="range" id="segdiaStartHour" class="segdia-range-input" min="0" max="23" value="${state.startHour}" step="1" title="Mover para desplazar hora de inicio">
-                                <span id="segdiaStartHourVal" class="segdia-range-badge">${String(state.startHour).padStart(2, '0')}:00</span>
+                            <label for="segdiaSelectStartHour" class="segdia-range-sublabel">Desde:</label>
+                            <select id="segdiaSelectStartHour" class="segdia-time-select" aria-label="Hora de inicio" title="Hora de inicio">
+                                ${Array.from({ length: 24 }, (_, i) => {
+                                    const hStr = String(i).padStart(2, '0') + ':00';
+                                    return `<option value="${i}" ${i === state.startHour ? 'selected' : ''}>${hStr}</option>`;
+                                }).join('')}
+                            </select>
 
-                                <label for="segdiaEndHour" class="segdia-range-sublabel" title="Hora de corte">Hasta:</label>
-                                <input type="range" id="segdiaEndHour" class="segdia-range-input" min="0" max="23" value="${state.endHour}" step="1" title="Mover para desplazar hora de corte">
-                                <span id="segdiaEndHourVal" class="segdia-range-badge">${String(state.endHour).padStart(2, '0')}:59</span>
-                            </div>
-                            <button type="button" id="btnSegdiaNow" class="segdia-btn segdia-btn-now" title="Ajustar corte hasta la hora actual (Ahora)">
+                            <label for="segdiaSelectEndHour" class="segdia-range-sublabel">Hasta:</label>
+                            <select id="segdiaSelectEndHour" class="segdia-time-select" aria-label="Hora de corte" title="Hora de corte">
+                                ${Array.from({ length: 25 }, (_, i) => {
+                                    const hStr = String(i).padStart(2, '0') + ':00';
+                                    return `<option value="${i}" ${i === state.endHour ? 'selected' : ''}>${hStr}</option>`;
+                                }).join('')}
+                            </select>
+
+                            <button type="button" id="btnSegdiaNow" class="segdia-btn-now" title="Ajustar corte hasta la hora actual (Ahora)">
                                 ⚡ Ahora
                             </button>
-                        </div>
 
-                        <button type="button" id="btnSegdiaRefresh" class="segdia-btn" title="Recalcular métricas">
-                            🔄 Actualizar
-                        </button>
+                            <button type="button" id="btnSegdia24h" class="segdia-btn-24h" title="Restablecer a jornada completa (24 horas)">
+                                24h
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -2348,45 +2393,29 @@
         }
 
         
-        // Filtro de horario: Start Hour
-        const startHourInput = document.getElementById('segdiaStartHour');
-        const startHourBadge = document.getElementById('segdiaStartHourVal');
-        const endHourInput = document.getElementById('segdiaEndHour');
-        const endHourBadge = document.getElementById('segdiaEndHourVal');
+        // Filtro de horario interactivo: Desde / Hasta con selección directa
+        const selectStartHour = document.getElementById('segdiaSelectStartHour');
+        const selectEndHour = document.getElementById('segdiaSelectEndHour');
 
-        if (startHourInput) {
-            startHourInput.addEventListener('input', (e) => {
-                let val = parseInt(e.target.value, 10) || 0;
-                if (val > state.endHour) {
-                    val = state.endHour;
-                    startHourInput.value = val;
-                }
+        if (selectStartHour) {
+            selectStartHour.addEventListener('change', (e) => {
+                const val = parseInt(e.target.value, 10) || 0;
                 state.startHour = val;
-                if (startHourBadge) {
-                    startHourBadge.textContent = String(val).padStart(2, '0') + ':00';
+                if (state.startHour > state.endHour) {
+                    state.endHour = state.startHour;
                 }
-            });
-
-            startHourInput.addEventListener('change', () => {
                 render();
             });
         }
 
-        if (endHourInput) {
-            endHourInput.addEventListener('input', (e) => {
-                let val = parseInt(e.target.value, 10);
-                if (isNaN(val)) val = 23;
-                if (val < state.startHour) {
-                    val = state.startHour;
-                    endHourInput.value = val;
+        if (selectEndHour) {
+            selectEndHour.addEventListener('change', (e) => {
+                const val = parseInt(e.target.value, 10);
+                const endVal = isNaN(val) ? 24 : val;
+                state.endHour = endVal;
+                if (state.endHour < state.startHour) {
+                    state.startHour = state.endHour;
                 }
-                state.endHour = val;
-                if (endHourBadge) {
-                    endHourBadge.textContent = String(val).padStart(2, '0') + ':59';
-                }
-            });
-
-            endHourInput.addEventListener('change', () => {
                 render();
             });
         }
@@ -2396,7 +2425,7 @@
         if (btnNow) {
             btnNow.addEventListener('click', () => {
                 const nowHour = new Date().getHours();
-                state.endHour = Math.min(23, Math.max(0, nowHour));
+                state.endHour = Math.min(24, Math.max(0, nowHour));
                 if (state.startHour > state.endHour) {
                     state.startHour = 0;
                 }
@@ -2404,9 +2433,12 @@
             });
         }
 
-        const refreshBtn = document.getElementById('btnSegdiaRefresh');
-        if (refreshBtn) {
-            refreshBtn.addEventListener('click', () => {
+        // Botón "24h" (jornada completa 00:00 a 24:00)
+        const btn24h = document.getElementById('btnSegdia24h');
+        if (btn24h) {
+            btn24h.addEventListener('click', () => {
+                state.startHour = 0;
+                state.endHour = 24;
                 render();
             });
         }

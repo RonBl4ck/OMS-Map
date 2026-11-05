@@ -1020,13 +1020,29 @@
                 return;
             }
 
-            // Construir dataset enriquecido con las columnas de supervisión
+            // Construir dataset enriquecido con las columnas de supervisión, suministro numérico y dirección
             const exportData = visibleRecords.map(r => {
                 const supData = (isPluz && typeof getSupervisorDataForTicket === 'function') ? getSupervisorDataForTicket(r.ticket) : null;
                 const latest = supData ? supData.latest : null;
+
+                // Formatear Suministro en tipo NÚMERO nativo para Excel
+                let suministroVal = "";
+                const rawSum = r.suministro !== undefined ? r.suministro : (r.Suministro || "");
+                if (rawSum && rawSum !== 'N/A') {
+                    const clean = String(rawSum).replace(/\D+/g, '');
+                    const n = parseInt(clean, 10);
+                    suministroVal = (!isNaN(n) && n > 0) ? n : (rawSum !== 'N/A' ? rawSum : "");
+                }
+
+                // Dirección limpia (sin 'N/A')
+                const rawDir = r.direccion !== undefined ? r.direccion : (r.Dirección || r.Direccion || "");
+                const direccionVal = (rawDir && rawDir !== 'N/A') ? rawDir : "";
+
                 const row = {
                     "Ticket": r.ticket || "",
                     "ODM": r.odm || "",
+                    "Suministro": suministroVal,
+                    "Dirección": direccionVal,
                     "Hora Inicio": r.hora_inicio || r.fecha_inicio || "",
                     "SED": r.sed || "",
                     "Falla": r.falla || "",
@@ -1048,10 +1064,7 @@
                 }
 
                 row["Día"] = r.dia || "";
-                row["SED"] = r.sed || "";
-                row["Alimentador"] = r.alimentador || "";
-                row["Afectación"] = r.afectacion !== undefined ? r.afectacion : "";
-                row["Llamadas"] = r.llamadas !== undefined ? r.llamadas : "";
+                row["Distrito"] = (r.distrito && r.distrito !== 'N/A') ? r.distrito : "";
                 row["Latitud"] = r.latitud !== undefined && r.latitud !== null ? r.latitud : (r.lat || "");
                 row["Longitud"] = r.longitud !== undefined && r.longitud !== null ? r.longitud : (r.lon || "");
                 return row;
