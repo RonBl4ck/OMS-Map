@@ -4,47 +4,89 @@
 
 const OMS_CACHE_TTL_MS = 5 * 60 * 1000;
 
-// Utilidades de Caché con TTL en sessionStorage
+// Utilidades de Caché con TTL en sessionStorage y localStorage (para config persistente entre pestañas)
 function getSessionCache(key, ttlMs = OMS_CACHE_TTL_MS) {
-    try {
-        const storage = (typeof sessionStorage !== 'undefined') ? sessionStorage : (typeof window !== 'undefined' ? window.sessionStorage : null);
-        if (!storage) return null;
-        const raw = storage.getItem(key);
-        if (!raw) return null;
-        const item = JSON.parse(raw);
-        if (!item || typeof item !== 'object' || typeof item.timestamp !== 'number') {
-            return null;
-        }
-        if (typeof ttlMs === 'number' && ttlMs > 0) {
-            if (Date.now() - item.timestamp > ttlMs) {
-                storage.removeItem(key);
-                return null;
+    const isConfigKey = typeof key === 'string' && key.startsWith('oms_config_data_');
+    const storage = (typeof sessionStorage !== 'undefined') ? sessionStorage : (typeof window !== 'undefined' ? window.sessionStorage : null);
+    const localStorageRef = (typeof localStorage !== 'undefined') ? localStorage : (typeof window !== 'undefined' ? window.localStorage : null);
+
+    // 1. Intentar leer de sessionStorage
+    if (storage) {
+        try {
+            const raw = storage.getItem(key);
+            if (raw) {
+                const item = JSON.parse(raw);
+                if (item && typeof item === 'object' && typeof item.timestamp === 'number') {
+                    if (typeof ttlMs === 'number' && ttlMs > 0 && (Date.now() - item.timestamp > ttlMs)) {
+                        storage.removeItem(key);
+                    } else if (item.data !== undefined) {
+                        return item.data;
+                    }
+                }
             }
+        } catch (e) {
+            console.warn(`[Cache] Error al leer clave '${key}' de sessionStorage:`, e);
         }
-        return item.data !== undefined ? item.data : null;
-    } catch (e) {
-        console.warn(`[Cache] Error al leer clave '${key}' de sessionStorage:`, e);
-        return null;
     }
+
+    // 2. Si es clave de configuración (oms_config_data_*) y no se encontró en sessionStorage, intentar localStorage
+    if (isConfigKey && localStorageRef) {
+        try {
+            const localRaw = localStorageRef.getItem(key);
+            if (localRaw) {
+                const localItem = JSON.parse(localRaw);
+                if (localItem && typeof localItem === 'object' && typeof localItem.timestamp === 'number') {
+                    if (typeof ttlMs === 'number' && ttlMs > 0 && (Date.now() - localItem.timestamp > ttlMs)) {
+                        localStorageRef.removeItem(key);
+                    } else if (localItem.data !== undefined) {
+                        // Sincronizar en sessionStorage para lecturas rápidas
+                        if (storage) {
+                            try {
+                                storage.setItem(key, localRaw);
+                            } catch (_) {}
+                        }
+                        return localItem.data;
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn(`[Cache] Error al leer clave '${key}' de localStorage:`, e);
+        }
+    }
+
+    return null;
 }
 
 function setSessionCache(key, data) {
-    try {
-        const storage = (typeof sessionStorage !== 'undefined') ? sessionStorage : (typeof window !== 'undefined' ? window.sessionStorage : null);
-        if (!storage) return;
-        const payload = JSON.stringify({
-            timestamp: Date.now(),
-            data: data
-        });
-        storage.setItem(key, payload);
-    } catch (e) {
-        console.warn(`[Cache] Error o StorageQuota al guardar clave '${key}' en sessionStorage:`, e);
+    const isConfigKey = typeof key === 'string' && key.startsWith('oms_config_data_');
+    const storage = (typeof sessionStorage !== 'undefined') ? sessionStorage : (typeof window !== 'undefined' ? window.sessionStorage : null);
+    const localStorageRef = (typeof localStorage !== 'undefined') ? localStorage : (typeof window !== 'undefined' ? window.localStorage : null);
+
+    const payload = JSON.stringify({
+        timestamp: Date.now(),
+        data: data
+    });
+
+    if (storage) {
         try {
-            const storage = (typeof sessionStorage !== 'undefined') ? sessionStorage : (typeof window !== 'undefined' ? window.sessionStorage : null);
-            if (storage) {
+            storage.setItem(key, payload);
+        } catch (e) {
+            console.warn(`[Cache] Error o StorageQuota al guardar clave '${key}' en sessionStorage:`, e);
+            try {
                 storage.removeItem(key);
-            }
-        } catch (_) {}
+            } catch (_) {}
+        }
+    }
+
+    if (isConfigKey && localStorageRef) {
+        try {
+            localStorageRef.setItem(key, payload);
+        } catch (e) {
+            console.warn(`[Cache] Error o StorageQuota al guardar clave '${key}' en localStorage:`, e);
+            try {
+                localStorageRef.removeItem(key);
+            } catch (_) {}
+        }
     }
 }
 
@@ -364,25 +406,28 @@ async function loadData() {
 
         const supervisorPromise = (async () => {
             if (isAdmin && GOOGLE_SHEET_SUPERVISOR_URL) {
-                let supUrl = GOOGLE_SHEET_SUPERVISOR_URL;
-                if (supUrl.includes('docs.google.com/spreadsheets') && !supUrl.includes('gviz/tq') && !supUrl.includes('/pub')) {
-                    const match = supUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
-                    if (match) {
-                        supUrl = `https://docs.google.com/spreadsheets/d/${match[1]}/gviz/tq?tqx=out:csv&sheet=SEGUIMIENTO_SUPERVISOR`;
+                let supCsv = getSessionCache('oms_supervisor_csv', OMS_CACHE_TTL_MS);
+                if (!supCsv) {
+                    let supUrl = GOOGLE_SHEET_SUPERVISOR_URL;
+                    if (supUrl.includes('docs.google.com/spreadsheets') && !supUrl.includes('gviz/tq') && !supUrl.includes('/pub')) {
+                        const match = supUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+                        if (match) {
+                            supUrl = `https://docs.google.com/spreadsheets/d/${match[1]}/gviz/tq?tqx=out:csv&sheet=SEGUIMIENTO_SUPERVISOR`;
+                        }
                     }
-                }
-                if (supUrl.includes('docs.google.com')) {
-                    supUrl += (supUrl.includes('?') ? '&' : '?') + '_nocache=' + Date.now();
-                }
+                    if (supUrl.includes('docs.google.com')) {
+                        supUrl += (supUrl.includes('?') ? '&' : '?') + '_nocache=' + Date.now();
+                    }
 
-                let supCsv = null;
-                try {
-                    const resp = await fetchWithTimeout(supUrl, {}, 12000);
-                    if (resp && resp.ok) {
-                        supCsv = await resp.text();
+                    try {
+                        const resp = await fetchWithTimeout(supUrl, {}, 12000);
+                        if (resp && resp.ok) {
+                            supCsv = await resp.text();
+                            setSessionCache('oms_supervisor_csv', supCsv);
+                        }
+                    } catch (e) {
+                        console.warn("⚠️ fetchWithTimeout falló para SEGUIMIENTO_SUPERVISOR:", e);
                     }
-                } catch (e) {
-                    console.warn("⚠️ fetchWithTimeout falló para SEGUIMIENTO_SUPERVISOR:", e);
                 }
 
                 if (supCsv) {
@@ -619,7 +664,104 @@ async function handleLogin(selectedUser, passVal) {
     return { response, data };
 }
 
+// ==========================================
+// Live OMS Data Refresh & Auto-Refresh
+// ==========================================
+let _isRefreshingLiveOms = false;
+let _liveOmsAutoRefreshTimer = null;
+
+async function refreshLiveOmsData(options = {}) {
+    if (_isRefreshingLiveOms) {
+        console.warn("[LiveRefresh] Ya hay una actualización en curso.");
+        return;
+    }
+    _isRefreshingLiveOms = true;
+
+    const btn = (typeof document !== 'undefined') ? document.getElementById('btnRefreshLiveOms') : null;
+    let prevOpacity = '';
+    let prevDisabled = false;
+
+    if (btn) {
+        prevOpacity = btn.style.opacity;
+        prevDisabled = btn.disabled;
+        btn.disabled = true;
+        btn.style.opacity = '0.6';
+        btn.setAttribute('data-refreshing', 'true');
+    }
+
+    try {
+        const storage = (typeof sessionStorage !== 'undefined') ? sessionStorage : (typeof window !== 'undefined' ? window.sessionStorage : null);
+        if (storage) {
+            storage.removeItem('oms_seds_criticas_csv');
+            storage.removeItem('oms_supervisor_csv');
+        }
+
+        const loadFn = (typeof loadData === 'function') ? loadData : (typeof window !== 'undefined' ? window.loadData : null);
+        if (typeof loadFn === 'function') {
+            await loadFn();
+        }
+
+        if (!options.silent) {
+            const notifyFn = (typeof showAppNotification === 'function') ? showAppNotification : (typeof window !== 'undefined' ? window.showAppNotification : null);
+            if (typeof notifyFn === 'function') {
+                notifyFn('Datos OMS actualizados en vivo', 'success');
+            }
+        }
+    } catch (err) {
+        console.error("[LiveRefresh] Error al refrescar datos OMS:", err);
+        if (!options.silent) {
+            const notifyFn = (typeof showAppNotification === 'function') ? showAppNotification : (typeof window !== 'undefined' ? window.showAppNotification : null);
+            if (typeof notifyFn === 'function') {
+                notifyFn('Error al refrescar datos OMS en vivo', 'warning');
+            }
+        }
+    } finally {
+        if (btn) {
+            btn.disabled = prevDisabled;
+            btn.style.opacity = prevOpacity;
+            btn.removeAttribute('data-refreshing');
+        }
+        _isRefreshingLiveOms = false;
+    }
+}
+
+function startLiveOmsAutoRefresh() {
+    if (_liveOmsAutoRefreshTimer) {
+        clearInterval(_liveOmsAutoRefreshTimer);
+        _liveOmsAutoRefreshTimer = null;
+    }
+
+    _liveOmsAutoRefreshTimer = setInterval(() => {
+        try {
+            const isVisible = (typeof document === 'undefined' || document.visibilityState !== 'hidden');
+            const storage = (typeof sessionStorage !== 'undefined') ? sessionStorage : (typeof window !== 'undefined' ? window.sessionStorage : null);
+            const isAuth = storage && storage.getItem('oms_auth_token') === 'authenticated';
+
+            if (isVisible && isAuth) {
+                refreshLiveOmsData({ silent: true });
+            }
+        } catch (e) {
+            console.warn("[LiveRefresh] Error en auto-refresh timer:", e);
+        }
+    }, 300000);
+}
+
+function initAuth() {
+    if (typeof document !== 'undefined') {
+        const btnRefresh = document.getElementById('btnRefreshLiveOms');
+        if (btnRefresh && !btnRefresh._hasRefreshLiveOmsListener) {
+            btnRefresh.addEventListener('click', (e) => {
+                if (e && typeof e.preventDefault === 'function') e.preventDefault();
+                refreshLiveOmsData();
+            });
+            btnRefresh._hasRefreshLiveOmsListener = true;
+        }
+    }
+}
+
 function checkAuthentication() {
+    initAuth();
+
     const authOverlay = document.getElementById("authModalOverlay");
     const userInput = document.getElementById("authUserInput");
     const passInput = document.getElementById("authPasswordInput");
@@ -631,6 +773,7 @@ function checkAuthentication() {
         updateUserBadge();
         if (typeof initMap === 'function') initMap();
         loadData();
+        startLiveOmsAutoRefresh();
         return;
     }
 
@@ -661,6 +804,7 @@ function checkAuthentication() {
                 updateUserBadge();
                 if (typeof initMap === 'function') initMap();
                 loadData();
+                startLiveOmsAutoRefresh();
             } else {
                 if (errMsg) {
                     errMsg.innerText = "❌ " + (data.message || "Usuario o contraseña incorrectos");
@@ -709,11 +853,22 @@ function checkAuthentication() {
     }
 }
 
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initAuth);
+    } else {
+        initAuth();
+    }
+}
+
 if (typeof window !== 'undefined') {
     window.handleLogin = handleLogin;
     window.checkAuthentication = checkAuthentication;
     window.updateUserBadge = updateUserBadge;
     window.loadData = loadData;
+    window.refreshLiveOmsData = refreshLiveOmsData;
+    window.startLiveOmsAutoRefresh = startLiveOmsAutoRefresh;
+    window.initAuth = initAuth;
 }
 
 if (typeof module !== 'undefined' && module.exports) {
@@ -731,6 +886,9 @@ if (typeof module !== 'undefined' && module.exports) {
         handleLogin,
         loadData,
         checkAuthentication,
-        updateUserBadge
+        updateUserBadge,
+        refreshLiveOmsData,
+        startLiveOmsAutoRefresh,
+        initAuth
     };
 }

@@ -35,6 +35,8 @@
         "RED SUBTERRÁNEA": 12,
         "CNX SUBTERRANEA": 8,
         "CNX SUBTERRÁNEA": 8,
+        "ORM": 12,
+        "OBRA": 12,
         "FUSIBLE": 4,
         "POSTE": 8,
         "RIESGO": 2,
@@ -163,7 +165,7 @@
 
             if (prioridad.includes("RIESGO") || prioridad.includes("VIDA") || prioridad.includes("PELIGRO")) {
                 maxHours = SLA_CONFIG_HORAS["RIESGO DE VIDA"];
-            } else if (falla.includes("RED SUBTERRANEA") || falla.includes("RED SUBTERRÁNEA")) {
+            } else if (falla.includes("RED SUBTERRANEA") || falla.includes("RED SUBTERRÁNEA") || falla.includes("ORM") || falla.includes("OBRA")) {
                 maxHours = SLA_CONFIG_HORAS["RED SUBTERRANEA"];
             } else if (falla.includes("CNX SUBTERRANEA") || falla.includes("CNX SUBTERRÁNEA")) {
                 maxHours = SLA_CONFIG_HORAS["CNX SUBTERRANEA"];

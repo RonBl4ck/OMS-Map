@@ -167,9 +167,12 @@
                     <div class="nav-kpi-title">Pend. BT</div>
                         <div class="nav-kpi-val" id="topNavCount" data-loading-kpi>—</div>
                 </div>
-                <div class="nav-kpi-item" style="border-left-color: var(--pluz-green);" title="Hora de última actualización de datos">
-                    <div class="nav-kpi-title">Subida</div>
-                    <div class="nav-kpi-val" id="topNavTime" style="color: var(--pluz-green); font-family: monospace;">🕒 --/-- --:--</div>
+                <div class="nav-kpi-item" style="border-left-color: var(--pluz-green); display: flex; align-items: center; gap: 6px;" title="Hora de última actualización de datos">
+                    <div>
+                        <div class="nav-kpi-title">Subida</div>
+                        <div class="nav-kpi-val" id="topNavTime" style="color: var(--pluz-green); font-family: monospace;">🕒 --/-- --:--</div>
+                    </div>
+                    <button id="btnRefreshLiveOms" type="button" title="Actualizar datos desde Google Sheets sin recargar la página (F5)" style="background: rgba(16,185,129,0.2); color: #34d399; border: 1px solid rgba(16,185,129,0.4); padding: 3px 6px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 700; line-height: 1; transition: all 0.2s ease;">🔄</button>
                 </div>
                 <div class="nav-kpi-item" style="border-left-color: var(--pluz-blue); display: flex; gap: 6px;">
                     <button class="btn-nav-primary" id="btn-download-base" data-requires-primary-data title="Descargar Base Pendientes (CSV)">📥 Pend.</button>
@@ -240,7 +243,7 @@
             </div>
             <div class="legend-item-row">
                 <span class="legend-icon-slot"><img src="assets/icons/subterranea.svg?v=20260913-map-legend" alt="Subterránea"></span>
-                <span>RED / CNX SUBT. (12h/8h)</span>
+                <span>RED / CNX SUBT. / ORM (12h/8h)</span>
             </div>
             <div class="legend-item-row">
                 <span class="legend-icon-slot"><img src="assets/icons/fusible.svg?v=20260913-map-legend" alt="Fusible"></span>
@@ -1049,28 +1052,14 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
-    <!-- Estado Central y Utilidades Modulares -->
-    <script src="assets/js/state/store.js"></script>
-    <script src="assets/js/utils/dateUtils.js"></script>
-    <script src="assets/js/utils/geoUtils.js"></script>
-    <script src="assets/js/utils/domUtils.js"></script>
+    <!-- Paquete unificado de Estado, Utilidades, Componentes y Servicios Modulares (1 petición en lugar de 13) -->
+    <script src="assets/js/00-modules.bundle.js?v=20261111-bundle"></script>
 
-    <!-- Componentes y Servicios Modulares -->
-    <script src="assets/js/templates/mapPopups.js"></script>
-    <script src="assets/js/components/mapManager.js"></script>
-    <script src="assets/js/components/markersManager.js"></script>
-    <script src="assets/js/components/sedCloudsManager.js"></script>
-    <script src="assets/js/services/supervisorService.js"></script>
-    <script src="assets/js/services/seguimientoDiaService.js"></script>
-    <script src="assets/js/components/chartsManager.js"></script>
-    <script src="assets/js/components/modalsManager.js"></script>
-    <script src="assets/js/components/dashboardManager.js"></script>
-
-    <script src="assets/js/00-core.js?v=20261105-zoom14"></script>
+    <script src="assets/js/00-core.js?v=20260918-status-map"></script>
     <script src="assets/js/sed-geometry.js"></script>
     <script src="assets/js/10-map.js?v=20260918-status-map"></script>
     <script src="assets/js/20-dashboard.js?v=20260918-status-map"></script>
-    <script src="assets/js/22-seguimiento-dia.js?v=20261103-1"></script>
+    <script src="assets/js/22-seguimiento-dia.js?v=20261111-1"></script>
     <script src="assets/js/25-contractor-report.js?v=20261013-1"></script>
     <script src="assets/js/30-llamadas.js?v=20260912-facets"></script>
     <script src="assets/js/35-critical-panel.js?v=20260930-pillbars"></script>

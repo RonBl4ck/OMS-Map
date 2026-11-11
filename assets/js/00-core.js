@@ -41,6 +41,8 @@
         if (typeof window !== 'undefined') {
             window.supervisorRecordsMap = supervisorRecordsMap;
             window.supervisorRecordsBySedMap = supervisorRecordsBySedMap;
+            window.getFaultIconSvg = getFaultIconSvg;
+            window.getFaultIconHtml = getFaultIconHtml;
         }
         var sedCriticasSet = (typeof omsStore !== 'undefined' && omsStore.get('sedCriticasSet')) || new Set();
         var sedCriticasMap = (typeof omsStore !== 'undefined' && omsStore.get('sedCriticasMap')) || new Map();
@@ -169,6 +171,8 @@
             window.addSupervisorLogOptimistic = addSupervisorLogOptimistic;
             window.supervisorRecordsMap = supervisorRecordsMap;
             window.supervisorRecordsBySedMap = supervisorRecordsBySedMap;
+            window.getFaultIconSvg = getFaultIconSvg;
+            window.getFaultIconHtml = getFaultIconHtml;
         }
 
         function debounceUi(callback, wait = 120) {
@@ -471,6 +475,8 @@
             "RED SUBTERRÁNEA": 12,
             "CNX SUBTERRANEA": 8,
             "CNX SUBTERRÁNEA": 8,
+            "ORM": 12,
+            "OBRA": 12,
             "FUSIBLE": 4,
             "POSTE": 8,
             "RIESGO": 2,
@@ -484,7 +490,7 @@
                 return DomUtils.getEmoji(falla);
             }
             const f = String(falla || '').trim().toUpperCase();
-            if (f.includes("RED SUBTERRANEA") || f.includes("RED SUBTERRÁNEA")) return "🕳️";
+            if (f.includes("RED SUBTERRANEA") || f.includes("RED SUBTERRÁNEA") || f.includes("CNX SUBTERRANEA") || f.includes("CNX SUBTERRÁNEA") || f.includes("SUBTERRANEA") || f.includes("SUBTERRÁNEA") || f.includes("ORM") || f.includes("OBRA")) return "⛏️";
             if (f.includes("RED AEREA") || f.includes("RED AÉREA") || f.includes("CNX AEREA") || f.includes("CNX AÉREA") || f.includes("LÍNEA AÉREA BT") || f.includes("LINEA AEREA BT")) return "⚡";
             if (f.includes("CNX SUBTERRANEA") || f.includes("CNX SUBTERRÁNEA")) return "🕳️";
             if (f.includes("SUMINISTRO")) return "🏠";
@@ -493,25 +499,42 @@
             return "📍";
         }
 
+        function getFaultIconSvg(fallaStr) {
+            if (typeof DomUtils !== 'undefined' && typeof DomUtils.getFaultIconSvg === 'function') {
+                return DomUtils.getFaultIconSvg(fallaStr);
+            }
+            const f = String(fallaStr || '').trim().toUpperCase();
+            if (f.includes("RED SUBTERRANEA") || f.includes("RED SUBTERRÁNEA") || f.includes("CNX SUBTERRANEA") || f.includes("CNX SUBTERRÁNEA") || f.includes("SUBTERRANEA") || f.includes("SUBTERRÁNEA") || f.includes("ORM") || f.includes("OBRA")) {
+                return "assets/icons/subterranea.svg?v=20260913-map-legend";
+            }
+            if (f.includes("RED AEREA") || f.includes("RED AÉREA") || f.includes("CNX AEREA") || f.includes("CNX AÉREA") || f.includes("LÍNEA AÉREA BT") || f.includes("LINEA AEREA BT")) {
+                return "assets/icons/red_aerea.svg?v=20260913-map-legend";
+            }
+            if (f.includes("SUMINISTRO")) {
+                return "assets/icons/suministro.svg?v=20260913-map-legend";
+            }
+            if (f.includes("FUSIBLE")) {
+                return "assets/icons/fusible.svg?v=20260913-map-legend";
+            }
+            if (f.includes("POSTE")) {
+                return "assets/icons/poste.svg?v=20260913-map-legend";
+            }
+            return null;
+        }
+
         function getFaultIconHtml(falla) {
             if (typeof DomUtils !== 'undefined' && typeof DomUtils.getFaultIconHtml === 'function') {
                 return DomUtils.getFaultIconHtml(falla);
             }
-            const f = String(falla || '').trim().toUpperCase();
-            if (f.includes("RED SUBTERRANEA") || f.includes("RED SUBTERRÁNEA") || f.includes("CNX SUBTERRANEA") || f.includes("CNX SUBTERRÁNEA")) {
-                return `<img src="assets/icons/subterranea.svg" alt="Subterránea" class="fault-icon-img">`;
-            }
-            if (f.includes("RED AEREA") || f.includes("RED AÉREA") || f.includes("CNX AEREA") || f.includes("CNX AÉREA") || f.includes("LÍNEA AÉREA BT") || f.includes("LINEA AEREA BT")) {
-                return `<img src="assets/icons/red_aerea.svg" alt="Red Aérea" class="fault-icon-img">`;
-            }
-            if (f.includes("SUMINISTRO")) {
-                return `<img src="assets/icons/suministro.svg" alt="Suministro" class="fault-icon-img">`;
-            }
-            if (f.includes("FUSIBLE")) {
-                return `<img src="assets/icons/fusible.svg" alt="Fusible" class="fault-icon-img">`;
-            }
-            if (f.includes("POSTE")) {
-                return `<img src="assets/icons/poste.svg" alt="Poste" class="fault-icon-img">`;
+            const svgUrl = getFaultIconSvg(falla);
+            if (svgUrl) {
+                let alt = "Falla";
+                if (svgUrl.includes("subterranea")) alt = "Subterránea / ORM";
+                else if (svgUrl.includes("red_aerea")) alt = "Red Aérea";
+                else if (svgUrl.includes("suministro")) alt = "Suministro";
+                else if (svgUrl.includes("fusible")) alt = "Fusible";
+                else if (svgUrl.includes("poste")) alt = "Poste";
+                return `<img src="${svgUrl}" alt="${alt}" class="fault-icon-img">`;
             }
             return `<span class="fault-icon-emoji">${getEmoji(falla)}</span>`;
         }
@@ -552,7 +575,7 @@
 
                 if (prioridad.includes("RIESGO") || prioridad.includes("VIDA") || prioridad.includes("PELIGRO")) {
                     maxHours = SLA_CONFIG_HORAS["RIESGO DE VIDA"];
-                } else if (falla.includes("RED SUBTERRANEA") || falla.includes("RED SUBTERRÁNEA")) {
+                } else if (falla.includes("RED SUBTERRANEA") || falla.includes("RED SUBTERRÁNEA") || falla.includes("ORM") || falla.includes("OBRA")) {
                     maxHours = SLA_CONFIG_HORAS["RED SUBTERRANEA"];
                 } else if (falla.includes("CNX SUBTERRANEA") || falla.includes("CNX SUBTERRÁNEA")) {
                     maxHours = SLA_CONFIG_HORAS["CNX SUBTERRANEA"];

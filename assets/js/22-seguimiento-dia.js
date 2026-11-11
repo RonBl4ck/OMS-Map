@@ -693,6 +693,50 @@
                 padding: 6px 8px;
                 text-align: left;
             }
+
+            /* Píldoras interactivas de Tickets Vigentes */
+            .segdia-pending-tickets-group {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 5px;
+                align-items: center;
+            }
+            .segdia-ticket-pill {
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                background: #fee2e2;
+                color: #991b1b;
+                border: 1px solid #fca5a5;
+                border-radius: 6px;
+                padding: 3px 8px;
+                font-size: 11.5px;
+                font-weight: 700;
+                font-variant-numeric: tabular-nums;
+                cursor: pointer;
+                text-decoration: none;
+                transition: all var(--anim-fast);
+                outline: none;
+                user-select: none;
+                line-height: 1.25;
+                box-shadow: 0 1px 2px rgba(239, 68, 68, 0.1);
+            }
+            .segdia-ticket-pill:hover {
+                background: #fecaca;
+                color: #7f1d1d;
+                border-color: #f87171;
+                transform: translateY(-1px) scale(1.04);
+                box-shadow: 0 2px 5px rgba(239, 68, 68, 0.25);
+            }
+            .segdia-ticket-pill:active {
+                transform: scale(0.96);
+            }
+            .segdia-empty-dash {
+                color: #94a3b8;
+                font-weight: 600;
+                font-size: 13px;
+                user-select: none;
+            }
         `;
 
         const style = document.createElement('style');
@@ -1489,6 +1533,7 @@
         const alimentador = item.alimentador || item.ct || '-';
         const total7D = Number(item.total7D ?? item.eventos7D ?? item.total ?? 0);
         const pendientesActivos = Number(item.pendientesActivos ?? (item.tienePendiente ? 1 : 0));
+        const pendingTickets = Array.isArray(item.pendingTickets) ? item.pendingTickets : [];
         const fallasRealesBreakdown = item.fallasRealesBreakdown || '';
         const closures = Array.isArray(item.closures) ? item.closures : [];
 
@@ -1498,6 +1543,7 @@
             alimentador,
             total7D,
             pendientesActivos,
+            pendingTickets,
             fallasRealesBreakdown,
             closures
         };
@@ -1514,6 +1560,7 @@
         const alimentador = item.alimentador || '-';
         const total7D = Number(item.total7D ?? item.eventos7D ?? item.total ?? 0);
         const pendientesActivos = Number(item.pendientesActivos ?? (item.tienePendiente ? 1 : 0));
+        const pendingTickets = Array.isArray(item.pendingTickets) ? item.pendingTickets : [];
         const fallaReal = item.fallaReal || item.falla_real || '-';
         const closures = Array.isArray(item.closures) ? item.closures : [];
 
@@ -1524,6 +1571,7 @@
             alimentador,
             total7D,
             pendientesActivos,
+            pendingTickets,
             fallaReal,
             falla_real: fallaReal,
             closures
@@ -1561,6 +1609,7 @@
                     alimentador: extractAlimentadorFromRow(r),
                     total7D: 0,
                     pendientesActivos: 0,
+                    pendingTickets: [],
                     fallasRealesMap: new Map(),
                     fallasRealesBreakdown: '',
                     closures: []
@@ -1568,7 +1617,14 @@
             }
             const item = sedMap.get(sed);
             item.total7D++;
-            if (isPending) item.pendientesActivos++;
+            if (isPending) {
+                item.pendientesActivos++;
+                const tId = extractTicketFromRow(r);
+                const tClean = String(tId || '').trim();
+                if (tClean && tClean !== '-' && !item.pendingTickets.includes(tClean)) {
+                    item.pendingTickets.push(tClean);
+                }
+            }
 
             const frRaw = extractFallaRealFromRow(r);
             const fr = (frRaw && frRaw !== '-') ? frRaw : (extractFallaFromRow(r) !== '-' ? extractFallaFromRow(r) : 'RED');
@@ -1642,6 +1698,7 @@
                     alimentador: extractAlimentadorFromRow(r),
                     total7D: 0,
                     pendientesActivos: 0,
+                    pendingTickets: [],
                     falla: '-',
                     fallaReal: '-',
                     falla_real: '-',
@@ -1673,6 +1730,12 @@
             const item = getOrCreateSuministroItem(r, suministro, sed);
             item.total7D++;
             item.pendientesActivos++;
+
+            const tId = extractTicketFromRow(r);
+            const tClean = String(tId || '').trim();
+            if (tClean && tClean !== '-' && !item.pendingTickets.includes(tClean)) {
+                item.pendingTickets.push(tClean);
+            }
 
             // Si contiene HISTORIAL_SUMINISTRO_JSON en pendientes
             if (r['HISTORIAL_SUMINISTRO_JSON']) {
@@ -2386,14 +2449,32 @@
     }
 
     /**
+     * Genera la celda de tickets vigentes/pendientes con enlaces directos al mapa.
+     */
+    function renderPendingTicketsCell(item) {
+        const tickets = Array.isArray(item.pendingTickets) ? item.pendingTickets : [];
+        if (tickets.length === 0) {
+            return '<span class="segdia-empty-dash" title="Sin averías pendientes">—</span>';
+        }
+        return `
+            <div class="segdia-pending-tickets-group">
+                ${tickets.map(tk => `
+                    <button type="button" class="segdia-ticket-pill" data-ticket="${escapeHtml(tk)}" title="📍 Clic para enfocar Ticket #${escapeHtml(tk)} en el mapa">
+                        🔴 #${escapeHtml(tk)}
+                    </button>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    /**
      * Genera la fila de la tabla para SED o Suministro.
      */
     function renderTableRow(item, isSuministro) {
         const isPluz = typeof isCurrentUserAdmin === 'function' 
             ? isCurrentUserAdmin() 
             : (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('oms_user_role') === 'admin' || sessionStorage.getItem('oms_user_role') === '*') : true);
-        const badgeClass = item.pendientesActivos > 0 ? 'is-active' : 'is-zero';
-        const badgeText = `${item.pendientesActivos} pendientes`;
+        const pendingHtml = renderPendingTicketsCell(item);
 
         if (isSuministro) {
             const hasClosures = isPluz && Array.isArray(item.closures) && item.closures.length > 0;
@@ -2427,7 +2508,7 @@
                         <span class="segdia-badge-val" style="font-size: 13px; font-weight: 700; color: #0f172a;">${item.total7D}</span>
                     </td>
                     <td>
-                        <span class="segdia-badge-pendientes ${badgeClass}">${badgeText}</span>
+                        ${pendingHtml}
                     </td>
                     <td style="text-align: right; white-space: nowrap;">
                         ${closuresBtn}
@@ -2452,7 +2533,7 @@
                                 <div style="overflow-x: auto;">
                                     <table class="segdia-table-nested" style="width: 100%; font-size: 11px; border-collapse: collapse;">
                                         <thead>
-                                            <tr style="background: #f1f5f9; text-align: left; color: #475569; border-bottom: 1px solid #cbd5e1;">
+                                             <tr style="background: #f1f5f9; text-align: left; color: #475569; border-bottom: 1px solid #cbd5e1;">
                                                 <th style="padding: 6px 8px; width: 110px;">Fecha</th>
                                                 <th style="padding: 6px 8px; width: 90px;">Ticket</th>
                                                 <th style="padding: 6px 8px; width: 130px;">Técnico / Empresa</th>
@@ -2512,7 +2593,7 @@
                         <span class="segdia-badge-val" style="font-size: 13px; font-weight: 700; color: #0f172a;">${item.total7D}</span>
                     </td>
                     <td>
-                        <span class="segdia-badge-pendientes ${badgeClass}">${badgeText}</span>
+                        ${pendingHtml}
                     </td>
                     <td style="text-align: right; white-space: nowrap;">
                         ${closuresBtn}
@@ -2661,12 +2742,15 @@
         const query = (state.searchQuery7D || '').toLowerCase().trim();
         const filteredItems = recurrentItems.filter(item => {
             if (!query) return true;
+            const matchesTicket = Array.isArray(item.pendingTickets) && item.pendingTickets.some(t => String(t).toLowerCase().includes(query));
             if (isSuministrosTab) {
-                return (item.suministro && item.suministro.toLowerCase().includes(query)) ||
+                return matchesTicket ||
+                       (item.suministro && item.suministro.toLowerCase().includes(query)) ||
                        (item.sed && item.sed.toLowerCase().includes(query)) ||
                        (item.distrito && item.distrito.toLowerCase().includes(query));
             } else {
-                return (item.sed && item.sed.toLowerCase().includes(query)) ||
+                return matchesTicket ||
+                       (item.sed && item.sed.toLowerCase().includes(query)) ||
                        (item.distrito && item.distrito.toLowerCase().includes(query)) ||
                        (item.alimentador && item.alimentador.toLowerCase().includes(query));
             }
@@ -3041,10 +3125,32 @@
             });
         }
 
-        // Delegación de eventos para acordeón y botones de ubicar SED en mapa
+        // Delegación de eventos para acordeón, tickets y botones de ubicar SED en mapa
         const tableContainer = document.querySelector('.segdia-table-container');
         if (tableContainer) {
             tableContainer.addEventListener('click', (e) => {
+                // Clic en píldora de Ticket vigente -> Redirigir y enfocar en mapa
+                const ticketBtn = e.target.closest('.segdia-ticket-pill');
+                if (ticketBtn) {
+                    const ticketId = ticketBtn.dataset.ticket;
+                    if (ticketId) {
+                        const tabMapa = document.getElementById('tabMapa');
+                        if (tabMapa) {
+                            tabMapa.click();
+                        } else {
+                            const btnClose = document.getElementById('btnCloseSeguimientoDia');
+                            if (btnClose) btnClose.click();
+                        }
+
+                        setTimeout(() => {
+                            if (typeof window.focusTicketInMap === 'function') {
+                                window.focusTicketInMap(ticketId, true);
+                            }
+                        }, 120);
+                    }
+                    return;
+                }
+
                 const toggleBtn = e.target.closest('.segdia-btn-toggle-closures');
                 if (toggleBtn) {
                     const sumCode = toggleBtn.dataset.suministro;
@@ -3116,12 +3222,15 @@
         const query = (state.searchQuery7D || '').toLowerCase().trim();
         const filteredItems = recurrentItems.filter(item => {
             if (!query) return true;
+            const matchesTicket = Array.isArray(item.pendingTickets) && item.pendingTickets.some(t => String(t).toLowerCase().includes(query));
             if (isSuministrosTab) {
-                return (item.suministro && item.suministro.toLowerCase().includes(query)) ||
+                return matchesTicket ||
+                       (item.suministro && item.suministro.toLowerCase().includes(query)) ||
                        (item.sed && item.sed.toLowerCase().includes(query)) ||
                        (item.distrito && item.distrito.toLowerCase().includes(query));
             } else {
-                return (item.sed && item.sed.toLowerCase().includes(query)) ||
+                return matchesTicket ||
+                       (item.sed && item.sed.toLowerCase().includes(query)) ||
                        (item.distrito && item.distrito.toLowerCase().includes(query)) ||
                        (item.alimentador && item.alimentador.toLowerCase().includes(query));
             }

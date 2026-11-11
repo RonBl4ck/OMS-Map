@@ -99,7 +99,7 @@
 
     function getEmoji(falla) {
         const f = String(falla || '').trim().toUpperCase();
-        if (f.includes("RED SUBTERRANEA") || f.includes("RED SUBTERRÁNEA")) return "🕳️";
+        if (f.includes("RED SUBTERRANEA") || f.includes("RED SUBTERRÁNEA") || f.includes("CNX SUBTERRANEA") || f.includes("CNX SUBTERRÁNEA") || f.includes("SUBTERRANEA") || f.includes("SUBTERRÁNEA") || f.includes("ORM") || f.includes("OBRA")) return "⛏️";
         if (f.includes("RED AEREA") || f.includes("RED AÉREA") || f.includes("CNX AEREA") || f.includes("CNX AÉREA") || f.includes("LÍNEA AÉREA BT") || f.includes("LINEA AEREA BT")) return "⚡";
         if (f.includes("CNX SUBTERRANEA") || f.includes("CNX SUBTERRÁNEA")) return "🕳️";
         if (f.includes("SUMINISTRO")) return "🏠";
@@ -108,22 +108,36 @@
         return "📍";
     }
 
-    function getFaultIconHtml(falla) {
-        const f = String(falla || '').trim().toUpperCase();
-        if (f.includes("RED SUBTERRANEA") || f.includes("RED SUBTERRÁNEA") || f.includes("CNX SUBTERRANEA") || f.includes("CNX SUBTERRÁNEA")) {
-            return `<img src="assets/icons/subterranea.svg" alt="Subterránea" class="fault-icon-img">`;
+    function getFaultIconSvg(fallaStr) {
+        const f = String(fallaStr || '').trim().toUpperCase();
+        if (f.includes("RED SUBTERRANEA") || f.includes("RED SUBTERRÁNEA") || f.includes("CNX SUBTERRANEA") || f.includes("CNX SUBTERRÁNEA") || f.includes("SUBTERRANEA") || f.includes("SUBTERRÁNEA") || f.includes("ORM") || f.includes("OBRA")) {
+            return "assets/icons/subterranea.svg?v=20260913-map-legend";
         }
         if (f.includes("RED AEREA") || f.includes("RED AÉREA") || f.includes("CNX AEREA") || f.includes("CNX AÉREA") || f.includes("LÍNEA AÉREA BT") || f.includes("LINEA AEREA BT")) {
-            return `<img src="assets/icons/red_aerea.svg" alt="Red Aérea" class="fault-icon-img">`;
+            return "assets/icons/red_aerea.svg?v=20260913-map-legend";
         }
         if (f.includes("SUMINISTRO")) {
-            return `<img src="assets/icons/suministro.svg" alt="Suministro" class="fault-icon-img">`;
+            return "assets/icons/suministro.svg?v=20260913-map-legend";
         }
         if (f.includes("FUSIBLE")) {
-            return `<img src="assets/icons/fusible.svg" alt="Fusible" class="fault-icon-img">`;
+            return "assets/icons/fusible.svg?v=20260913-map-legend";
         }
         if (f.includes("POSTE")) {
-            return `<img src="assets/icons/poste.svg" alt="Poste" class="fault-icon-img">`;
+            return "assets/icons/poste.svg?v=20260913-map-legend";
+        }
+        return null;
+    }
+
+    function getFaultIconHtml(falla) {
+        const svgUrl = getFaultIconSvg(falla);
+        if (svgUrl) {
+            let alt = "Falla";
+            if (svgUrl.includes("subterranea")) alt = "Subterránea / ORM";
+            else if (svgUrl.includes("red_aerea")) alt = "Red Aérea";
+            else if (svgUrl.includes("suministro")) alt = "Suministro";
+            else if (svgUrl.includes("fusible")) alt = "Fusible";
+            else if (svgUrl.includes("poste")) alt = "Poste";
+            return `<img src="${svgUrl}" alt="${alt}" class="fault-icon-img">`;
         }
         return `<span class="fault-icon-emoji">${getEmoji(falla)}</span>`;
     }
@@ -349,6 +363,7 @@
         getOmsStatusClass,
         getOmsStatusColor,
         getEmoji,
+        getFaultIconSvg,
         getFaultIconHtml,
         matchesMultiSelection,
         getFacetedFilterValues,
