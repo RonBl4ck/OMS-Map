@@ -31,6 +31,8 @@
             const selEmps = tdCtrlEmpresa ? tdCtrlEmpresa.getSelected() : [];
             const selFallas = tdCtrlFalla ? tdCtrlFalla.getSelected() : [];
             const selStates = tdCtrlEstado ? tdCtrlEstado.getSelected() : [];
+            const selEstPluz = (typeof tdCtrlEstadoPluz !== 'undefined' && tdCtrlEstadoPluz) ? tdCtrlEstadoPluz.getSelected() : (typeof window !== 'undefined' && window.tdCtrlEstadoPluz ? window.tdCtrlEstadoPluz.getSelected() : []);
+            const selCapasSed = (typeof tdCtrlCapaSed !== 'undefined' && tdCtrlCapaSed) ? tdCtrlCapaSed.getSelected() : (typeof window !== 'undefined' && window.tdCtrlCapaSed ? window.tdCtrlCapaSed.getSelected() : []);
             const chk7Modal = document.getElementById("chk7LlamadasModal");
             const only7Llamadas = chk7Modal ? chk7Modal.checked : false;
             const chkSedModal = document.getElementById("chkReincSedModal");
@@ -45,6 +47,9 @@
             const chkOverdue = document.getElementById("checkFilterOverdue");
             const onlyOverdue = isAdmin && chkOverdue ? chkOverdue.checked : false;
 
+            const hasEstPluzCtrl = Boolean((typeof tdCtrlEstadoPluz !== 'undefined' && tdCtrlEstadoPluz) || (typeof window !== 'undefined' && window.tdCtrlEstadoPluz));
+            const hasCapaSedCtrl = Boolean((typeof tdCtrlCapaSed !== 'undefined' && tdCtrlCapaSed) || (typeof window !== 'undefined' && window.tdCtrlCapaSed));
+
             return tdOmsRecords.filter(r => {
                 const numLlamadas = parseInt(r.llamadas || 0, 10) || 0;
                 const matchLlamadas = !only7Llamadas || numLlamadas >= 7;
@@ -52,6 +57,10 @@
                 const matchSum = !onlyReincSum || (r.suministro_reincidente || r.suministro_count >= 2);
                 const matchCrit = !onlyCritModal || r.es_top_critica;
                 const matchDia = matchesMultiSelection(r.dia, selDias) && (!tdFilterDia || r.dia === tdFilterDia);
+
+                const itemEstPluz = r.estado_pluz || (typeof getTicketPluzStatus === 'function' ? getTicketPluzStatus(r.ticket) : 'SIN REGISTRO');
+                const matchEstPluz = !isAdmin || !hasEstPluzCtrl || matchesMultiSelection(itemEstPluz, selEstPluz);
+                const matchCapaSed = !isAdmin || !hasCapaSedCtrl || (typeof recordMatchesSedLayers === 'function' ? recordMatchesSedLayers(r, selCapasSed) : true);
 
                 let matchQuanticoCritico = true;
                 if (onlyQuanticoCritico) {
@@ -70,6 +79,8 @@
                     matchesMultiSelection(r.empresa, selEmps) &&
                     matchesMultiSelection(r.falla, selFallas) &&
                     matchesMultiSelection(r.estado, selStates) &&
+                    matchEstPluz &&
+                    matchCapaSed &&
                     matchLlamadas &&
                     matchSed &&
                     matchSum &&
@@ -893,6 +904,10 @@
             if (tdCtrlEmpresa) tdCtrlEmpresa.reset();
             if (tdCtrlFalla) tdCtrlFalla.reset();
             if (tdCtrlEstado) tdCtrlEstado.reset();
+            if (typeof tdCtrlEstadoPluz !== 'undefined' && tdCtrlEstadoPluz) tdCtrlEstadoPluz.reset();
+            else if (typeof window !== 'undefined' && window.tdCtrlEstadoPluz) window.tdCtrlEstadoPluz.reset();
+            if (typeof tdCtrlCapaSed !== 'undefined' && tdCtrlCapaSed) tdCtrlCapaSed.reset();
+            else if (typeof window !== 'undefined' && window.tdCtrlCapaSed) window.tdCtrlCapaSed.reset();
             if (typeof applyDashboardFilters === 'function') {
                 applyDashboardFilters();
             } else {
@@ -1789,6 +1804,31 @@
             return parseBulkTicketsWithJc(rawText).map(item => item.ticket);
         }
 
+        function setBulkPluzSelectedEstado(estadoVal) {
+            const target = String(estadoVal || 'EN EJECUCION').trim().toUpperCase();
+            const chips = document.querySelectorAll('#bulkPluzEstadoChips .sup-chip-btn');
+            chips.forEach(btn => {
+                const val = String(btn.getAttribute('data-val') || '').trim().toUpperCase();
+                if (val === target) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        function getSelectedBulkPluzEstado() {
+            const chips = document.querySelectorAll('#bulkPluzEstadoChips .sup-chip-btn');
+            for (let i = 0; i < chips.length; i++) {
+                const btn = chips[i];
+                if (btn && btn.classList && btn.classList.contains('active')) {
+                    const val = String(btn.getAttribute('data-val') || '').trim().toUpperCase();
+                    if (val) return val;
+                }
+            }
+            return 'EN EJECUCION';
+        }
+
         function openBulkPluzModal() {
             if (typeof isCurrentUserAdmin === 'function' && !isCurrentUserAdmin()) return;
             const modal = document.getElementById('bulkPluzModalOverlay');
@@ -1807,6 +1847,7 @@
                 alertEl.textContent = '';
             }
 
+            setBulkPluzSelectedEstado('EN EJECUCION');
             updateBulkPluzCounter();
             modal.style.display = 'flex';
             if (inputTickets) {
@@ -1936,6 +1977,7 @@
             }
 
             const clean = (typeof cleanSupVal === 'function') ? cleanSupVal : (v => (!v || /^n\/?a$/i.test(String(v).trim()) || String(v).trim() === '--' || String(v).trim() === 'null') ? '' : String(v).trim());
+            const selectedEstado = getSelectedBulkPluzEstado();
 
             const now = new Date();
             const pad = n => String(n).padStart(2, '0');
@@ -1956,6 +1998,9 @@
                 const horaIniVal = clean(targetRec.hora_inicio || targetRec.fecha_inicio) || clean(supLatest ? supLatest.horaInicio : '');
                 const aliVal = clean(targetRec.alimentador) || clean(supLatest ? supLatest.alimentador : '');
                 const empVal = clean(targetRec.empresa) || clean(supLatest ? supLatest.empresa : '');
+                const prevDetOp = supLatest ? clean(supLatest.detalleOperativo || supLatest.detalle) : '';
+                const prevEstCrit = supLatest ? clean(supLatest.estadoCritico) : '';
+                const prevDetCrit = supLatest ? clean(supLatest.detalleCritico) : '';
 
                 const optEntry = {
                     fecha: localTimestamp,
@@ -1964,15 +2009,15 @@
                     horaInicio: horaIniVal,
                     alimentador: aliVal,
                     empresa: empVal,
-                    estadoOperativo: 'EN EJECUCION',
-                    detalleOperativo: '',
+                    estadoOperativo: selectedEstado,
+                    detalleOperativo: prevDetOp,
                     jefeCuadrilla: jcVal || (supLatest ? clean(supLatest.jefeCuadrilla) : ''),
                     jc: jcVal || (supLatest ? clean(supLatest.jefeCuadrilla) : ''),
                     finEstimado: it.finEstimado || (supLatest ? clean(supLatest.finEstimado) : ''),
-                    estadoCritico: supLatest ? clean(supLatest.estadoCritico) : '',
-                    detalleCritico: supLatest ? clean(supLatest.detalleCritico) : '',
-                    estado: 'EN EJECUCION',
-                    detalle: '',
+                    estadoCritico: prevEstCrit,
+                    detalleCritico: prevDetCrit,
+                    estado: selectedEstado,
+                    detalle: prevDetOp || prevDetCrit,
                     usuario: 'PLUZ'
                 };
 
@@ -2006,7 +2051,7 @@
                     },
                     body: JSON.stringify({
                         tickets: entries,
-                        estadoOperativo: 'EN EJECUCION',
+                        estadoOperativo: selectedEstado,
                         role: userRole || 'admin'
                     })
                 });
@@ -2021,7 +2066,7 @@
                         alertEl.textContent = `✅ ${data.message || `${entries.length} tickets guardados exitosamente.`}`;
                     }
                     if (typeof showAppNotification === 'function') {
-                        showAppNotification(`Se registraron ${entries.length} tickets en EN EJECUCIÓN (PLUZ)`, 'success');
+                        showAppNotification(`Se registraron ${entries.length} tickets en ${selectedEstado} (PLUZ)`, 'success');
                     }
                     setTimeout(() => {
                         closeBulkPluzModal();
@@ -2168,6 +2213,277 @@
             if (btnSubmitBulk) {
                 btnSubmitBulk.addEventListener('click', executeBulkPluzEnEjecucion);
             }
+            const bulkEstadoChips = document.querySelectorAll('#bulkPluzEstadoChips .sup-chip-btn');
+            bulkEstadoChips.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const val = btn.getAttribute('data-val') || 'EN EJECUCION';
+                    setBulkPluzSelectedEstado(val);
+                });
+            });
+
+            // Eventos del Modal de Capas SED
+            const sedModal = document.getElementById('sedLayersModalOverlay');
+            const sedSedsInput = document.getElementById('sedLayerSedsInput');
+            const btnSaveLayer = document.getElementById('btnSaveSedLayer');
+            const btnClearLayerForm = document.getElementById('btnClearSedLayerForm');
+            if (sedModal) {
+                sedModal.addEventListener('click', (e) => {
+                    if (e.target === sedModal) closeSedLayersModal();
+                });
+            }
+            if (sedSedsInput) {
+                sedSedsInput.addEventListener('input', updateSedLayerLiveCounter);
+                sedSedsInput.addEventListener('paste', () => setTimeout(updateSedLayerLiveCounter, 50));
+            }
+            if (btnSaveLayer) {
+                btnSaveLayer.addEventListener('click', saveSedLayerForm);
+            }
+            if (btnClearLayerForm) {
+                btnClearLayerForm.addEventListener('click', () => {
+                    const nameInp = document.getElementById('sedLayerNameInput');
+                    const sedsInp = document.getElementById('sedLayerSedsInput');
+                    const alertEl = document.getElementById('sedLayerModalAlert');
+                    const titleEl = document.getElementById('sedLayerFormTitle');
+                    if (nameInp) nameInp.value = '';
+                    if (sedsInp) sedsInp.value = '';
+                    if (alertEl) alertEl.style.display = 'none';
+                    if (titleEl) titleEl.textContent = '➕ Nueva / Editar Capa';
+                    updateSedLayerLiveCounter();
+                });
+            }
+        }
+
+        function countActiveTicketsForSedList(sedsArray) {
+            if (!Array.isArray(sedsArray) || sedsArray.length === 0) return 0;
+            const matchSet = typeof buildSedMatchSet === 'function' ? buildSedMatchSet(sedsArray) : new Set(sedsArray);
+            const records = (typeof tdOmsRecords !== 'undefined' && Array.isArray(tdOmsRecords)) ? tdOmsRecords : [];
+            let count = 0;
+            records.forEach(r => {
+                if (typeof sedMatchesSet === 'function' && sedMatchesSet(r.sed, matchSet)) {
+                    count++;
+                }
+            });
+            return count;
+        }
+
+        function updateSedLayerLiveCounter() {
+            const sedsInp = typeof document !== 'undefined' ? document.getElementById('sedLayerSedsInput') : null;
+            const counterEl = typeof document !== 'undefined' ? document.getElementById('sedLayerLiveCounter') : null;
+            if (!counterEl) return;
+            const parsed = (typeof parseSedListInput === 'function' && sedsInp) ? parseSedListInput(sedsInp.value) : [];
+            const activeTickets = countActiveTicketsForSedList(parsed);
+            counterEl.textContent = `${parsed.length} SEDs · ${activeTickets} tickets activos`;
+        }
+
+        function renderSedLayersSavedList() {
+            const listContainer = typeof document !== 'undefined' ? document.getElementById('sedLayersSavedList') : null;
+            const totalCountEl = typeof document !== 'undefined' ? document.getElementById('sedLayersTotalCount') : null;
+            if (!listContainer) return;
+
+            const layers = (typeof getSedLayersList === 'function') ? getSedLayersList() : [];
+            if (totalCountEl) totalCountEl.textContent = String(layers.length);
+
+            if (layers.length === 0) {
+                listContainer.innerHTML = `<div style="text-align: center; padding: 24px 10px; color: #64748b; font-size: 12px;">No hay capas registradas aún. Crea una a la izquierda (ej. <b>DAN</b>).</div>`;
+                return;
+            }
+
+            listContainer.innerHTML = layers.map(layer => {
+                const activeCount = countActiveTicketsForSedList(layer.seds);
+                const previewSeds = layer.seds.slice(0, 6).join(', ') + (layer.seds.length > 6 ? ` (+${layer.seds.length - 6} más)` : '');
+                const safeName = escapeHtml(layer.name);
+                return `
+                    <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; background: #f8fafc;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 13px; font-weight: 800; color: #0f172a;">🗂️ ${safeName}</span>
+                                <span style="font-size: 10.5px; font-weight: 700; background: #e0f2fe; color: #0369a1; padding: 1px 7px; border-radius: 999px;">${layer.seds.length} SEDs</span>
+                                <span style="font-size: 10.5px; font-weight: 700; background: ${activeCount > 0 ? '#fef3c7' : '#f1f5f9'}; color: ${activeCount > 0 ? '#b45309' : '#64748b'}; padding: 1px 7px; border-radius: 999px;">🎫 ${activeCount} tickets</span>
+                            </div>
+                            <div style="display: flex; gap: 4px;">
+                                <button type="button" onclick="applySedLayerFilterQuick('${safeName}')" style="background: #0284c7; color: #fff; border: none; border-radius: 5px; padding: 4px 8px; font-size: 11px; font-weight: 700; cursor: pointer;" title="Aplicar filtro con esta capa">🔍 Filtrar</button>
+                                <button type="button" onclick="editSedLayerByName('${safeName}')" style="background: #e2e8f0; color: #1e293b; border: none; border-radius: 5px; padding: 4px 8px; font-size: 11px; font-weight: 700; cursor: pointer;" title="Editar lista de SEDs">✏️ Editar</button>
+                                <button type="button" onclick="deleteSedLayerByName('${safeName}')" style="background: #fee2e2; color: #b91c1c; border: none; border-radius: 5px; padding: 4px 8px; font-size: 11px; font-weight: 700; cursor: pointer;" title="Eliminar capa">🗑️</button>
+                            </div>
+                        </div>
+                        <div style="font-size: 11px; color: #475569; margin-top: 5px; font-family: monospace; word-break: break-all;">${escapeHtml(previewSeds)}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openSedLayersModal() {
+            const isAdmin = typeof isCurrentUserAdmin === 'function' ? isCurrentUserAdmin() : (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('oms_user_role') === 'admin');
+            if (!isAdmin) return;
+            const modal = typeof document !== 'undefined' ? document.getElementById('sedLayersModalOverlay') : null;
+            if (!modal) return;
+            const alertEl = document.getElementById('sedLayerModalAlert');
+            if (alertEl) alertEl.style.display = 'none';
+            updateSedLayerLiveCounter();
+            renderSedLayersSavedList();
+            modal.style.display = 'flex';
+        }
+
+        function closeSedLayersModal() {
+            const modal = typeof document !== 'undefined' ? document.getElementById('sedLayersModalOverlay') : null;
+            if (modal) modal.style.display = 'none';
+        }
+
+        async function syncSedLayersToBackend(layersList) {
+            const cleanPayload = (Array.isArray(layersList) ? layersList : []).map(l => ({
+                name: l.name,
+                seds: l.seds,
+                updatedAt: l.updatedAt || new Date().toISOString().slice(0, 19).replace('T', ' '),
+                updatedBy: l.updatedBy || 'PLUZ'
+            }));
+
+            if (typeof setSessionCache === 'function') {
+                setSessionCache('oms_config_data_sed_layers', cleanPayload);
+            }
+            if (typeof localStorage !== 'undefined') {
+                try {
+                    localStorage.setItem('oms_sed_layers_backup', JSON.stringify(cleanPayload));
+                } catch (_) {}
+            }
+
+            const token = (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('oms_auth_token') : '') || '';
+            const role = (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('oms_user_role') : 'admin') || 'admin';
+            const resp = await fetch('/api/sed-layers', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                    'x-user-role': role
+                },
+                body: JSON.stringify({
+                    action: 'save_sed_layers',
+                    role: role,
+                    usuario: 'PLUZ',
+                    layers: cleanPayload
+                })
+            });
+            return resp.json();
+        }
+
+        async function saveSedLayerForm() {
+            const nameInp = document.getElementById('sedLayerNameInput');
+            const sedsInp = document.getElementById('sedLayerSedsInput');
+            const alertEl = document.getElementById('sedLayerModalAlert');
+            const btnSave = document.getElementById('btnSaveSedLayer');
+            const btnText = document.getElementById('btnSaveSedLayerText');
+
+            const name = String(nameInp ? nameInp.value : '').trim().toUpperCase();
+            const parsedSeds = (typeof parseSedListInput === 'function' && sedsInp) ? parseSedListInput(sedsInp.value) : [];
+
+            if (!name) {
+                if (alertEl) {
+                    alertEl.style.display = 'block';
+                    alertEl.style.background = '#fef2f2';
+                    alertEl.style.color = '#991b1b';
+                    alertEl.textContent = '⚠️ Ingresa un nombre para la capa (por ejemplo: DAN).';
+                }
+                return;
+            }
+
+            if (parsedSeds.length === 0) {
+                if (alertEl) {
+                    alertEl.style.display = 'block';
+                    alertEl.style.background = '#fef2f2';
+                    alertEl.style.color = '#991b1b';
+                    alertEl.textContent = '⚠️ Pega al menos un código de SED válido en la lista.';
+                }
+                return;
+            }
+
+            const current = (typeof getSedLayersList === 'function') ? [...getSedLayersList()] : [];
+            const nowStr = new Date().toISOString().slice(0, 19).replace('T', ' ');
+            const existingIdx = current.findIndex(l => l.name === name);
+            if (existingIdx !== -1) {
+                current[existingIdx] = { name, seds: parsedSeds, updatedAt: nowStr, updatedBy: 'PLUZ' };
+            } else {
+                current.push({ name, seds: parsedSeds, updatedAt: nowStr, updatedBy: 'PLUZ' });
+            }
+
+            if (typeof setSedLayersList === 'function') {
+                setSedLayersList(current);
+            }
+            renderSedLayersSavedList();
+            if (typeof filterMapMarkers === 'function') filterMapMarkers();
+            if (typeof refreshDashboard === 'function') refreshDashboard();
+
+            if (btnSave) btnSave.disabled = true;
+            if (btnText) btnText.textContent = 'Sincronizando con Google Sheets...';
+
+            try {
+                const res = await syncSedLayersToBackend(getSedLayersList());
+                if (alertEl) {
+                    alertEl.style.display = 'block';
+                    alertEl.style.background = '#ecfdf5';
+                    alertEl.style.color = '#065f46';
+                    alertEl.textContent = `✅ Capa "${name}" (${parsedSeds.length} SEDs) guardada. ${res && res.message ? res.message : ''}`;
+                }
+                if (typeof showAppNotification === 'function') {
+                    showAppNotification(`Capa SED "${name}" guardada (${parsedSeds.length} SEDs)`, 'success');
+                }
+            } catch (err) {
+                if (alertEl) {
+                    alertEl.style.display = 'block';
+                    alertEl.style.background = '#fffbeb';
+                    alertEl.style.color = '#b45309';
+                    alertEl.textContent = `⚠️ Capa "${name}" activa en este navegador, pero falló la sincronización remota: ${err.message}`;
+                }
+            } finally {
+                if (btnSave) btnSave.disabled = false;
+                if (btnText) btnText.textContent = 'Guardar Capa y Sincronizar con Sheets';
+            }
+        }
+
+        function editSedLayerByName(layerName) {
+            const targetName = String(layerName || '').trim().toUpperCase();
+            const layers = (typeof getSedLayersList === 'function') ? getSedLayersList() : [];
+            const found = layers.find(l => l.name === targetName);
+            if (!found) return;
+            const nameInp = document.getElementById('sedLayerNameInput');
+            const sedsInp = document.getElementById('sedLayerSedsInput');
+            const titleEl = document.getElementById('sedLayerFormTitle');
+            if (nameInp) nameInp.value = found.name;
+            if (sedsInp) sedsInp.value = found.seds.join('\n');
+            if (titleEl) titleEl.textContent = `✏️ Editando Capa: ${found.name}`;
+            updateSedLayerLiveCounter();
+        }
+
+        async function deleteSedLayerByName(layerName) {
+            const targetName = String(layerName || '').trim().toUpperCase();
+            const current = (typeof getSedLayersList === 'function') ? getSedLayersList() : [];
+            const next = current.filter(l => l.name !== targetName);
+            if (typeof setSedLayersList === 'function') {
+                setSedLayersList(next);
+            }
+            renderSedLayersSavedList();
+            if (typeof filterMapMarkers === 'function') filterMapMarkers();
+            if (typeof refreshDashboard === 'function') refreshDashboard();
+            try {
+                await syncSedLayersToBackend(getSedLayersList());
+                if (typeof showAppNotification === 'function') {
+                    showAppNotification(`Capa SED "${targetName}" eliminada`, 'info');
+                }
+            } catch (_) {}
+        }
+
+        function applySedLayerFilterQuick(layerName) {
+            const targetName = String(layerName || '').trim().toUpperCase();
+            if (typeof window !== 'undefined') {
+                if (window.mapCtrlCapaSed && typeof window.mapCtrlCapaSed.setSelected === 'function') {
+                    window.mapCtrlCapaSed.setSelected([targetName], true);
+                }
+                if (window.tdCtrlCapaSed && typeof window.tdCtrlCapaSed.setSelected === 'function') {
+                    window.tdCtrlCapaSed.setSelected([targetName], true);
+                }
+            }
+            closeSedLayersModal();
+            if (typeof showAppNotification === 'function') {
+                showAppNotification(`Filtro de Capa SED "${targetName}" aplicado en Mapa y Plazos & Reportes`, 'success');
+            }
         }
 
         if (typeof window !== 'undefined' && typeof document !== 'undefined') {
@@ -2187,6 +2503,12 @@
             window.closeSupervisorModal = closeSupervisorModal;
             window.openBulkPluzModal = openBulkPluzModal;
             window.closeBulkPluzModal = closeBulkPluzModal;
+            window.openSedLayersModal = openSedLayersModal;
+            window.closeSedLayersModal = closeSedLayersModal;
+            window.saveSedLayerForm = saveSedLayerForm;
+            window.editSedLayerByName = editSedLayerByName;
+            window.deleteSedLayerByName = deleteSedLayerByName;
+            window.applySedLayerFilterQuick = applySedLayerFilterQuick;
             window.parseBulkTickets = parseBulkTickets;
             window.parseBulkTicketsWithJc = parseBulkTicketsWithJc;
             window.parseDateTimeCandidate = parseDateTimeCandidate;

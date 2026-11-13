@@ -47,6 +47,7 @@
             ejecutadosRecords: [],
             topCriticalSedsSet: initialSet(),
             topCriticalSedsList: [],
+            sedLayersList: [],
             leafletMap: null,
             markersGroup: null,
             markerMap: initialMap(),
@@ -76,6 +77,7 @@
         'ejecutadosRecords',
         'topCriticalSedsSet',
         'topCriticalSedsList',
+        'sedLayersList',
         'leafletMap',
         'markersGroup',
         'markerMap'
@@ -2475,11 +2477,15 @@
         const mapEst = (typeof mapCtrlEstado !== 'undefined') ? mapCtrlEstado : (typeof window !== 'undefined' ? window.mapCtrlEstado : null);
         const mapEmp = (typeof mapCtrlEmpresa !== 'undefined') ? mapCtrlEmpresa : (typeof window !== 'undefined' ? window.mapCtrlEmpresa : null);
         const mapFal = (typeof mapCtrlFalla !== 'undefined') ? mapCtrlFalla : (typeof window !== 'undefined' ? window.mapCtrlFalla : null);
+        const mapEstPluz = (typeof mapCtrlEstadoPluz !== 'undefined') ? mapCtrlEstadoPluz : (typeof window !== 'undefined' ? window.mapCtrlEstadoPluz : null);
+        const mapCapaSed = (typeof mapCtrlCapaSed !== 'undefined') ? mapCtrlCapaSed : (typeof window !== 'undefined' ? window.mapCtrlCapaSed : null);
 
         const selDias = mapDia ? mapDia.getSelected() : [];
         const selEsts = mapEst ? mapEst.getSelected() : [];
         const selEmps = mapEmp ? mapEmp.getSelected() : [];
         const selFallas = mapFal ? mapFal.getSelected() : [];
+        const selEstPluz = mapEstPluz ? mapEstPluz.getSelected() : [];
+        const selCapasSed = mapCapaSed ? mapCapaSed.getSelected() : [];
 
         const chk7 = document.getElementById("chk7LlamadasMap");
         const only7Llamadas = chk7 ? chk7.checked : false;
@@ -2512,6 +2518,9 @@
             const matchEst = (typeof matchesMultiSelection === 'function') ? matchesMultiSelection(item.estado, selEsts) : true;
             const matchEmp = (typeof matchesMultiSelection === 'function') ? matchesMultiSelection(item.empresa, selEmps) : true;
             const matchFal = (typeof matchesMultiSelection === 'function') ? matchesMultiSelection(item.falla, selFallas) : true;
+            const itemEstPluz = item.estado_pluz || (typeof getTicketPluzStatus === 'function' ? getTicketPluzStatus(item.ticket) : 'SIN REGISTRO');
+            const matchEstPluz = !isAdmin || !mapEstPluz || ((typeof matchesMultiSelection === 'function') ? matchesMultiSelection(itemEstPluz, selEstPluz) : true);
+            const matchCapaSed = !isAdmin || !mapCapaSed || ((typeof recordMatchesSedLayers === 'function') ? recordMatchesSedLayers(item, selCapasSed) : true);
             const numLlamadas = parseInt(item.llamadas || 0, 10) || 0;
             const matchLlamadas = !only7Llamadas || numLlamadas >= 7;
             const matchSed = !onlyReincSed || (item.sed_reincidente || item.sed_count > 2);
@@ -2519,7 +2528,7 @@
             const isTopCrit = isAdmin && (typeof isTopCriticalSed === 'function' ? isTopCriticalSed(item.sed) : !!item.es_top_critica);
             const matchCrit = !onlyCritica || isTopCrit;
 
-            return matchQuery && matchDia && matchEst && matchEmp && matchFal && matchLlamadas && matchSed && matchSum && matchCrit;
+            return matchQuery && matchDia && matchEst && matchEmp && matchFal && matchEstPluz && matchCapaSed && matchLlamadas && matchSed && matchSum && matchCrit;
         }
 
         const allRecordsSource = (tdRecords && tdRecords.length > 0) ? tdRecords : locs;
@@ -3337,6 +3346,16 @@
     }
 
     /**
+     * Obtiene el estado operativo seleccionado en los chips del modal masivo PLUZ
+     */
+    function getSelectedBulkPluzEstado() {
+        if (typeof document === 'undefined') return 'EN EJECUCION';
+        const activeBtn = document.querySelector('#bulkPluzEstadoChips .sup-chip-btn.active');
+        const val = activeBtn ? String(activeBtn.getAttribute('data-val') || '').trim().toUpperCase() : '';
+        return val || 'EN EJECUCION';
+    }
+
+    /**
      * Ejecución masiva de asignación a EN EJECUCIÓN con JC opcional
      */
     async function executeBulkPluzEnEjecucion() {
@@ -3366,6 +3385,7 @@
         const pad = n => String(n).padStart(2, '0');
         const localTimestamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 
+        const selectedEstado = getSelectedBulkPluzEstado();
         const entries = [];
         items.forEach(it => {
             const t = it.ticket;
@@ -3381,6 +3401,9 @@
             const horaIniVal = clean(targetRec.hora_inicio || targetRec.fecha_inicio) || clean(supLatest ? supLatest.horaInicio : '');
             const aliVal = clean(targetRec.alimentador) || clean(supLatest ? supLatest.alimentador : '');
             const empVal = clean(targetRec.empresa) || clean(supLatest ? supLatest.empresa : '');
+            const prevDetOp = supLatest ? clean(supLatest.detalleOperativo || supLatest.detalle) : '';
+            const prevEstCrit = supLatest ? clean(supLatest.estadoCritico) : '';
+            const prevDetCrit = supLatest ? clean(supLatest.detalleCritico) : '';
 
             const optEntry = {
                 fecha: localTimestamp,
@@ -3389,15 +3412,15 @@
                 horaInicio: horaIniVal,
                 alimentador: aliVal,
                 empresa: empVal,
-                estadoOperativo: 'EN EJECUCION',
-                detalleOperativo: '',
+                estadoOperativo: selectedEstado,
+                detalleOperativo: prevDetOp,
                 jefeCuadrilla: jcVal || (supLatest ? clean(supLatest.jefeCuadrilla) : ''),
                 jc: jcVal || (supLatest ? clean(supLatest.jefeCuadrilla) : ''),
                 finEstimado: it.finEstimado || (supLatest ? clean(supLatest.finEstimado) : ''),
-                estadoCritico: supLatest ? clean(supLatest.estadoCritico) : '',
-                detalleCritico: supLatest ? clean(supLatest.detalleCritico) : '',
-                estado: 'EN EJECUCION',
-                detalle: '',
+                estadoCritico: prevEstCrit,
+                detalleCritico: prevDetCrit,
+                estado: selectedEstado,
+                detalle: prevDetOp || prevDetCrit,
                 usuario: 'PLUZ'
             };
 
@@ -3434,7 +3457,7 @@
                 },
                 body: JSON.stringify({
                     tickets: entries,
-                    estadoOperativo: 'EN EJECUCION',
+                    estadoOperativo: selectedEstado,
                     role: userRole || 'admin'
                 })
             });
@@ -3449,7 +3472,7 @@
                     alertEl.textContent = `✅ ${data.message || `${entries.length} tickets guardados exitosamente.`}`;
                 }
                 if (typeof showAppNotification === 'function') {
-                    showAppNotification(`Se registraron ${entries.length} tickets en EN EJECUCIÓN (PLUZ)`, 'success');
+                    showAppNotification(`Se registraron ${entries.length} tickets en ${selectedEstado} (PLUZ)`, 'success');
                 }
                 setTimeout(() => {
                     if (typeof closeBulkPluzModal === 'function') closeBulkPluzModal();
@@ -5419,6 +5442,23 @@
     }
 
     /**
+     * Marca el chip de estado operativo seleccionado en el modal masivo de PLUZ
+     */
+    function setBulkPluzSelectedEstado(estadoVal = 'EN EJECUCION') {
+        if (typeof document === 'undefined') return;
+        const container = document.getElementById('bulkPluzEstadoChips');
+        if (!container) return;
+        const target = String(estadoVal || 'EN EJECUCION').trim().toUpperCase();
+        const btns = container.querySelectorAll('.sup-chip-btn');
+        btns.forEach(btn => {
+            const val = String(btn.getAttribute('data-val') || '').trim().toUpperCase();
+            const isMatch = val === target;
+            btn.classList.toggle('active', isMatch);
+            btn.setAttribute('aria-pressed', isMatch ? 'true' : 'false');
+        });
+    }
+
+    /**
      * Abre el modal masivo de PLUZ
      */
     function openBulkPluzModal() {
@@ -5440,6 +5480,7 @@
             alertEl.textContent = '';
         }
 
+        setBulkPluzSelectedEstado('EN EJECUCION');
         updateBulkPluzCounter();
         modal.style.display = 'flex';
         if (inputTickets) {
@@ -5671,6 +5712,7 @@
         const modalBulk = document.getElementById('bulkPluzModalOverlay');
         const inputBulkTickets = document.getElementById('bulkPluzTicketsInput');
         const btnSubmitBulk = document.getElementById('btnSubmitBulkPluz');
+        const bulkEstadoChips = document.getElementById('bulkPluzEstadoChips');
 
         if (btnOpenBulk) btnOpenBulk.addEventListener('click', openBulkPluzModal);
         if (btnCloseBulk) btnCloseBulk.addEventListener('click', closeBulkPluzModal);
@@ -5678,6 +5720,13 @@
         if (modalBulk) {
             modalBulk.addEventListener('click', (e) => {
                 if (e.target === modalBulk) closeBulkPluzModal();
+            });
+        }
+        if (bulkEstadoChips) {
+            bulkEstadoChips.addEventListener('click', (e) => {
+                const btn = e.target.closest('.sup-chip-btn');
+                if (!btn) return;
+                setBulkPluzSelectedEstado(btn.getAttribute('data-val'));
             });
         }
         if (inputBulkTickets) {
@@ -5697,6 +5746,7 @@
         closeSupervisorModal,
         openBulkPluzModal,
         closeBulkPluzModal,
+        setBulkPluzSelectedEstado,
         updateSupervisorOperativoChipSelection,
         updateSupervisorCriticoChipSelection,
         renderSupervisorTimeline,

@@ -475,6 +475,16 @@
     }
 
     /**
+     * Obtiene el estado operativo seleccionado en los chips del modal masivo PLUZ
+     */
+    function getSelectedBulkPluzEstado() {
+        if (typeof document === 'undefined') return 'EN EJECUCION';
+        const activeBtn = document.querySelector('#bulkPluzEstadoChips .sup-chip-btn.active');
+        const val = activeBtn ? String(activeBtn.getAttribute('data-val') || '').trim().toUpperCase() : '';
+        return val || 'EN EJECUCION';
+    }
+
+    /**
      * Ejecución masiva de asignación a EN EJECUCIÓN con JC opcional
      */
     async function executeBulkPluzEnEjecucion() {
@@ -504,6 +514,7 @@
         const pad = n => String(n).padStart(2, '0');
         const localTimestamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 
+        const selectedEstado = getSelectedBulkPluzEstado();
         const entries = [];
         items.forEach(it => {
             const t = it.ticket;
@@ -519,6 +530,9 @@
             const horaIniVal = clean(targetRec.hora_inicio || targetRec.fecha_inicio) || clean(supLatest ? supLatest.horaInicio : '');
             const aliVal = clean(targetRec.alimentador) || clean(supLatest ? supLatest.alimentador : '');
             const empVal = clean(targetRec.empresa) || clean(supLatest ? supLatest.empresa : '');
+            const prevDetOp = supLatest ? clean(supLatest.detalleOperativo || supLatest.detalle) : '';
+            const prevEstCrit = supLatest ? clean(supLatest.estadoCritico) : '';
+            const prevDetCrit = supLatest ? clean(supLatest.detalleCritico) : '';
 
             const optEntry = {
                 fecha: localTimestamp,
@@ -527,15 +541,15 @@
                 horaInicio: horaIniVal,
                 alimentador: aliVal,
                 empresa: empVal,
-                estadoOperativo: 'EN EJECUCION',
-                detalleOperativo: '',
+                estadoOperativo: selectedEstado,
+                detalleOperativo: prevDetOp,
                 jefeCuadrilla: jcVal || (supLatest ? clean(supLatest.jefeCuadrilla) : ''),
                 jc: jcVal || (supLatest ? clean(supLatest.jefeCuadrilla) : ''),
                 finEstimado: it.finEstimado || (supLatest ? clean(supLatest.finEstimado) : ''),
-                estadoCritico: supLatest ? clean(supLatest.estadoCritico) : '',
-                detalleCritico: supLatest ? clean(supLatest.detalleCritico) : '',
-                estado: 'EN EJECUCION',
-                detalle: '',
+                estadoCritico: prevEstCrit,
+                detalleCritico: prevDetCrit,
+                estado: selectedEstado,
+                detalle: prevDetOp || prevDetCrit,
                 usuario: 'PLUZ'
             };
 
@@ -572,7 +586,7 @@
                 },
                 body: JSON.stringify({
                     tickets: entries,
-                    estadoOperativo: 'EN EJECUCION',
+                    estadoOperativo: selectedEstado,
                     role: userRole || 'admin'
                 })
             });
@@ -587,7 +601,7 @@
                     alertEl.textContent = `✅ ${data.message || `${entries.length} tickets guardados exitosamente.`}`;
                 }
                 if (typeof showAppNotification === 'function') {
-                    showAppNotification(`Se registraron ${entries.length} tickets en EN EJECUCIÓN (PLUZ)`, 'success');
+                    showAppNotification(`Se registraron ${entries.length} tickets en ${selectedEstado} (PLUZ)`, 'success');
                 }
                 setTimeout(() => {
                     if (typeof closeBulkPluzModal === 'function') closeBulkPluzModal();

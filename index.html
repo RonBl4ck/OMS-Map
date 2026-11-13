@@ -201,6 +201,8 @@
                 <div id="mapMultiEstado"></div>
                 <div id="mapMultiEmpresa"></div>
                 <div id="mapMultiFalla"></div>
+                <div id="mapMultiEstadoPluz" style="display: none;"></div>
+                <div id="mapMultiCapaSed" style="display: none;"></div>
                 <label class="checkbox-filter-label severity-chip" style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; color: #be123c; user-select: none;" title="Filtrar por incidencias con 7 o más llamadas">
                     <input type="checkbox" id="chk7LlamadasMap" data-requires-primary-data style="cursor: pointer; accent-color: #e11d48; width: 13px; height: 13px;">
                     <span>📞 ≥7 Llam.</span>
@@ -337,6 +339,14 @@
                         <label>Estado</label>
                         <div id="tdMultiEstado"></div>
                     </div>
+                    <div class="filter-group" id="tdFilterGroupEstadoPluz" style="display: none;">
+                        <label>Estado (PLUZ)</label>
+                        <div id="tdMultiEstadoPluz"></div>
+                    </div>
+                    <div class="filter-group" id="tdFilterGroupCapaSed" style="display: none;">
+                        <label>Capa SED</label>
+                        <div id="tdMultiCapaSed"></div>
+                    </div>
                     <div style="display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap;">
                         <label class="checkbox-filter-label" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700; color: #be123c; user-select: none;">
                             <input type="checkbox" id="chk7LlamadasModal" style="cursor: pointer; accent-color: #e11d48; width: 15px; height: 15px;">
@@ -391,9 +401,9 @@
                             📋 Casos Pendientes — Detalle (<span id="tableCasesCount">0</span>)
                         </h3>
                         <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                            <button type="button" id="btnOpenBulkPluzEnEjecucion" class="btn-export-table" style="background: #059669; display: none;" title="Registrar masivamente estado EN EJECUCIÓN en Supervisión PLUZ">
+                            <button type="button" id="btnOpenBulkPluzEnEjecucion" class="btn-export-table" style="background: #059669; display: none;" title="Actualizar masivamente estado EN EJECUCIÓN o C. CAMPO en Supervisión PLUZ">
                                 <span>⚡</span>
-                                <span>EJECUCION (PLUZ)</span>
+                                <span>Gestión Masiva (PLUZ)</span>
                             </button>
                             <button type="button" id="btnOpenHistorialPluzFromTdOms" class="btn-export-table" style="background: #0284c7; display: none;" title="Abrir historial completo de supervisión PLUZ">
                                 <span>🛡️</span>
@@ -617,7 +627,7 @@
                         <span>🛡️ Historial & Auditoría PLUZ</span>
                     </button>
                 </div>
-                <button type="button" class="segmented-nav-btn segmented-nav-action" id="btnSubnavOpenBulkPluz" style="display: none;" title="Registrar masivamente estado EN EJECUCIÓN en Supervisión PLUZ">
+                <button type="button" class="segmented-nav-btn segmented-nav-action" id="btnSubnavOpenBulkPluz" style="display: none;" title="Actualizar masivamente estado EN EJECUCIÓN o C. CAMPO en Supervisión PLUZ">
                     <span>⚡ Asignación Masiva</span>
                 </button>
             </div>
@@ -697,22 +707,31 @@
         </div>
     </div>
 
-    <!-- MODAL DE REGISTRO MASIVO A EN EJECUCIÓN (SUPERVISIÓN PLUZ) -->
+    <!-- MODAL DE ACTUALIZACIÓN MASIVA (SUPERVISIÓN PLUZ) -->
     <div id="bulkPluzModalOverlay" class="tech-modal-overlay" style="display: none;">
         <div class="tech-detail-dialog" style="max-width: 580px;">
             <div class="tech-detail-header" style="background: linear-gradient(135deg, #064e3b 0%, #022c22 100%); border-bottom: 2px solid #10b981;">
                 <div>
                     <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: #34d399; display: flex; align-items: center; gap: 6px;">
-                        ⚡ Registrar EN EJECUCIÓN (Supervisión PLUZ)
+                        ⚡ Actualización Masiva (Supervisión PLUZ)
                     </h3>
                     <p style="margin: 4px 0 0; color: #a7f3d0; font-size: 11px;">
-                        Actualiza la supervisión PLUZ en lote y sincroniza con Google Sheets sin alterar el estado OMS.
+                        Actualiza la supervisión PLUZ en lote y sincroniza con Google Sheets sin alterar el estado OMS ni borrar detalles previos.
                     </p>
                 </div>
                 <button id="btnCloseBulkPluzModal" class="btn-close-modal" title="Cerrar (Esc)" type="button">✕</button>
             </div>
             
             <div class="tech-detail-body" style="padding: 16px;">
+                <div style="margin-bottom: 12px;">
+                    <span style="font-size: 11px; font-weight: 700; color: #1e293b; display: block; margin-bottom: 6px;">
+                        🏷️ Estado a asignar al grupo:
+                    </span>
+                    <div id="bulkPluzEstadoChips" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button type="button" class="sup-chip-btn active" data-val="EN EJECUCION" aria-pressed="true">⚙️ EN EJECUCIÓN</button>
+                        <button type="button" class="sup-chip-btn" data-val="C. CAMPO" aria-pressed="false" style="border-color: #10b981; color: #047857;">✅ C. CAMPO</button>
+                    </div>
+                </div>
                 <div style="margin-bottom: 10px;">
                     <label for="bulkPluzTicketsInput" style="font-size: 12px; font-weight: 700; color: #1e293b; display: block; margin-bottom: 4px;">
                         📋 Copia y pega desde Excel (Ticket, Jefe de Cuadrilla y Fin Estimado):
@@ -911,6 +930,96 @@
             </header>
             <div class="call-detail-body" id="callDetailBody"></div>
         </section>
+    </div>
+
+    <!-- MODAL GESTIÓN DE CAPAS DE SEDS (EXCLUSIVO PLUZ) -->
+    <div id="sedLayersModalOverlay" style="
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(15, 23, 42, 0.85);
+        backdrop-filter: blur(8px);
+        align-items: center;
+        justify-content: center;
+        z-index: 10050;
+        font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+        padding: 16px;
+        box-sizing: border-box;
+    ">
+        <div style="
+            background: #ffffff;
+            width: 100%;
+            max-width: 780px;
+            max-height: 90vh;
+            border-radius: 14px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.45);
+            border: 2px solid #0284c7;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        ">
+            <div style="background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); color: #ffffff; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+                        <span>🗂️</span>
+                        <span>Gestor de Capas de SEDs (PLUZ)</span>
+                    </h3>
+                    <p style="margin: 3px 0 0; font-size: 11.5px; color: #93c5fd;">
+                        Crea agrupaciones personalizadas de SEDs (ej. <b>DAN</b>) para filtrar tickets en el Mapa y en Plazos &amp; Reportes.
+                    </p>
+                </div>
+                <button type="button" id="btnCloseSedLayersModal" onclick="if(typeof closeSedLayersModal==='function') closeSedLayersModal();" style="background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; width: 32px; height: 32px; font-size: 15px; font-weight: 700; cursor: pointer;">✕</button>
+            </div>
+
+            <div style="padding: 18px 20px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px;">
+                <!-- Formulario Crear / Editar Capa -->
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h4 id="sedLayerFormTitle" style="margin: 0; font-size: 13px; font-weight: 800; color: #0f172a; text-transform: uppercase;">➕ Nueva / Editar Capa</h4>
+                        <button type="button" id="btnClearSedLayerForm" style="background: none; border: none; color: #0284c7; font-size: 11px; font-weight: 700; cursor: pointer; text-decoration: underline;">Limpiar formulario</button>
+                    </div>
+
+                    <div style="margin-bottom: 10px;">
+                        <label for="sedLayerNameInput" style="display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px; text-transform: uppercase;">Nombre de la Capa</label>
+                        <input type="text" id="sedLayerNameInput" placeholder="Ej: DAN, ZONA NORTE, PRIORITARIAS..." style="width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-weight: 700; color: #0f172a; box-sizing: border-box; text-transform: uppercase;">
+                    </div>
+
+                    <div style="margin-bottom: 10px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <label for="sedLayerSedsInput" style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase;">Lista de SEDs (Pega desde Excel o texto)</label>
+                            <span id="sedLayerLiveCounter" style="font-size: 11px; font-weight: 700; color: #0284c7; background: #e0f2fe; padding: 2px 7px; border-radius: 999px;">0 SEDs · 0 tickets activos</span>
+                        </div>
+                        <textarea id="sedLayerSedsInput" rows="7" placeholder="Pega una columna de Excel o códigos separados por coma, espacio o salto de línea:&#10;03033A&#10;04512B&#10;01920C" style="width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; font-family: monospace; color: #1e293b; box-sizing: border-box; resize: vertical;"></textarea>
+                    </div>
+
+                    <div id="sedLayerModalAlert" style="display: none; padding: 8px 10px; border-radius: 6px; font-size: 11.5px; font-weight: 600; margin-bottom: 10px;"></div>
+
+                    <button type="button" id="btnSaveSedLayer" style="width: 100%; background: #0284c7; color: #ffffff; border: none; border-radius: 8px; padding: 10px 14px; font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 6px rgba(2,132,199,0.3);">
+                        <span>💾</span>
+                        <span id="btnSaveSedLayerText">Guardar Capa y Sincronizar con Sheets</span>
+                    </button>
+                </div>
+
+                <!-- Listado de Capas Guardadas -->
+                <div style="display: flex; flex-direction: column;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <h4 style="margin: 0; font-size: 13px; font-weight: 800; color: #0f172a; text-transform: uppercase;">📋 Capas Guardadas (<span id="sedLayersTotalCount">0</span>)</h4>
+                        <span style="font-size: 11px; color: #64748b;">Hoja: <b>CAPAS_SED</b></span>
+                    </div>
+                    <div id="sedLayersSavedList" style="flex: 1; max-height: 330px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px; background: #ffffff;">
+                        <div style="text-align: center; padding: 24px 10px; color: #64748b; font-size: 12px;">No hay capas registradas aún.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="background: #f1f5f9; padding: 10px 20px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                <span style="font-size: 11px; color: #475569;">💡 Tip: Puedes seleccionar una o varias capas a la vez en el filtro <b>Capa SED</b> del Mapa o Plazos &amp; Reportes.</span>
+                <button type="button" onclick="if(typeof closeSedLayersModal==='function') closeSedLayersModal();" style="background: #334155; color: #ffffff; border: none; border-radius: 6px; padding: 6px 16px; font-size: 12px; font-weight: 700; cursor: pointer;">Cerrar</button>
+            </div>
+        </div>
     </div>
 
     <!-- MODAL PARA INGRESAR CONTRASEÑA MAESTRA / PIN DE CONFIGURACIÓN -->

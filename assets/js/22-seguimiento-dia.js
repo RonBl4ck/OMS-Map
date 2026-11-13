@@ -2568,7 +2568,7 @@
             const closuresCount = hasClosures ? item.closures.length : 0;
 
             const breakdownBadge = (isPluz && item.fallasRealesBreakdown)
-                ? `<span class="segdia-pill pill-amber" style="font-size: 11px; white-space: normal; display: inline-block; max-width: 260px;" title="${escapeHtml(item.fallasRealesBreakdown)}">⚡ ${escapeHtml(item.fallasRealesBreakdown)}</span>`
+                ? `<span class="segdia-pill pill-amber" style="font-size: 11px; white-space: normal; display: inline-block; max-width: 100%;" title="${escapeHtml(item.fallasRealesBreakdown)}">⚡ ${escapeHtml(item.fallasRealesBreakdown)}</span>`
                 : '<span style="color: #94a3b8; font-size: 11px;">-</span>';
 
             const closuresBtn = hasClosures ? `
@@ -2969,12 +2969,12 @@
                             <table class="segdia-table">
                                 <thead>
                                     <tr>
-                                        <th style="width: 140px;">${isSuministrosTab ? 'Suministro' : 'SED'}</th>
-                                        <th>${isSuministrosTab ? 'SED Asignada / Distrito' : 'Ubicación / CT'}</th>
-                                        <th style="width: 150px;">${isSuministrosTab ? 'Falla Real' : 'Fallas Reales'}</th>
-                                        <th style="width: 90px; text-align: center;">Eventos 7D</th>
-                                        <th style="width: 120px;">Pendientes</th>
-                                        <th style="width: 120px; text-align: right;">Acción</th>
+                                        <th style="width: 105px;">${isSuministrosTab ? 'Suministro' : 'SED'}</th>
+                                        <th style="width: 195px;">${isSuministrosTab ? 'SED Asignada / Distrito' : 'Ubicación / CT'}</th>
+                                        <th style="min-width: 240px;">${isSuministrosTab ? 'Falla Real' : 'Fallas Reales'}</th>
+                                        <th style="width: 85px; text-align: center;">Eventos 7D</th>
+                                        <th style="width: 255px;">Pendientes</th>
+                                        <th style="width: 135px; text-align: right;">Acción</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -3255,12 +3255,12 @@
             <table class="segdia-table">
                 <thead>
                     <tr>
-                        <th style="width: 140px;">${isSuministrosTab ? 'Suministro' : 'SED'}</th>
-                        <th>${isSuministrosTab ? 'SED Asignada / Distrito' : 'Ubicación / CT'}</th>
-                        <th style="width: 150px;">${isSuministrosTab ? 'Falla Real' : 'Fallas Reales'}</th>
-                        <th style="width: 90px; text-align: center;">Eventos 7D</th>
-                        <th style="width: 120px;">Pendientes</th>
-                        <th style="width: 120px; text-align: right;">Acción</th>
+                        <th style="width: 105px;">${isSuministrosTab ? 'Suministro' : 'SED'}</th>
+                        <th style="width: 195px;">${isSuministrosTab ? 'SED Asignada / Distrito' : 'Ubicación / CT'}</th>
+                        <th style="min-width: 240px;">${isSuministrosTab ? 'Falla Real' : 'Fallas Reales'}</th>
+                        <th style="width: 85px; text-align: center;">Eventos 7D</th>
+                        <th style="width: 255px;">Pendientes</th>
+                        <th style="width: 135px; text-align: right;">Acción</th>
                     </tr>
                 </thead>
                 <tbody>

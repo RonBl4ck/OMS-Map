@@ -295,6 +295,23 @@
     }
 
     /**
+     * Marca el chip de estado operativo seleccionado en el modal masivo de PLUZ
+     */
+    function setBulkPluzSelectedEstado(estadoVal = 'EN EJECUCION') {
+        if (typeof document === 'undefined') return;
+        const container = document.getElementById('bulkPluzEstadoChips');
+        if (!container) return;
+        const target = String(estadoVal || 'EN EJECUCION').trim().toUpperCase();
+        const btns = container.querySelectorAll('.sup-chip-btn');
+        btns.forEach(btn => {
+            const val = String(btn.getAttribute('data-val') || '').trim().toUpperCase();
+            const isMatch = val === target;
+            btn.classList.toggle('active', isMatch);
+            btn.setAttribute('aria-pressed', isMatch ? 'true' : 'false');
+        });
+    }
+
+    /**
      * Abre el modal masivo de PLUZ
      */
     function openBulkPluzModal() {
@@ -316,6 +333,7 @@
             alertEl.textContent = '';
         }
 
+        setBulkPluzSelectedEstado('EN EJECUCION');
         updateBulkPluzCounter();
         modal.style.display = 'flex';
         if (inputTickets) {
@@ -547,6 +565,7 @@
         const modalBulk = document.getElementById('bulkPluzModalOverlay');
         const inputBulkTickets = document.getElementById('bulkPluzTicketsInput');
         const btnSubmitBulk = document.getElementById('btnSubmitBulkPluz');
+        const bulkEstadoChips = document.getElementById('bulkPluzEstadoChips');
 
         if (btnOpenBulk) btnOpenBulk.addEventListener('click', openBulkPluzModal);
         if (btnCloseBulk) btnCloseBulk.addEventListener('click', closeBulkPluzModal);
@@ -554,6 +573,13 @@
         if (modalBulk) {
             modalBulk.addEventListener('click', (e) => {
                 if (e.target === modalBulk) closeBulkPluzModal();
+            });
+        }
+        if (bulkEstadoChips) {
+            bulkEstadoChips.addEventListener('click', (e) => {
+                const btn = e.target.closest('.sup-chip-btn');
+                if (!btn) return;
+                setBulkPluzSelectedEstado(btn.getAttribute('data-val'));
             });
         }
         if (inputBulkTickets) {
@@ -573,6 +599,7 @@
         closeSupervisorModal,
         openBulkPluzModal,
         closeBulkPluzModal,
+        setBulkPluzSelectedEstado,
         updateSupervisorOperativoChipSelection,
         updateSupervisorCriticoChipSelection,
         renderSupervisorTimeline,

@@ -256,6 +256,14 @@ function updateUserBadge() {
     if (lblCriticaModal) lblCriticaModal.style.display = isAdmin ? 'inline-flex' : 'none';
     const lblFilterQC = document.getElementById("lblFilterQuanticoCritico");
     if (lblFilterQC) lblFilterQC.style.display = isAdmin ? 'inline-flex' : 'none';
+    const mapMultiEstadoPluz = document.getElementById("mapMultiEstadoPluz");
+    if (mapMultiEstadoPluz) mapMultiEstadoPluz.style.display = isAdmin ? '' : 'none';
+    const mapMultiCapaSed = document.getElementById("mapMultiCapaSed");
+    if (mapMultiCapaSed) mapMultiCapaSed.style.display = isAdmin ? '' : 'none';
+    const tdFilterGroupEstadoPluz = document.getElementById("tdFilterGroupEstadoPluz");
+    if (tdFilterGroupEstadoPluz) tdFilterGroupEstadoPluz.style.display = isAdmin ? '' : 'none';
+    const tdFilterGroupCapaSed = document.getElementById("tdFilterGroupCapaSed");
+    if (tdFilterGroupCapaSed) tdFilterGroupCapaSed.style.display = isAdmin ? '' : 'none';
     const reportBtns = document.getElementById("contractorReportBtnsContainer");
     if (reportBtns) reportBtns.style.display = isAdmin ? 'inline-flex' : 'none';
     const navUserName = document.getElementById("navUserName");
@@ -538,7 +546,49 @@ async function loadData() {
             }
         })();
 
+        const sedLayersPromise = (async () => {
+            if (isAdmin) {
+                let cachedLayers = getSessionCache('oms_config_data_sed_layers', OMS_CACHE_TTL_MS);
+                if (!cachedLayers) {
+                    try {
+                        const token = (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('oms_auth_token') : null) || '';
+                        const resp = await fetchWithTimeout(`/api/sed-layers?role=${encodeURIComponent(userRole)}`, {
+                            headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'x-user-role': userRole
+                            }
+                        }, 10000);
+                        if (resp && resp.ok) {
+                            const json = await resp.json();
+                            if (json && Array.isArray(json.layers)) {
+                                cachedLayers = json.layers;
+                                setSessionCache('oms_config_data_sed_layers', cachedLayers);
+                            }
+                        }
+                    } catch (e) {
+                        console.warn("⚠️ No se pudo cargar CAPAS_SED desde /api/sed-layers:", e);
+                    }
+                }
+                if (!cachedLayers && typeof localStorage !== 'undefined') {
+                    try {
+                        const backupRaw = localStorage.getItem('oms_sed_layers_backup');
+                        if (backupRaw) {
+                            const parsed = JSON.parse(backupRaw);
+                            if (Array.isArray(parsed)) cachedLayers = parsed;
+                        }
+                    } catch (_) {}
+                }
+                if (Array.isArray(cachedLayers) && typeof setSedLayersList === 'function') {
+                    setSedLayersList(cachedLayers);
+                    console.log(`🗂️ [Capas SED] ${cachedLayers.length} capas cargadas.`);
+                }
+            } else if (typeof setSedLayersList === 'function') {
+                setSedLayersList([]);
+            }
+        })();
+
         await Promise.allSettled([sedsCriticasPromise, supervisorPromise]);
+        await sedLayersPromise;
 
         // 3. Carga de Ejecutados (para alimentar el historial de 7 días y análisis, segmentado por contratista)
         if (GOOGLE_SHEET_EJECUTADOS_URL) {
@@ -694,6 +744,7 @@ async function refreshLiveOmsData(options = {}) {
         if (storage) {
             storage.removeItem('oms_seds_criticas_csv');
             storage.removeItem('oms_supervisor_csv');
+            storage.removeItem('oms_config_data_sed_layers');
         }
 
         const loadFn = (typeof loadData === 'function') ? loadData : (typeof window !== 'undefined' ? window.loadData : null);

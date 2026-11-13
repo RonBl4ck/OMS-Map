@@ -176,11 +176,15 @@
         const mapEst = (typeof mapCtrlEstado !== 'undefined') ? mapCtrlEstado : (typeof window !== 'undefined' ? window.mapCtrlEstado : null);
         const mapEmp = (typeof mapCtrlEmpresa !== 'undefined') ? mapCtrlEmpresa : (typeof window !== 'undefined' ? window.mapCtrlEmpresa : null);
         const mapFal = (typeof mapCtrlFalla !== 'undefined') ? mapCtrlFalla : (typeof window !== 'undefined' ? window.mapCtrlFalla : null);
+        const mapEstPluz = (typeof mapCtrlEstadoPluz !== 'undefined') ? mapCtrlEstadoPluz : (typeof window !== 'undefined' ? window.mapCtrlEstadoPluz : null);
+        const mapCapaSed = (typeof mapCtrlCapaSed !== 'undefined') ? mapCtrlCapaSed : (typeof window !== 'undefined' ? window.mapCtrlCapaSed : null);
 
         const selDias = mapDia ? mapDia.getSelected() : [];
         const selEsts = mapEst ? mapEst.getSelected() : [];
         const selEmps = mapEmp ? mapEmp.getSelected() : [];
         const selFallas = mapFal ? mapFal.getSelected() : [];
+        const selEstPluz = mapEstPluz ? mapEstPluz.getSelected() : [];
+        const selCapasSed = mapCapaSed ? mapCapaSed.getSelected() : [];
 
         const chk7 = document.getElementById("chk7LlamadasMap");
         const only7Llamadas = chk7 ? chk7.checked : false;
@@ -213,6 +217,9 @@
             const matchEst = (typeof matchesMultiSelection === 'function') ? matchesMultiSelection(item.estado, selEsts) : true;
             const matchEmp = (typeof matchesMultiSelection === 'function') ? matchesMultiSelection(item.empresa, selEmps) : true;
             const matchFal = (typeof matchesMultiSelection === 'function') ? matchesMultiSelection(item.falla, selFallas) : true;
+            const itemEstPluz = item.estado_pluz || (typeof getTicketPluzStatus === 'function' ? getTicketPluzStatus(item.ticket) : 'SIN REGISTRO');
+            const matchEstPluz = !isAdmin || !mapEstPluz || ((typeof matchesMultiSelection === 'function') ? matchesMultiSelection(itemEstPluz, selEstPluz) : true);
+            const matchCapaSed = !isAdmin || !mapCapaSed || ((typeof recordMatchesSedLayers === 'function') ? recordMatchesSedLayers(item, selCapasSed) : true);
             const numLlamadas = parseInt(item.llamadas || 0, 10) || 0;
             const matchLlamadas = !only7Llamadas || numLlamadas >= 7;
             const matchSed = !onlyReincSed || (item.sed_reincidente || item.sed_count > 2);
@@ -220,7 +227,7 @@
             const isTopCrit = isAdmin && (typeof isTopCriticalSed === 'function' ? isTopCriticalSed(item.sed) : !!item.es_top_critica);
             const matchCrit = !onlyCritica || isTopCrit;
 
-            return matchQuery && matchDia && matchEst && matchEmp && matchFal && matchLlamadas && matchSed && matchSum && matchCrit;
+            return matchQuery && matchDia && matchEst && matchEmp && matchFal && matchEstPluz && matchCapaSed && matchLlamadas && matchSed && matchSum && matchCrit;
         }
 
         const allRecordsSource = (tdRecords && tdRecords.length > 0) ? tdRecords : locs;

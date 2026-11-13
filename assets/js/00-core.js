@@ -118,6 +118,48 @@
             return (/^n\/?a$/i.test(s) || s === '--' || s === 'null' || s === 'undefined') ? '' : s;
         }
 
+        function getTicketPluzStatus(ticket) {
+            const sup = getSupervisorDataForTicket(ticket);
+            if (!sup || !sup.latest) return 'SIN REGISTRO';
+            const op = cleanSupVal(sup.latest.estadoOperativo || sup.latest.estado).toUpperCase();
+            if (!op || op === 'QUANTICO' || op === 'CRITICO') return 'SIN REGISTRO';
+            return op;
+        }
+
+        function syncRecordsPluzStatus() {
+            const updateList = (list) => {
+                if (!Array.isArray(list)) return;
+                list.forEach(r => {
+                    if (r && typeof r === 'object') {
+                        r.estado_pluz = getTicketPluzStatus(r.ticket);
+                    }
+                });
+            };
+            updateList(tdOmsRecords);
+            updateList(mapLocations);
+
+            if (typeof window !== 'undefined') {
+                if (window.mapCtrlEstadoPluz && Array.isArray(mapLocations)) {
+                    const mapOpts = mapLocations.map(m => m.estado_pluz || getTicketPluzStatus(m.ticket));
+                    if (typeof window.mapCtrlEstadoPluz.setBaseOptions === 'function') {
+                        window.mapCtrlEstadoPluz.setBaseOptions(mapOpts);
+                    }
+                    if (typeof window.mapCtrlEstadoPluz.setOptions === 'function') {
+                        window.mapCtrlEstadoPluz.setOptions(mapOpts);
+                    }
+                }
+                if (window.tdCtrlEstadoPluz && Array.isArray(tdOmsRecords)) {
+                    const tdOpts = tdOmsRecords.map(r => r.estado_pluz || getTicketPluzStatus(r.ticket));
+                    if (typeof window.tdCtrlEstadoPluz.setBaseOptions === 'function') {
+                        window.tdCtrlEstadoPluz.setBaseOptions(tdOpts);
+                    }
+                    if (typeof window.tdCtrlEstadoPluz.setOptions === 'function') {
+                        window.tdCtrlEstadoPluz.setOptions(tdOpts);
+                    }
+                }
+            }
+        }
+
         function addSupervisorLogOptimistic(entry) {
             if (!entry || !entry.ticket) return;
             const key = String(entry.ticket).trim().toLowerCase();
@@ -159,6 +201,8 @@
                 sedList.unshift(normalizedEntry);
             }
 
+            syncRecordsPluzStatus();
+
             if (typeof omsStore !== 'undefined') {
                 omsStore.setState({ supervisorRecordsMap, supervisorRecordsBySedMap });
             }
@@ -168,6 +212,8 @@
             window.cleanSupVal = cleanSupVal;
             window.getSupervisorDataForTicket = getSupervisorDataForTicket;
             window.getSupervisorLogsForSed = getSupervisorLogsForSed;
+            window.getTicketPluzStatus = getTicketPluzStatus;
+            window.syncRecordsPluzStatus = syncRecordsPluzStatus;
             window.addSupervisorLogOptimistic = addSupervisorLogOptimistic;
             window.supervisorRecordsMap = supervisorRecordsMap;
             window.supervisorRecordsBySedMap = supervisorRecordsBySedMap;
@@ -201,6 +247,327 @@
                 s = s.split('-')[0].trim();
             }
             return s;
+        }
+
+        var sedLayersList = (typeof omsStore !== 'undefined' && omsStore.get('sedLayersList')) || [];
+        var _registeredSedLayerControls = [];
+
+        function parseSedListInput(rawText) {
+            if (Array.isArray(rawText)) {
+                rawText = rawText.join(',');
+            }
+            if (!rawText || typeof rawText !== 'string') return [];
+            const tokens = rawText.split(/[\r\n,;\t\s]+/);
+            const seen = new Set();
+            const result = [];
+            const ignoredHeaders = new Set(['SED', 'SEDS', 'CODIGO', 'CODIGO_SED', 'COD_SED', 'SUBESTACION', 'N/A', 'NA', '-', '--', 'NULL', 'UNDEFINED']);
+            tokens.forEach(token => {
+                const cleaned = normalizeSedCode(token.replace(/["']/g, ''));
+                if (!cleaned || ignoredHeaders.has(cleaned)) return;
+                if (!seen.has(cleaned)) {
+                    seen.add(cleaned);
+                    result.push(cleaned);
+                }
+            });
+            return result;
+        }
+
+        function buildSedMatchSet(sedsArray) {
+            const set = new Set();
+            (Array.isArray(sedsArray) ? sedsArray : []).forEach(s => {
+                const raw = String(s || '').trim().toUpperCase();
+                const norm = normalizeSedCode(s);
+                const base = extractBaseSedCode(s);
+                if (raw) set.add(raw);
+                if (norm) set.add(norm);
+                if (base) {
+                    set.add(base);
+                    const noLeadingZeros = base.replace(/^0+(?=[1-9A-Z])/, '');
+                    if (noLeadingZeros) set.add(noLeadingZeros);
+                }
+            });
+            return set;
+        }
+
+        function refreshSedLayerControls() {
+            _registeredSedLayerControls.forEach(ctrl => {
+                if (ctrl && typeof ctrl.refreshOptions === 'function') {
+                    ctrl.refreshOptions();
+                }
+            });
+        }
+
+        function setSedLayersList(layers) {
+            const rawList = Array.isArray(layers) ? layers : [];
+            const normalized = [];
+            const seenNames = new Set();
+            rawList.forEach(item => {
+                if (!item || typeof item !== 'object') return;
+                const name = String(item.name || item.nombre || item.Nombre_Capa || '').trim().toUpperCase();
+                if (!name) return;
+                const seds = parseSedListInput(item.seds || item.SEDs || item.sedsText || '');
+                if (seds.length === 0) return;
+                const entry = {
+                    name,
+                    seds,
+                    sedSet: buildSedMatchSet(seds),
+                    updatedAt: String(item.updatedAt || item.fecha || item.Fecha_Actualizacion || '').trim(),
+                    updatedBy: String(item.updatedBy || item.usuario || item.Usuario || 'PLUZ').trim()
+                };
+                if (seenNames.has(name)) {
+                    const idx = normalized.findIndex(l => l.name === name);
+                    if (idx !== -1) normalized[idx] = entry;
+                } else {
+                    seenNames.add(name);
+                    normalized.push(entry);
+                }
+            });
+
+            sedLayersList = normalized;
+            if (typeof window !== 'undefined') {
+                window.sedLayersList = sedLayersList;
+            }
+            if (typeof omsStore !== 'undefined' && typeof omsStore.setState === 'function') {
+                omsStore.setState({ sedLayersList });
+            }
+            refreshSedLayerControls();
+            return sedLayersList;
+        }
+
+        function getSedLayersList() {
+            return Array.isArray(sedLayersList) ? sedLayersList : [];
+        }
+
+        function sedMatchesSet(sedVal, targetSet) {
+            if (!sedVal || sedVal === 'N/A' || !targetSet || targetSet.size === 0) return false;
+            const raw = String(sedVal).trim().toUpperCase();
+            const norm = normalizeSedCode(sedVal);
+            const base = extractBaseSedCode(sedVal);
+            const noZeros = base ? base.replace(/^0+(?=[1-9A-Z])/, '') : '';
+            return (raw && targetSet.has(raw)) ||
+                   (norm && targetSet.has(norm)) ||
+                   (base && targetSet.has(base)) ||
+                   (noZeros && targetSet.has(noZeros));
+        }
+
+        function recordMatchesSedLayers(record, selectedLayerNames) {
+            const selected = Array.isArray(selectedLayerNames) ? selectedLayerNames.filter(Boolean) : [];
+            if (selected.length === 0) return true;
+            if (!record || !record.sed || record.sed === 'N/A') return false;
+            const layers = getSedLayersList();
+            const selectedUpper = new Set(selected.map(n => String(n).trim().toUpperCase()));
+            for (let i = 0; i < layers.length; i++) {
+                const layer = layers[i];
+                if (selectedUpper.has(layer.name)) {
+                    const matchSet = layer.sedSet || buildSedMatchSet(layer.seds);
+                    if (sedMatchesSet(record.sed, matchSet)) return true;
+                }
+            }
+            return false;
+        }
+
+        function initSedLayerMultiSelect(containerId, titlePrefix, onChangeCallback) {
+            if (typeof document === 'undefined') return null;
+            const container = document.getElementById(containerId);
+            if (!container) return null;
+            container.innerHTML = "";
+            container.className = "custom-multiselect";
+
+            let selectedVals = new Set();
+
+            const btn = document.createElement("button");
+            btn.className = "multiselect-btn";
+            btn.type = "button";
+            btn.setAttribute("aria-haspopup", "true");
+            btn.setAttribute("aria-expanded", "false");
+
+            const menu = document.createElement("div");
+            menu.className = "multiselect-dropdown-menu";
+            menu.id = `${containerId}Menu`;
+            menu.setAttribute("role", "group");
+            menu.setAttribute("aria-label", `Opciones de ${titlePrefix}`);
+            btn.setAttribute("aria-controls", menu.id);
+
+            menu.addEventListener("click", (e) => {
+                e.stopPropagation();
+            });
+
+            function updateBtnLabel() {
+                const layers = getSedLayersList();
+                if (selectedVals.size === 0) {
+                    btn.innerText = layers.length > 0 ? `🗂️ ${titlePrefix}: Todas` : `🗂️ ${titlePrefix}: (Crear)`;
+                    btn.style.borderColor = "";
+                    btn.style.background = "";
+                    btn.style.color = "";
+                } else if (selectedVals.size === 1) {
+                    const selName = Array.from(selectedVals)[0];
+                    const found = layers.find(l => l.name === selName);
+                    const countInfo = found ? ` (${found.seds.length})` : '';
+                    btn.innerText = `🗂️ ${titlePrefix}: ${selName}${countInfo}`;
+                    btn.style.borderColor = "#0284c7";
+                    btn.style.background = "#e0f2fe";
+                    btn.style.color = "#0369a1";
+                } else {
+                    btn.innerText = `🗂️ ${titlePrefix}: ${selectedVals.size} activas`;
+                    btn.style.borderColor = "#0284c7";
+                    btn.style.background = "#e0f2fe";
+                    btn.style.color = "#0369a1";
+                }
+            }
+
+            const manageBtn = document.createElement("button");
+            manageBtn.type = "button";
+            manageBtn.style.cssText = "width:100%; text-align:left; background:#f0f9ff; color:#0369a1; border:1px solid #bae6fd; border-radius:6px; padding:6px 8px; font-size:11.5px; font-weight:700; cursor:pointer; margin-bottom:6px; display:flex; align-items:center; justify-content:space-between;";
+            manageBtn.innerHTML = `<span>⚙️ Gestionar Capas SED...</span><span style="font-size:10px; background:#0284c7; color:#fff; padding:1px 5px; border-radius:4px;">+ Nueva</span>`;
+            manageBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                menu.classList.remove("show");
+                btn.setAttribute("aria-expanded", "false");
+                if (typeof window !== 'undefined' && typeof window.openSedLayersModal === 'function') {
+                    window.openSedLayersModal();
+                }
+            });
+            menu.appendChild(manageBtn);
+
+            const clearBtn = document.createElement("button");
+            clearBtn.type = "button";
+            clearBtn.style.cssText = "width:100%; text-align:left; background:#fff1f2; color:#be123c; border:1px solid #fecdd3; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:700; cursor:pointer; margin-bottom:6px; display:none;";
+            clearBtn.innerText = "✕ Quitar filtro de capa (Ver todas)";
+            clearBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                selectedVals.clear();
+                renderOptions();
+                if (typeof onChangeCallback === 'function') onChangeCallback([]);
+            });
+            menu.appendChild(clearBtn);
+
+            const divider = document.createElement("div");
+            divider.className = "multiselect-divider";
+            menu.appendChild(divider);
+
+            const optionList = document.createElement("div");
+            menu.appendChild(optionList);
+
+            function renderOptions() {
+                optionList.innerHTML = "";
+                const layers = getSedLayersList();
+                const validNames = new Set(layers.map(l => l.name));
+                selectedVals = new Set([...selectedVals].filter(v => validNames.has(v)));
+                clearBtn.style.display = selectedVals.size > 0 ? "block" : "none";
+
+                if (layers.length === 0) {
+                    const emptyMsg = document.createElement("div");
+                    emptyMsg.style.cssText = "padding:8px 6px; font-size:11px; color:#64748b; text-align:center;";
+                    emptyMsg.innerText = "No hay capas creadas. Haz clic en 'Gestionar Capas SED' para crear una (ej. DAN).";
+                    optionList.appendChild(emptyMsg);
+                    updateBtnLabel();
+                    return;
+                }
+
+                layers.forEach(layer => {
+                    const item = document.createElement("label");
+                    item.className = "multiselect-item";
+                    item.style.display = "flex";
+                    item.style.justifyContent = "space-between";
+                    item.style.alignItems = "center";
+                    item.style.gap = "6px";
+
+                    const leftSpan = document.createElement("span");
+                    leftSpan.style.display = "inline-flex";
+                    leftSpan.style.alignItems = "center";
+                    leftSpan.style.gap = "6px";
+
+                    const cb = document.createElement("input");
+                    cb.type = "checkbox";
+                    cb.value = layer.name;
+                    cb.checked = selectedVals.has(layer.name);
+                    cb.addEventListener("change", () => {
+                        if (cb.checked) selectedVals.add(layer.name);
+                        else selectedVals.delete(layer.name);
+                        clearBtn.style.display = selectedVals.size > 0 ? "block" : "none";
+                        updateBtnLabel();
+                        if (typeof onChangeCallback === 'function') {
+                            onChangeCallback(Array.from(selectedVals));
+                        }
+                    });
+
+                    const nameNode = document.createElement("span");
+                    nameNode.style.fontWeight = "700";
+                    nameNode.innerText = layer.name;
+
+                    leftSpan.appendChild(cb);
+                    leftSpan.appendChild(nameNode);
+
+                    const badge = document.createElement("span");
+                    badge.style.cssText = "font-size:10px; background:#e2e8f0; color:#334155; padding:1px 6px; border-radius:999px; font-weight:700;";
+                    badge.innerText = `${layer.seds.length} SEDs`;
+
+                    item.appendChild(leftSpan);
+                    item.appendChild(badge);
+                    optionList.appendChild(item);
+                });
+
+                updateBtnLabel();
+            }
+
+            btn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                document.querySelectorAll(".multiselect-dropdown-menu.show").forEach(m => {
+                    if (m !== menu) m.classList.remove("show");
+                });
+                menu.classList.toggle("show");
+                btn.setAttribute("aria-expanded", String(menu.classList.contains("show")));
+            });
+
+            menu.addEventListener("keydown", event => {
+                if (event.key !== "Escape") return;
+                menu.classList.remove("show");
+                btn.setAttribute("aria-expanded", "false");
+                btn.focus();
+            });
+
+            container.appendChild(btn);
+            container.appendChild(menu);
+            renderOptions();
+
+            const ctrl = {
+                getSelected: () => Array.from(selectedVals),
+                isAllSelected: () => selectedVals.size === 0,
+                reset: () => {
+                    selectedVals.clear();
+                    renderOptions();
+                },
+                setSelected: (newSelectedVals, triggerChange = true) => {
+                    const list = Array.isArray(newSelectedVals) ? newSelectedVals : (newSelectedVals ? [newSelectedVals] : []);
+                    const validNames = new Set(getSedLayersList().map(l => l.name));
+                    selectedVals = new Set(list.map(v => String(v).trim().toUpperCase()).filter(v => validNames.has(v)));
+                    renderOptions();
+                    if (triggerChange && typeof onChangeCallback === 'function') {
+                        onChangeCallback(Array.from(selectedVals));
+                    }
+                },
+                refreshOptions: () => {
+                    renderOptions();
+                }
+            };
+
+            _registeredSedLayerControls = _registeredSedLayerControls.filter(c => c._containerId !== containerId);
+            ctrl._containerId = containerId;
+            _registeredSedLayerControls.push(ctrl);
+
+            return ctrl;
+        }
+
+        if (typeof window !== 'undefined') {
+            window.sedLayersList = sedLayersList;
+            window.parseSedListInput = parseSedListInput;
+            window.buildSedMatchSet = buildSedMatchSet;
+            window.setSedLayersList = setSedLayersList;
+            window.getSedLayersList = getSedLayersList;
+            window.sedMatchesSet = sedMatchesSet;
+            window.recordMatchesSedLayers = recordMatchesSedLayers;
+            window.initSedLayerMultiSelect = initSedLayerMultiSelect;
+            window.refreshSedLayerControls = refreshSedLayerControls;
         }
 
         function isExcludedFault(typeStr) {

@@ -41,6 +41,7 @@
             ejecutadosRecords: [],
             topCriticalSedsSet: initialSet(),
             topCriticalSedsList: [],
+            sedLayersList: [],
             leafletMap: null,
             markersGroup: null,
             markerMap: initialMap(),
@@ -70,6 +71,7 @@
         'ejecutadosRecords',
         'topCriticalSedsSet',
         'topCriticalSedsList',
+        'sedLayersList',
         'leafletMap',
         'markersGroup',
         'markerMap'

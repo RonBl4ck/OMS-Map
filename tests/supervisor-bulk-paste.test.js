@@ -205,3 +205,174 @@ test('Caso adicional: parseDateTimeCandidate con formatos de hora en 12 horas (A
   assert.equal(parseDateTimeCandidate('18:00 hrs'), `${today} 18:00`);
   assert.equal(parseDateTimeCandidate('NO_DATE'), '');
 });
+
+function createBulkExecutionContext({ rawInput = '', chipValues = ['EN EJECUCION', 'C. CAMPO'], activeChip = null } = {}) {
+  const makeEl = (extra = {}) => ({
+    addEventListener() {},
+    style: {},
+    textContent: '',
+    innerHTML: '',
+    value: '',
+    disabled: false,
+    classList: {
+      _set: new Set(),
+      add(c) { this._set.add(c); },
+      remove(c) { this._set.delete(c); },
+      contains(c) { return this._set.has(c); }
+    },
+    setAttribute() {},
+    getAttribute() { return null; },
+    focus() {},
+    ...extra
+  });
+
+  const elementsById = {
+    bulkPluzTicketsInput: makeEl({ value: rawInput }),
+    bulkPluzAlert: makeEl(),
+    btnSubmitBulkPluz: makeEl(),
+    bulkPluzSubmitSpinner: makeEl(),
+    bulkPluzSubmitText: makeEl()
+  };
+
+  const chipEls = chipValues.map(val => {
+    const el = makeEl({
+      getAttribute(attr) { return attr === 'data-val' ? val : null; }
+    });
+    if (activeChip && val === activeChip) {
+      el.classList.add('active');
+    }
+    return el;
+  });
+
+  const fetchCalls = [];
+  const notifications = [];
+
+  const doc = {
+    addEventListener() {},
+    getElementById(id) { return elementsById[id] || makeEl(); },
+    querySelectorAll(selector) {
+      if (selector === '#bulkPluzEstadoChips .sup-chip-btn') return chipEls;
+      return [];
+    },
+    createElement(tag) { return makeEl({ tagName: tag, children: [], appendChild() {} }); }
+  };
+
+  const ctx = {
+    console,
+    Date,
+    Array,
+    Object,
+    String,
+    Number,
+    Map,
+    Set,
+    Intl,
+    JSON,
+    setTimeout: () => {},
+    clearTimeout: () => {},
+    setInterval: () => {},
+    clearInterval: () => {},
+    document: doc,
+    window: {},
+    fetch: async (url, options) => {
+      fetchCalls.push({ url, options, body: JSON.parse(options.body) });
+      return {
+        ok: true,
+        json: async () => ({ success: true, message: 'OK' })
+      };
+    }
+  };
+  ctx.window = ctx;
+  vm.createContext(ctx);
+
+  vm.runInContext(fs.readFileSync(path.join(root, 'assets', 'js', '00-core.js'), 'utf8'), ctx);
+  vm.runInContext(fs.readFileSync(path.join(root, 'assets', 'js', '20-dashboard.js'), 'utf8'), ctx);
+
+  ctx.renderTdOmsTable = () => {};
+  ctx.getFilteredTdOms = () => [];
+  ctx.showAppNotification = (msg, type) => notifications.push({ msg, type });
+
+  return { ctx, fetchCalls, notifications, chipEls };
+}
+
+test('Bulk PLUZ: executeBulkPluzEnEjecucion usa EN EJECUCION por defecto y C. CAMPO cuando su chip está activo', async () => {
+  const defaultRun = createBulkExecutionContext({
+    rawInput: '2600300001\tJUAN PEREZ\t15:30',
+    activeChip: null
+  });
+  await defaultRun.ctx.executeBulkPluzEnEjecucion();
+
+  assert.equal(defaultRun.fetchCalls.length, 1);
+  assert.equal(defaultRun.fetchCalls[0].url, '/api/update-supervisor-status');
+  assert.equal(defaultRun.fetchCalls[0].body.estadoOperativo, 'EN EJECUCION');
+  assert.equal(defaultRun.fetchCalls[0].body.tickets[0].estadoOperativo, 'EN EJECUCION');
+  assert.equal(defaultRun.fetchCalls[0].body.tickets[0].estado, 'EN EJECUCION');
+  assert.equal(
+    defaultRun.ctx.supervisorRecordsMap.get('2600300001').latest.estadoOperativo,
+    'EN EJECUCION'
+  );
+
+  const campoRun = createBulkExecutionContext({
+    rawInput: '2600300002\tMARIA LOPEZ\t16:45',
+    activeChip: 'C. CAMPO'
+  });
+  await campoRun.ctx.executeBulkPluzEnEjecucion();
+
+  assert.equal(campoRun.fetchCalls.length, 1);
+  assert.equal(campoRun.fetchCalls[0].url, '/api/update-supervisor-status');
+  assert.equal(campoRun.fetchCalls[0].body.estadoOperativo, 'C. CAMPO');
+  assert.equal(campoRun.fetchCalls[0].body.tickets[0].estadoOperativo, 'C. CAMPO');
+  assert.equal(campoRun.fetchCalls[0].body.tickets[0].estado, 'C. CAMPO');
+  assert.equal(
+    campoRun.ctx.supervisorRecordsMap.get('2600300002').latest.estadoOperativo,
+    'C. CAMPO'
+  );
+  assert.match(campoRun.notifications[0].msg, /C\. CAMPO/);
+});
+
+test('Bulk PLUZ: executeBulkPluzEnEjecucion conserva detalleOperativo, estadoCritico y detalleCritico previos de supervisorRecordsMap', async () => {
+  const { ctx, fetchCalls } = createBulkExecutionContext({
+    rawInput: '2600300099\tCARLOS RUIZ\t18:00',
+    activeChip: 'C. CAMPO'
+  });
+
+  ctx.supervisorRecordsMap.set('2600300099', {
+    latest: {
+      ticket: '2600300099',
+      sed: 'SED 4410',
+      horaInicio: '2026-11-13 08:15',
+      alimentador: 'ALIM-09',
+      empresa: 'PLUZ',
+      estadoOperativo: 'EN EJECUCION',
+      detalleOperativo: 'Cuadrilla realizando empalme subterráneo',
+      jefeCuadrilla: 'ANTERIOR JC',
+      finEstimado: '2026-11-13 17:00',
+      estadoCritico: 'CRITICO',
+      detalleCritico: 'Afecta posta médica',
+      estado: 'EN EJECUCION',
+      detalle: 'Cuadrilla realizando empalme subterráneo'
+    },
+    history: []
+  });
+
+  await ctx.executeBulkPluzEnEjecucion();
+
+  assert.equal(fetchCalls.length, 1);
+  const payload = fetchCalls[0].body;
+  assert.equal(payload.estadoOperativo, 'C. CAMPO');
+  assert.equal(payload.tickets.length, 1);
+
+  const sentTicket = payload.tickets[0];
+  assert.equal(sentTicket.estadoOperativo, 'C. CAMPO');
+  assert.equal(sentTicket.detalleOperativo, 'Cuadrilla realizando empalme subterráneo');
+  assert.equal(sentTicket.estadoCritico, 'CRITICO');
+  assert.equal(sentTicket.detalleCritico, 'Afecta posta médica');
+  assert.equal(sentTicket.estado, 'C. CAMPO');
+  assert.equal(sentTicket.detalle, 'Cuadrilla realizando empalme subterráneo');
+
+  const storedLatest = ctx.supervisorRecordsMap.get('2600300099').latest;
+  assert.equal(storedLatest.estadoOperativo, 'C. CAMPO');
+  assert.equal(storedLatest.detalleOperativo, 'Cuadrilla realizando empalme subterráneo');
+  assert.equal(storedLatest.estadoCritico, 'CRITICO');
+  assert.equal(storedLatest.detalleCritico, 'Afecta posta médica');
+});
