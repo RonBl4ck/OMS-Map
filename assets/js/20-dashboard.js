@@ -740,8 +740,433 @@
             const records = getFilteredTdOms();
             updateKpiCards(records);
             renderModernCharts(records);
+            renderPluz24hPanel(records);
             renderTdOmsTable(records);
             updateCopyContractorButtonState();
+        }
+
+        const PLUZ24H_EXPANDED_KEY = 'oms_pluz24h_expanded';
+        const expandedPluz24hIntervals = new Set();
+        let currentPluz24hSummary = null;
+        let pluz24hEventsBound = false;
+
+        function escapePluz24hHtml(str) {
+            return String(str == null ? '' : str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function getPluz24hEstadoCtrl() {
+            if (typeof tdCtrlEstadoPluz !== 'undefined' && tdCtrlEstadoPluz) return tdCtrlEstadoPluz;
+            if (typeof window !== 'undefined' && window.tdCtrlEstadoPluz) return window.tdCtrlEstadoPluz;
+            return null;
+        }
+
+        function getOver24hIntervalsFromRecords() {
+            if (!window.Pluz24hMatrix || typeof window.Pluz24hMatrix.isOver24hInterval !== 'function') return [];
+            const source = (typeof tdOmsRecords !== 'undefined' && Array.isArray(tdOmsRecords)) ? tdOmsRecords : [];
+            const set = new Set();
+            source.forEach(r => {
+                if (r && r.intervalo && window.Pluz24hMatrix.isOver24hInterval(r.intervalo)) {
+                    set.add(r.intervalo);
+                }
+            });
+            return Array.from(set);
+        }
+
+        function triggerPluz24hDashboardRefresh() {
+            if (typeof applyDashboardFilters === 'function') {
+                applyDashboardFilters();
+            } else {
+                refreshDashboard();
+            }
+        }
+
+        function isPluz24hAllActive() {
+            const over24 = getOver24hIntervalsFromRecords();
+            if (over24.length === 0) return false;
+            const selInt = tdCtrlIntervalo ? tdCtrlIntervalo.getSelected() : [];
+            const selEmps = tdCtrlEmpresa ? tdCtrlEmpresa.getSelected() : [];
+            const selFalla = tdCtrlFalla ? tdCtrlFalla.getSelected() : [];
+            const estPluzCtrl = getPluz24hEstadoCtrl();
+            const selEstPluz = estPluzCtrl ? estPluzCtrl.getSelected() : [];
+
+            const intMatch = selInt.length === over24.length && over24.every(iv => selInt.includes(iv));
+            return intMatch && selEmps.length === 0 && selFalla.length === 0 && selEstPluz.length === 0;
+        }
+
+        function handlePluz24hTotalClick() {
+            const estPluzCtrl = getPluz24hEstadoCtrl();
+            if (isPluz24hAllActive()) {
+                if (tdCtrlIntervalo) tdCtrlIntervalo.reset();
+            } else {
+                const over24 = getOver24hIntervalsFromRecords();
+                if (tdCtrlEmpresa) tdCtrlEmpresa.reset();
+                if (tdCtrlFalla) tdCtrlFalla.reset();
+                if (estPluzCtrl) estPluzCtrl.reset();
+                if (tdCtrlIntervalo) {
+                    if (over24.length > 0) tdCtrlIntervalo.setSelected(over24, false);
+                    else tdCtrlIntervalo.reset();
+                }
+            }
+            triggerPluz24hDashboardRefresh();
+        }
+
+        function isPluz24hChipActive(empresa) {
+            const selEmps = tdCtrlEmpresa ? tdCtrlEmpresa.getSelected() : [];
+            const estPluzCtrl = getPluz24hEstadoCtrl();
+            const selEstPluz = estPluzCtrl ? estPluzCtrl.getSelected() : [];
+            const selInt = tdCtrlIntervalo ? tdCtrlIntervalo.getSelected() : [];
+            const over24 = getOver24hIntervalsFromRecords();
+
+            const empMatch = selEmps.length === 1 && selEmps[0] === empresa;
+            const estMatch = selEstPluz.length === 1 && selEstPluz[0] === 'PENDIENTE';
+            const intMatch = over24.length === 0
+                ? selInt.length === 0
+                : (selInt.length === over24.length && over24.every(iv => selInt.includes(iv)));
+
+            return empMatch && estMatch && intMatch;
+        }
+
+        function isPluz24hCellActive(interval, falla, pluzState) {
+            const selInt = tdCtrlIntervalo ? tdCtrlIntervalo.getSelected() : [];
+            const selFalla = tdCtrlFalla ? tdCtrlFalla.getSelected() : [];
+            const estPluzCtrl = getPluz24hEstadoCtrl();
+            const selEstPluz = estPluzCtrl ? estPluzCtrl.getSelected() : [];
+
+            const intMatch = interval ? (selInt.length === 1 && selInt[0] === interval) : true;
+            const fallaMatch = falla ? (selFalla.length === 1 && selFalla[0] === falla) : (selFalla.length === 0);
+            const stateMatch = pluzState ? (selEstPluz.length === 1 && selEstPluz[0] === pluzState) : (selEstPluz.length === 0);
+
+            return intMatch && fallaMatch && stateMatch;
+        }
+
+        function handlePluz24hChipClick(empresa) {
+            if (!empresa) return;
+            const estPluzCtrl = getPluz24hEstadoCtrl();
+
+            if (isPluz24hChipActive(empresa)) {
+                if (tdCtrlEmpresa) tdCtrlEmpresa.reset();
+                if (estPluzCtrl) estPluzCtrl.reset();
+                if (tdCtrlIntervalo) tdCtrlIntervalo.reset();
+            } else {
+                const over24 = getOver24hIntervalsFromRecords();
+                if (tdCtrlEmpresa) tdCtrlEmpresa.setSelected([empresa], false);
+                if (estPluzCtrl) estPluzCtrl.setSelected(['PENDIENTE'], false);
+                if (tdCtrlIntervalo) {
+                    if (over24.length > 0) tdCtrlIntervalo.setSelected(over24, false);
+                    else tdCtrlIntervalo.reset();
+                }
+            }
+
+            triggerPluz24hDashboardRefresh();
+        }
+
+        function handlePluz24hCellClick(interval, falla, pluzState) {
+            const estPluzCtrl = getPluz24hEstadoCtrl();
+
+            if (isPluz24hCellActive(interval, falla, pluzState)) {
+                if (tdCtrlIntervalo) tdCtrlIntervalo.reset();
+                if (tdCtrlFalla) tdCtrlFalla.reset();
+                if (estPluzCtrl) estPluzCtrl.reset();
+            } else {
+                if (tdCtrlIntervalo) {
+                    if (interval) tdCtrlIntervalo.setSelected([interval], false);
+                    else tdCtrlIntervalo.reset();
+                }
+                if (tdCtrlFalla) {
+                    if (falla) tdCtrlFalla.setSelected([falla], false);
+                    else tdCtrlFalla.reset();
+                }
+                if (estPluzCtrl) {
+                    if (pluzState) estPluzCtrl.setSelected([pluzState], false);
+                    else estPluzCtrl.reset();
+                }
+            }
+
+            triggerPluz24hDashboardRefresh();
+        }
+
+        function applyPluz24hExpandedState(panel, expanded, animate) {
+            const toggleBtn = document.getElementById('btnTogglePluz24h');
+            const bodyEl = document.getElementById('pluz24hBody');
+            if (!panel) return;
+
+            if (animate) panel.classList.add('is-animated');
+            else panel.classList.remove('is-animated');
+
+            panel.classList.toggle('is-expanded', expanded);
+            if (toggleBtn) toggleBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+            if (bodyEl) bodyEl.setAttribute('aria-hidden', expanded ? 'false' : 'true');
+        }
+
+        function initPluz24hPanelEvents() {
+            if (pluz24hEventsBound) return;
+            const panel = document.getElementById('pluz24hPanel');
+            if (!panel) return;
+            pluz24hEventsBound = true;
+
+            const toggleBtn = document.getElementById('btnTogglePluz24h');
+            if (toggleBtn) {
+                toggleBtn.addEventListener('click', () => {
+                    const nextExpanded = !panel.classList.contains('is-expanded');
+                    applyPluz24hExpandedState(panel, nextExpanded, true);
+                });
+            }
+
+            const totalBadgeBtn = document.getElementById('pluz24hTotalBadge');
+            if (totalBadgeBtn) {
+                totalBadgeBtn.addEventListener('click', () => {
+                    handlePluz24hTotalClick();
+                });
+            }
+
+            const chipsWrap = document.getElementById('pluz24hPendingChips');
+            if (chipsWrap) {
+                chipsWrap.addEventListener('click', (e) => {
+                    const chip = e.target.closest('.pluz24h-chip');
+                    if (!chip) return;
+                    handlePluz24hChipClick(chip.dataset.empresa || '');
+                });
+            }
+
+            const tableWrap = document.getElementById('pluz24hTableWrap');
+            if (tableWrap) {
+                tableWrap.addEventListener('click', (e) => {
+                    const toggleIntervalBtn = e.target.closest('[data-toggle-interval]');
+                    if (toggleIntervalBtn) {
+                        const interval = toggleIntervalBtn.dataset.toggleInterval || '';
+                        if (!interval) return;
+                        const isCurrentlyExpanded = expandedPluz24hIntervals.has(interval);
+                        if (isCurrentlyExpanded) expandedPluz24hIntervals.delete(interval);
+                        else expandedPluz24hIntervals.add(interval);
+
+                        const parentRow = toggleIntervalBtn.closest('tr.pluz24h-row-interval');
+                        if (parentRow) parentRow.classList.toggle('is-collapsed', isCurrentlyExpanded);
+                        toggleIntervalBtn.setAttribute('aria-expanded', isCurrentlyExpanded ? 'false' : 'true');
+
+                        tableWrap.querySelectorAll('tr.pluz24h-row-falla').forEach(row => {
+                            if (row.dataset.parentInterval === interval) {
+                                row.classList.toggle('is-hidden', isCurrentlyExpanded);
+                            }
+                        });
+                        return;
+                    }
+
+                    const cellBtn = e.target.closest('.pluz24h-cell-btn');
+                    if (cellBtn) {
+                        handlePluz24hCellClick(
+                            cellBtn.dataset.interval || '',
+                            cellBtn.dataset.falla || '',
+                            cellBtn.dataset.pluzState || ''
+                        );
+                    }
+                });
+            }
+
+            const btnImg = document.getElementById('btnCopyPluz24hImg');
+            if (btnImg) {
+                btnImg.addEventListener('click', async () => {
+                    if (!currentPluz24hSummary || !window.Pluz24hMatrix || typeof window.Pluz24hMatrix.copyPluz24hImage !== 'function') return;
+                    btnImg.disabled = true;
+                    try {
+                        const mode = await window.Pluz24hMatrix.copyPluz24hImage(currentPluz24hSummary);
+                        if (typeof showNotificationToast === 'function') {
+                            const msg = mode === 'download'
+                                ? '📥 Imagen de Tickets +24h descargada'
+                                : '✅ Imagen de Tickets +24h copiada al portapapeles';
+                            showNotificationToast(msg, '📸');
+                        }
+                    } catch (err) {
+                        console.error('Error copiando imagen +24h:', err);
+                        if (typeof showNotificationToast === 'function') {
+                            showNotificationToast('❌ No se pudo copiar la imagen de Tickets +24h', '⚠️');
+                        }
+                    } finally {
+                        btnImg.disabled = false;
+                    }
+                });
+            }
+
+            const btnTxt = document.getElementById('btnCopyPluz24hTxt');
+            if (btnTxt) {
+                btnTxt.addEventListener('click', async () => {
+                    if (!currentPluz24hSummary || !window.Pluz24hMatrix || typeof window.Pluz24hMatrix.copyPluz24hText !== 'function') return;
+                    btnTxt.disabled = true;
+                    try {
+                        await window.Pluz24hMatrix.copyPluz24hText(currentPluz24hSummary);
+                        if (typeof showNotificationToast === 'function') {
+                            showNotificationToast('📝 Resumen de Tickets +24h copiado al portapapeles', '📝');
+                        }
+                    } catch (err) {
+                        console.error('Error copiando texto +24h:', err);
+                        if (typeof showNotificationToast === 'function') {
+                            showNotificationToast('❌ No se pudo copiar el texto de Tickets +24h', '⚠️');
+                        }
+                    } finally {
+                        btnTxt.disabled = false;
+                    }
+                });
+            }
+        }
+
+        function renderPluz24hPanel(records) {
+            const panel = document.getElementById('pluz24hPanel');
+            if (!panel) return;
+
+            const isAdmin = typeof isCurrentUserAdmin === 'function'
+                ? isCurrentUserAdmin()
+                : (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('oms_user_role') === 'admin');
+
+            if (!isAdmin || !window.Pluz24hMatrix || typeof window.Pluz24hMatrix.buildPluz24hSummary !== 'function') {
+                panel.style.display = 'none';
+                currentPluz24hSummary = null;
+                return;
+            }
+
+            initPluz24hPanelEvents();
+            panel.style.display = '';
+
+            if (!panel.dataset.pluz24hInit) {
+                panel.dataset.pluz24hInit = '1';
+                applyPluz24hExpandedState(panel, false, false);
+                try {
+                    localStorage.removeItem(PLUZ24H_EXPANDED_KEY);
+                } catch (_) {}
+            }
+
+            const summary = window.Pluz24hMatrix.buildPluz24hSummary(Array.isArray(records) ? records : []);
+            currentPluz24hSummary = summary;
+
+            const badgeEl = document.getElementById('pluz24hTotalBadge');
+            if (badgeEl) {
+                badgeEl.textContent = String(summary.total || 0);
+                badgeEl.classList.toggle('is-active', isPluz24hAllActive());
+                badgeEl.setAttribute('aria-pressed', isPluz24hAllActive() ? 'true' : 'false');
+            }
+
+            const chipsEl = document.getElementById('pluz24hPendingChips');
+            if (chipsEl) {
+                const pendingList = Array.isArray(summary.pendingByCompany) ? summary.pendingByCompany : [];
+                if (!summary.totalPending || pendingList.length === 0) {
+                    chipsEl.innerHTML = '<span class="pluz24h-empty-pending">Sin pendientes</span>';
+                } else {
+                    chipsEl.innerHTML = pendingList.map(item => {
+                        const emp = item.empresa || '';
+                        const activeCls = isPluz24hChipActive(emp) ? ' is-active' : '';
+                        return `<button type="button" class="pluz24h-chip${activeCls}" data-empresa="${escapePluz24hHtml(emp)}">${escapePluz24hHtml(emp)}: ${Number(item.count || 0)}</button>`;
+                    }).join('');
+                }
+            }
+
+            const tableWrap = document.getElementById('pluz24hTableWrap');
+            if (!tableWrap) return;
+
+            const intervals = Array.isArray(summary.intervals) ? summary.intervals : [];
+            const states = Array.isArray(summary.states) ? summary.states : [];
+
+            if (intervals.length === 0) {
+                tableWrap.innerHTML = '<div class="pluz24h-empty-state">Sin tickets +24h para los filtros actuales</div>';
+                return;
+            }
+
+            const stateTotals = {};
+            states.forEach(st => { stateTotals[st] = 0; });
+
+            const headerCells = states.map(st => {
+                const pendingCls = st === 'PENDIENTE' ? ' class="is-pending-col"' : '';
+                return `<th${pendingCls}>${escapePluz24hHtml(st)}</th>`;
+            }).join('');
+
+            const rowsHtml = intervals.map(ivObj => {
+                const iv = ivObj.interval || '';
+                const isCollapsed = !expandedPluz24hIntervals.has(iv);
+                const escIv = escapePluz24hHtml(iv);
+
+                const parentStateCells = states.map(st => {
+                    const val = Number((ivObj.byState && ivObj.byState[st]) || 0);
+                    stateTotals[st] += val;
+                    if (!val) return '<td></td>';
+                    const pendingCls = st === 'PENDIENTE' ? ' is-pending-nonzero' : '';
+                    const activeCls = isPluz24hCellActive(iv, '', st) ? ' is-active' : '';
+                    return `<td><button type="button" class="pluz24h-cell-btn${pendingCls}${activeCls}" data-interval="${escIv}" data-pluz-state="${escapePluz24hHtml(st)}">${val}</button></td>`;
+                }).join('');
+
+                const ivTotal = Number(ivObj.total || 0);
+                const ivTotalCell = ivTotal
+                    ? `<td><button type="button" class="pluz24h-cell-btn${isPluz24hCellActive(iv, '', '') ? ' is-active' : ''}" data-interval="${escIv}">${ivTotal}</button></td>`
+                    : '<td></td>';
+
+                const parentRow = `
+                    <tr class="pluz24h-row-interval${isCollapsed ? ' is-collapsed' : ''}" data-interval="${escIv}">
+                        <td>
+                            <button type="button" class="pluz24h-interval-btn" data-toggle-interval="${escIv}" aria-expanded="${isCollapsed ? 'false' : 'true'}">
+                                <svg class="pluz24h-row-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                                <span>${escIv}</span>
+                            </button>
+                        </td>
+                        ${parentStateCells}
+                        ${ivTotalCell}
+                    </tr>`;
+
+                const fallaRows = (Array.isArray(ivObj.fallas) ? ivObj.fallas : []).map(fObj => {
+                    const falla = fObj.falla || '';
+                    const escFalla = escapePluz24hHtml(falla);
+
+                    const fallaStateCells = states.map(st => {
+                        const val = Number((fObj.byState && fObj.byState[st]) || 0);
+                        if (!val) return '<td></td>';
+                        const pendingCls = st === 'PENDIENTE' ? ' is-pending-nonzero' : '';
+                        const activeCls = isPluz24hCellActive(iv, falla, st) ? ' is-active' : '';
+                        return `<td><button type="button" class="pluz24h-cell-btn${pendingCls}${activeCls}" data-interval="${escIv}" data-falla="${escFalla}" data-pluz-state="${escapePluz24hHtml(st)}">${val}</button></td>`;
+                    }).join('');
+
+                    const fTotal = Number(fObj.total || 0);
+                    const fTotalCell = fTotal
+                        ? `<td><button type="button" class="pluz24h-cell-btn${isPluz24hCellActive(iv, falla, '') ? ' is-active' : ''}" data-interval="${escIv}" data-falla="${escFalla}">${fTotal}</button></td>`
+                        : '<td></td>';
+
+                    return `
+                        <tr class="pluz24h-row-falla${isCollapsed ? ' is-hidden' : ''}" data-parent-interval="${escIv}">
+                            <td>${escFalla}</td>
+                            ${fallaStateCells}
+                            ${fTotalCell}
+                        </tr>`;
+                }).join('');
+
+                return parentRow + fallaRows;
+            }).join('');
+
+            const totalStateCells = states.map(st => {
+                const val = Number(stateTotals[st] || 0);
+                return val ? `<td>${val}</td>` : '<td></td>';
+            }).join('');
+
+            const grandTotalCell = summary.total ? `<td>${Number(summary.total)}</td>` : '<td></td>';
+
+            tableWrap.innerHTML = `
+                <table class="pluz24h-table">
+                    <thead>
+                        <tr>
+                            <th>Intervalo / Falla</th>
+                            ${headerCells}
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                        <tr class="pluz24h-row-total">
+                            <td>Total +24h</td>
+                            ${totalStateCells}
+                            ${grandTotalCell}
+                        </tr>
+                    </tbody>
+                </table>`;
         }
 
         const btnCopyReportEl = document.getElementById("btnCopyContractorReport");

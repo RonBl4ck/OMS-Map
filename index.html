@@ -25,7 +25,7 @@
     <link rel="stylesheet" href="assets/css/20-dashboard.css?v=20260918-status-map">
     <link rel="stylesheet" href="assets/css/30-responsive.css">
     <link rel="stylesheet" href="assets/css/40-technicians.css?v=20260910-ticket-search">
-    <link rel="stylesheet" href="assets/css/90-modern.css?v=20261022-historial">
+    <link rel="stylesheet" href="assets/css/90-modern.css?v=20261114-1">
 </head>
 <body>
 
@@ -393,6 +393,44 @@
                 </div>
 
                 <div id="tdOmsCharts" class="charts-grid"></div>
+
+                <div id="pluz24hPanel" class="pluz24h-card" style="display: none;">
+                    <div class="pluz24h-header">
+                        <div class="pluz24h-title-group">
+                            <button type="button" id="btnTogglePluz24h" class="pluz24h-toggle" aria-expanded="false" aria-controls="pluz24hBody">
+                                <svg class="pluz24h-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                                <span class="pluz24h-title">Tickets +24h</span>
+                            </button>
+                            <button type="button" id="pluz24hTotalBadge" class="pluz24h-badge" title="Filtrar todos los tickets +24h" aria-label="Filtrar todos los tickets +24h">0</button>
+                        </div>
+                        <div class="pluz24h-pending-bar">
+                            <span class="pluz24h-pending-label">Pendientes:</span>
+                            <div id="pluz24hPendingChips" class="pluz24h-pending-chips"></div>
+                        </div>
+                        <div class="pluz24h-actions">
+                            <button type="button" id="btnCopyPluz24hImg" class="pluz24h-icon-btn" title="Copiar imagen" aria-label="Copiar imagen de tickets +24h">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                    <polyline points="21 15 16 10 5 21"></polyline>
+                                </svg>
+                            </button>
+                            <button type="button" id="btnCopyPluz24hTxt" class="pluz24h-icon-btn" title="Copiar texto" aria-label="Copiar resumen en texto">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                                    <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="pluz24hBody" class="pluz24h-collapse" aria-hidden="true">
+                        <div class="pluz24h-collapse-inner">
+                            <div id="pluz24hTableWrap" class="pluz24h-table-wrap"></div>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Tabla de Casos Pendientes -->
                 <div class="table-section-card" style="max-width: 1200px; margin: 25px auto 0; background: white; border-radius: 10px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
@@ -1167,6 +1205,7 @@
     <script src="assets/js/00-core.js?v=20260918-status-map"></script>
     <script src="assets/js/sed-geometry.js"></script>
     <script src="assets/js/10-map.js?v=20260918-status-map"></script>
+    <script src="assets/js/components/pluz24hMatrix.js?v=20261114-1"></script>
     <script src="assets/js/20-dashboard.js?v=20260918-status-map"></script>
     <script src="assets/js/22-seguimiento-dia.js?v=20261111-1"></script>
     <script src="assets/js/25-contractor-report.js?v=20261013-1"></script>
