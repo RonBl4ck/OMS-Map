@@ -72,7 +72,6 @@
             }
         }
         function showSeguimientoDiaView() {
-            if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('oms_user_role') !== 'admin') return;
             selectPrimaryView('productivity');
             if (typeof renderSeguimientoDia === 'function') {
                 renderSeguimientoDia();

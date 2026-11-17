@@ -179,31 +179,41 @@ test('topNavCount en 10-map.js contabiliza el total de incidencias incluyendo ca
     assert.match(mapJs, /matchesCurrentMapFilter\(record\)/);
 });
 
-test('tab Productividad se oculta por defecto en index.html y se reserva a perfil PLUZ (admin)', () => {
+test('tab Productividad se habilita tras login con aislamiento de empresa y sin acceso a Llamadas para contratas', () => {
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-    assert.match(html, /id=["']tabSeguimientoDia["'][^>]*style=["'][^"']*display:\s*none;?["']/, 'tabSeguimientoDia debe estar oculto por defecto');
+    assert.match(html, /id=["']tabSeguimientoDia["'][^>]*style=["'][^"']*display:\s*none;?["']/, 'tabSeguimientoDia debe estar oculto por defecto antes del login');
 
     const authJs = fs.readFileSync(path.join(root, 'assets', 'js', '60-auth.js'), 'utf8');
-    assert.match(authJs, /tabSeguimientoDia\.style\.display\s*=\s*isAdmin\s*\?\s*''\s*:\s*'none'/, 'updateUserBadge debe alternar visibilidad de tabSeguimientoDia según rol admin');
+    assert.match(authJs, /tabSeguimientoDia\.style\.display\s*=\s*''/, 'updateUserBadge debe mostrar tabSeguimientoDia tras autenticar');
+    assert.match(authJs, /btnSubnavCallsFromSeg\.style\.display\s*=\s*isAdmin\s*\?\s*''\s*:\s*'none'/, 'updateUserBadge debe ocultar subnav de Llamadas para contratas');
 
     const navJs = fs.readFileSync(path.join(root, 'assets', 'js', '50-navigation.js'), 'utf8');
-    assert.match(navJs, /function showSeguimientoDiaView\(\)[\s\S]*?sessionStorage\.getItem\(['"]oms_user_role['"]\)\s*!==\s*['"]admin['"]/, 'showSeguimientoDiaView debe bloquearse si no es admin');
+    assert.match(navJs, /function showSeguimientoDiaView\(\)[\s\S]*?selectPrimaryView\('productivity'\)/, 'showSeguimientoDiaView debe permitir acceso autenticado');
+    assert.match(navJs, /function showLlamadasView\(\)[\s\S]*?sessionStorage\.getItem\(['"]oms_user_role['"]\)\s*!==\s*['"]admin['"]/, 'showLlamadasView debe seguir bloqueado si no es admin');
+
+    const segDiaJs = fs.readFileSync(path.join(root, 'assets', 'js', '22-seguimiento-dia.js'), 'utf8');
+    assert.match(segDiaJs, /if\s*\(!isAdmin\)/, '22-seguimiento-dia.js debe aislar el selector de empresa para usuarios no admin');
 });
 
-test('historial de fallas y notas es exclusivo para el perfil PLUZ', () => {
+test('suministros reincidentes y cierres propios están habilitados para contratas pero SEDs críticas siguen exclusivas de PLUZ', () => {
     const dashJs = fs.readFileSync(path.join(root, 'assets', 'js', '20-dashboard.js'), 'utf8');
     const mgrJs = fs.readFileSync(path.join(root, 'assets', 'js', 'components', 'dashboardManager.js'), 'utf8');
     const popupsJs = fs.readFileSync(path.join(root, 'assets', 'js', 'templates', 'mapPopups.js'), 'utf8');
+    const markersJs = fs.readFileSync(path.join(root, 'assets', 'js', 'components', 'markersManager.js'), 'utf8');
     const segDiaJs = fs.readFileSync(path.join(root, 'assets', 'js', '22-seguimiento-dia.js'), 'utf8');
 
-    // Dashboard y componente: botón [⚠️ xN] condicionado a isPluz
-    assert.ok(dashJs.includes('isPluz && (r.suministro_reincidente'), '20-dashboard.js debe restringir botón btn-ticket-reinc a isPluz');
-    assert.ok(mgrJs.includes('isPluz && (r.suministro_reincidente'), 'dashboardManager.js debe restringir botón btn-ticket-reinc a isPluz');
-    assert.ok(dashJs.includes('openSuministroHistoryModal') && dashJs.includes('Acceso restringido'), 'openSuministroHistoryModal debe validar perfil PLUZ');
+    // Dashboard y componente: botón [⚠️ xN] y modal habilitados sobre registros filtrados
+    assert.ok(dashJs.includes('(r.suministro_reincidente || (r.suministro_count >= 2))'), '20-dashboard.js debe habilitar botón btn-ticket-reinc');
+    assert.ok(!dashJs.includes('isPluz && (r.suministro_reincidente'), '20-dashboard.js no debe restringir btn-ticket-reinc a isPluz');
+    assert.ok(mgrJs.includes('(r.suministro_reincidente || (r.suministro_count >= 2))'), 'dashboardManager.js debe habilitar botón btn-ticket-reinc');
+    assert.ok(!mgrJs.includes('isPluz && (r.suministro_reincidente'), 'dashboardManager.js no debe restringir btn-ticket-reinc a isPluz');
+    assert.ok(!dashJs.includes('Acceso restringido: El historial de fallas'), 'openSuministroHistoryModal no debe bloquear a contratas');
 
-    // Popups del mapa: tarjeta reincidente condicionada a perfil PLUZ (isAdmin)
-    assert.ok(popupsJs.includes('isAdmin && Boolean(loc.suministro_reincidente'), 'mapPopups.js debe restringir reincidencia a isAdmin');
+    // Popups y marcadores del mapa: reincidencia de suministro habilitada, pero SED crítica exclusiva admin
+    assert.ok(popupsJs.includes('const isSuministroReinc = Boolean(loc.suministro_reincidente'), 'mapPopups.js debe habilitar reincidencia de suministro');
+    assert.ok(markersJs.includes('const isSuministroReinc = Boolean(loc.suministro_reincidente'), 'markersManager.js debe habilitar badge de reincidencia en marcador');
+    assert.ok(popupsJs.includes('const isSedCrit = isAdmin &&'), 'mapPopups.js debe mantener SED crítica exclusiva para admin');
 
-    // Balance Diario: cierres previos condicionados a isPluz
-    assert.ok(segDiaJs.includes('hasClosures = isPluz &&'), '22-seguimiento-dia.js debe restringir acordéon de cierres a isPluz');
+    // Balance Diario: cierres propios habilitados sobre ejecutados filtrados
+    assert.ok(segDiaJs.includes('hasClosures = Array.isArray(item.closures)'), '22-seguimiento-dia.js debe habilitar acordeón de cierres sobre registros filtrados');
 });

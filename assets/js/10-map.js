@@ -372,29 +372,62 @@
                 tdOmsRecords.push(record);
             });
 
+            function syncMultiSelectControl(existingCtrl, containerId, titlePrefix, valuesList, onChangeCallback) {
+                if (existingCtrl && typeof existingCtrl.setOptions === 'function') {
+                    if (typeof existingCtrl.setBaseOptions === 'function') {
+                        existingCtrl.setBaseOptions(valuesList);
+                    }
+                    existingCtrl.setOptions(valuesList);
+                    return existingCtrl;
+                }
+                const hadPrev = Boolean(existingCtrl);
+                const wasAll = existingCtrl && typeof existingCtrl.isAllSelected === 'function'
+                    ? existingCtrl.isAllSelected()
+                    : true;
+                const prevSelected = existingCtrl && typeof existingCtrl.getSelected === 'function'
+                    ? existingCtrl.getSelected()
+                    : [];
+                const nextCtrl = initMultiSelect(containerId, titlePrefix, valuesList, onChangeCallback);
+                if (hadPrev && !wasAll && nextCtrl && typeof nextCtrl.setSelected === 'function') {
+                    nextCtrl.setSelected(prevSelected, false);
+                }
+                return nextCtrl;
+            }
+
+            function syncSedLayerControl(existingCtrl, containerId, titlePrefix, onChangeCallback) {
+                const hadPrev = Boolean(existingCtrl);
+                const wasAll = existingCtrl && typeof existingCtrl.isAllSelected === 'function'
+                    ? existingCtrl.isAllSelected()
+                    : true;
+                const prevSelected = existingCtrl && typeof existingCtrl.getSelected === 'function'
+                    ? existingCtrl.getSelected()
+                    : [];
+                const nextCtrl = initSedLayerMultiSelect(containerId, titlePrefix, onChangeCallback);
+                if (hadPrev && !wasAll && nextCtrl && typeof nextCtrl.setSelected === 'function') {
+                    nextCtrl.setSelected(prevSelected, false);
+                }
+                return nextCtrl;
+            }
+
             // Filtros en el Mapa
-            mapCtrlDia = initMultiSelect("mapMultiDia", "Día", mapLocations.map(m => m.dia), applyMapFilters);
-            mapCtrlEstado = initMultiSelect("mapMultiEstado", "Estado", mapLocations.map(m => m.estado), applyMapFilters);
-            mapCtrlEmpresa = initMultiSelect("mapMultiEmpresa", "Empresa", mapLocations.map(m => m.empresa), applyMapFilters);
-            mapCtrlFalla = initMultiSelect("mapMultiFalla", "Falla", mapLocations.map(m => m.falla), applyMapFilters);
-            mapCtrlEstadoPluz = initMultiSelect("mapMultiEstadoPluz", "Estado (PLUZ)", mapLocations.map(m => m.estado_pluz), applyMapFilters);
+            mapCtrlDia = syncMultiSelectControl(mapCtrlDia, "mapMultiDia", "Día", mapLocations.map(m => m.dia), applyMapFilters);
+            mapCtrlEstado = syncMultiSelectControl(mapCtrlEstado, "mapMultiEstado", "Estado", mapLocations.map(m => m.estado), applyMapFilters);
+            mapCtrlEmpresa = syncMultiSelectControl(mapCtrlEmpresa, "mapMultiEmpresa", "Empresa", mapLocations.map(m => m.empresa), applyMapFilters);
+            mapCtrlFalla = syncMultiSelectControl(mapCtrlFalla, "mapMultiFalla", "Falla", mapLocations.map(m => m.falla), applyMapFilters);
+            mapCtrlEstadoPluz = syncMultiSelectControl(mapCtrlEstadoPluz, "mapMultiEstadoPluz", "Estado (PLUZ)", mapLocations.map(m => m.estado_pluz), applyMapFilters);
             if (typeof initSedLayerMultiSelect === 'function') {
-                const prevMapCapas = mapCtrlCapaSed ? mapCtrlCapaSed.getSelected() : [];
-                mapCtrlCapaSed = initSedLayerMultiSelect("mapMultiCapaSed", "Capa SED", applyMapFilters);
-                if (prevMapCapas.length > 0 && mapCtrlCapaSed) mapCtrlCapaSed.setSelected(prevMapCapas, false);
+                mapCtrlCapaSed = syncSedLayerControl(mapCtrlCapaSed, "mapMultiCapaSed", "Capa SED", applyMapFilters);
             }
 
             // Filtros en el Modal TD OMS
-            tdCtrlDia = initMultiSelect("tdMultiDia", "Día", tdOmsRecords.map(r => r.dia), applyDashboardFilters);
-            tdCtrlIntervalo = initMultiSelect("tdMultiIntervalo", "Intervalo", tdOmsRecords.map(r => r.intervalo), applyDashboardFilters);
-            tdCtrlEmpresa = initMultiSelect("tdMultiEmpresa", "Empresa", tdOmsRecords.map(r => r.empresa), applyDashboardFilters);
-            tdCtrlFalla = initMultiSelect("tdMultiFalla", "Falla", tdOmsRecords.map(r => r.falla), applyDashboardFilters);
-            tdCtrlEstado = initMultiSelect("tdMultiEstado", "Estado", tdOmsRecords.map(r => r.estado), applyDashboardFilters);
-            tdCtrlEstadoPluz = initMultiSelect("tdMultiEstadoPluz", "Estado (PLUZ)", tdOmsRecords.map(r => r.estado_pluz), applyDashboardFilters);
+            tdCtrlDia = syncMultiSelectControl(tdCtrlDia, "tdMultiDia", "Día", tdOmsRecords.map(r => r.dia), applyDashboardFilters);
+            tdCtrlIntervalo = syncMultiSelectControl(tdCtrlIntervalo, "tdMultiIntervalo", "Intervalo", tdOmsRecords.map(r => r.intervalo), applyDashboardFilters);
+            tdCtrlEmpresa = syncMultiSelectControl(tdCtrlEmpresa, "tdMultiEmpresa", "Empresa", tdOmsRecords.map(r => r.empresa), applyDashboardFilters);
+            tdCtrlFalla = syncMultiSelectControl(tdCtrlFalla, "tdMultiFalla", "Falla", tdOmsRecords.map(r => r.falla), applyDashboardFilters);
+            tdCtrlEstado = syncMultiSelectControl(tdCtrlEstado, "tdMultiEstado", "Estado", tdOmsRecords.map(r => r.estado), applyDashboardFilters);
+            tdCtrlEstadoPluz = syncMultiSelectControl(tdCtrlEstadoPluz, "tdMultiEstadoPluz", "Estado (PLUZ)", tdOmsRecords.map(r => r.estado_pluz), applyDashboardFilters);
             if (typeof initSedLayerMultiSelect === 'function') {
-                const prevTdCapas = tdCtrlCapaSed ? tdCtrlCapaSed.getSelected() : [];
-                tdCtrlCapaSed = initSedLayerMultiSelect("tdMultiCapaSed", "Capa SED", applyDashboardFilters);
-                if (prevTdCapas.length > 0 && tdCtrlCapaSed) tdCtrlCapaSed.setSelected(prevTdCapas, false);
+                tdCtrlCapaSed = syncSedLayerControl(tdCtrlCapaSed, "tdMultiCapaSed", "Capa SED", applyDashboardFilters);
             }
 
             if (typeof window !== 'undefined') {

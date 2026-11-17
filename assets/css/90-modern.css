@@ -3716,6 +3716,412 @@ tr.row-sup-overdue:hover {
   }
 }
 
+/* --- PANEL DESPLEGABLE INLINE TICKETS +24H (ESTADO PLUZ) --- */
+.pluz24h-card {
+  max-width: 1320px;
+  margin: 16px auto 0;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.pluz24h-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  min-height: 46px;
+}
+
+.pluz24h-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  margin: -5px 0 -5px -8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink, #0f172a);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1), background-color 140ms ease;
+}
+
+.pluz24h-toggle:hover {
+  background: #f8fafc;
+}
+
+.pluz24h-toggle:active {
+  transform: scale(0.97);
+}
+
+.pluz24h-chevron {
+  color: var(--muted, #64748b);
+  flex-shrink: 0;
+  transform: rotate(0deg);
+}
+
+.pluz24h-card.is-animated .pluz24h-chevron {
+  transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.pluz24h-card.is-expanded .pluz24h-chevron {
+  transform: rotate(90deg);
+}
+
+.pluz24h-title-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.pluz24h-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  background: #f1f5f9;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1), background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.pluz24h-badge:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+}
+
+.pluz24h-badge:active {
+  transform: scale(0.97);
+}
+
+.pluz24h-badge.is-active {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #1d4ed8;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.14);
+}
+
+.pluz24h-pending-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.pluz24h-pending-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted, #64748b);
+  flex-shrink: 0;
+}
+
+.pluz24h-pending-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.pluz24h-empty-pending {
+  font-size: 12px;
+  color: var(--muted, #94a3b8);
+  font-weight: 500;
+}
+
+.pluz24h-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 11.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1), background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.pluz24h-chip:hover {
+  background: #fef3c7;
+  border-color: #f59e0b;
+}
+
+.pluz24h-chip:active {
+  transform: scale(0.97);
+}
+
+.pluz24h-chip.is-active {
+  background: #fef2f2;
+  border-color: #ef4444;
+  color: #991b1b;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.14);
+}
+
+.pluz24h-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.pluz24h-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  background: #fff;
+  color: #475569;
+  cursor: pointer;
+  transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1), background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.pluz24h-icon-btn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.pluz24h-icon-btn:active {
+  transform: scale(0.97);
+}
+
+.pluz24h-icon-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+/* Despliegue inline sin animación en carga inicial */
+.pluz24h-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+}
+
+.pluz24h-card.is-animated .pluz24h-collapse {
+  transition: grid-template-rows 180ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.pluz24h-card.is-expanded .pluz24h-collapse {
+  grid-template-rows: 1fr;
+}
+
+.pluz24h-collapse-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.pluz24h-table-wrap {
+  border-top: 1px solid var(--border, #e2e8f0);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.pluz24h-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pluz24h-table thead th {
+  padding: 8px 10px;
+  text-align: right;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background: #fff;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  white-space: nowrap;
+}
+
+.pluz24h-table thead th:first-child {
+  text-align: left;
+  padding-left: 14px;
+}
+
+.pluz24h-table thead th.is-pending-col {
+  color: #b45309;
+}
+
+.pluz24h-table tbody td {
+  padding: 6px 10px;
+  text-align: right;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.pluz24h-table tbody td:first-child {
+  text-align: left;
+  padding-left: 14px;
+}
+
+.pluz24h-row-interval td {
+  background: #f8fafc;
+  color: #0f172a;
+  font-weight: 700;
+  border-bottom-color: #e2e8f0;
+}
+
+.pluz24h-row-falla td:first-child {
+  padding-left: 34px;
+  color: #475569;
+  font-weight: 500;
+}
+
+.pluz24h-row-falla.is-hidden {
+  display: none;
+}
+
+.pluz24h-row-total td {
+  background: #f8fafc;
+  color: #0f172a;
+  font-weight: 700;
+  border-top: 1px solid var(--border, #e2e8f0);
+  border-bottom: none;
+}
+
+.pluz24h-interval-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #0f172a;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1), background-color 140ms ease;
+}
+
+.pluz24h-interval-btn:hover {
+  background: #e2e8f0;
+}
+
+.pluz24h-interval-btn:active {
+  transform: scale(0.97);
+}
+
+.pluz24h-row-chevron {
+  color: #64748b;
+  transform: rotate(90deg);
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+  flex-shrink: 0;
+}
+
+.pluz24h-row-interval.is-collapsed .pluz24h-row-chevron {
+  transform: rotate(0deg);
+}
+
+.pluz24h-cell-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 28px;
+  padding: 2px 7px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1), background-color 140ms ease, border-color 140ms ease;
+}
+
+.pluz24h-cell-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.pluz24h-cell-btn:active {
+  transform: scale(0.97);
+}
+
+.pluz24h-cell-btn.is-pending-nonzero {
+  background: #fef3c7;
+  color: #92400e;
+  font-weight: 700;
+}
+
+.pluz24h-cell-btn.is-pending-nonzero:hover {
+  background: #fde68a;
+}
+
+.pluz24h-cell-btn.is-active {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+.pluz24h-cell-btn.is-pending-nonzero.is-active {
+  background: #fef2f2;
+  border-color: #ef4444;
+  color: #991b1b;
+}
+
+.pluz24h-empty-state {
+  padding: 16px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--muted, #64748b);
+}
+
+@media (max-width: 760px) {
+  .pluz24h-header {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+  .pluz24h-pending-bar {
+    order: 3;
+    flex-basis: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pluz24h-card.is-animated .pluz24h-collapse,
+  .pluz24h-card.is-animated .pluz24h-chevron,
+  .pluz24h-row-chevron,
+  .pluz24h-toggle,
+  .pluz24h-chip,
+  .pluz24h-icon-btn,
+  .pluz24h-interval-btn,
+  .pluz24h-cell-btn {
+    transition: none !important;
+  }
+}
+
 
 /* ==========================================================================
    HIGH-SPECIFICITY OVERRIDES & CRITICAL CONTRACTS
@@ -4340,3 +4746,4 @@ tr.row-sup-overdue:hover {
     transition: none !important;
   }
 }
+

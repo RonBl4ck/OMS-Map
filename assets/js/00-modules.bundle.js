@@ -928,6 +928,7 @@
         let initialOptions = [...new Set(valuesList)].filter(Boolean).sort(sortFn);
         let options = [...initialOptions];
         let selectedVals = new Set(options);
+        let intendedSelectedVals = new Set(options);
         let isAllSelectedState = true;
 
         const btn = document.createElement("button");
@@ -991,8 +992,10 @@
                 cb.addEventListener("change", () => {
                     if (cb.checked) {
                         selectedVals.add(val);
+                        intendedSelectedVals.add(val);
                     } else {
                         selectedVals.delete(val);
+                        intendedSelectedVals.delete(val);
                     }
                     isAllSelectedState = options.length > 0 && selectedVals.size === options.length;
                     allCb.checked = isAllSelectedState;
@@ -1011,10 +1014,14 @@
         allCb.addEventListener("change", () => {
             const checkAll = allCb.checked;
             selectedVals.clear();
+            intendedSelectedVals.clear();
             isAllSelectedState = checkAll;
             optionCbs.forEach(cb => {
                 cb.checked = checkAll;
-                if (checkAll) selectedVals.add(cb.value);
+                if (checkAll) {
+                    selectedVals.add(cb.value);
+                    intendedSelectedVals.add(cb.value);
+                }
             });
             updateBtnLabel();
             onChangeCallback(Array.from(selectedVals));
@@ -1046,6 +1053,7 @@
             reset: () => {
                 options = [...initialOptions];
                 selectedVals = new Set(options);
+                intendedSelectedVals = new Set(options);
                 isAllSelectedState = true;
                 allCb.checked = true;
                 renderOptions();
@@ -1053,6 +1061,7 @@
             setSelected: (newSelectedVals, triggerChange = true) => {
                 const list = Array.isArray(newSelectedVals) ? newSelectedVals : [newSelectedVals];
                 selectedVals = new Set(list.filter(v => options.includes(v)));
+                intendedSelectedVals = new Set(selectedVals);
                 isAllSelectedState = options.length > 0 && selectedVals.size === options.length;
                 allCb.checked = isAllSelectedState;
                 optionCbs.forEach(cb => {
@@ -1068,8 +1077,9 @@
                 options = nextList;
                 if (isAllSelectedState) {
                     selectedVals = new Set(options);
+                    intendedSelectedVals = new Set(options);
                 } else {
-                    selectedVals = new Set([...selectedVals].filter(value => options.includes(value)));
+                    selectedVals = new Set([...intendedSelectedVals].filter(value => options.includes(value)));
                 }
                 renderOptions();
             },
@@ -1197,7 +1207,7 @@
         }
 
         // Historial y tarjeta de suministro reincidente (Exclusivo Perfil PLUZ)
-        const isSuministroReinc = isAdmin && Boolean(loc.suministro_reincidente || (loc.suministro_count >= 2));
+        const isSuministroReinc = Boolean(loc.suministro_reincidente || (loc.suministro_count >= 2));
         let reincCardHtml = '';
         if (isSuministroReinc) {
             let historial = Array.isArray(loc.suministro_historial) ? [...loc.suministro_historial] : [];
@@ -1390,7 +1400,7 @@
             ? isCurrentUserAdmin() 
             : (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('oms_user_role') === 'admin' || sessionStorage.getItem('oms_user_role') === '*') : true);
 
-        const isSuministroReinc = isAdmin && Boolean(loc.suministro_reincidente || (loc.suministro_count >= 2));
+        const isSuministroReinc = Boolean(loc.suministro_reincidente || (loc.suministro_count >= 2));
         const sumCount = parseInt(loc.suministro_count || (isSuministroReinc ? ((loc.suministro_historial && loc.suministro_historial.length) ? loc.suministro_historial.length + 1 : 2) : 1), 10);
         const sumDias = loc.suministro_ventana_dias || 7;
 
@@ -2352,7 +2362,7 @@
             const isAdmin = typeof isCurrentUserAdmin === 'function' 
                 ? isCurrentUserAdmin() 
                 : (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('oms_user_role') === 'admin' || sessionStorage.getItem('oms_user_role') === '*') : true);
-            const isSuministroReinc = isAdmin && Boolean(loc.suministro_reincidente || (loc.suministro_count >= 2));
+            const isSuministroReinc = Boolean(loc.suministro_reincidente || (loc.suministro_count >= 2));
             const sumCount = parseInt(loc.suministro_count || 1, 10);
             const sumDias = loc.suministro_ventana_dias || 7;
             let titleText = `Ticket: ${safeTicket} | ${safeFalla} | Plazo: ${safeSla}`;
@@ -6157,7 +6167,7 @@
                         <div class="ticket-cell">
                             <span class="ticket-number">${esc(r.ticket)}</span>
                             <button type="button" class="btn-ticket-pin" onclick="navigateToTicketOnMap('${esc(r.ticket)}')" title="Localizar ticket #${esc(r.ticket)} en el mapa" aria-label="Localizar ticket #${esc(r.ticket)} en el mapa">📍</button>
-                            ${(isPluz && (r.suministro_reincidente || (r.suministro_count >= 2))) ? `
+                            ${(r.suministro_reincidente || (r.suministro_count >= 2)) ? `
                                 <button type="button" class="btn-ticket-reinc" onclick="event.stopPropagation(); openSuministroHistoryModal('${esc(r.ticket)}')" title="⚠️ Suministro Reincidente: ${esc(r.suministro_count)} fallas (${esc(r.suministro_ventana_dias || 7)}D). Clic para ver historial de notas">⚠️ x${esc(r.suministro_count)}</button>
                             ` : ''}
                         </div>

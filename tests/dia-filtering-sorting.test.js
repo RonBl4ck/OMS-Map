@@ -16,8 +16,8 @@ test('index.html incluye contenedores para filtro por Día en Mapa e Indicadores
 test('10-map.js configura filtro de Día en Mapa e Indicadores y en el facetado', () => {
     assert.match(mapSource, /dia:\s*'mapMultiDia'/);
     assert.match(mapSource, /dia:\s*'tdMultiDia'/);
-    assert.match(mapSource, /mapCtrlDia\s*=\s*initMultiSelect\("mapMultiDia",\s*"Día"/);
-    assert.match(mapSource, /tdCtrlDia\s*=\s*initMultiSelect\("tdMultiDia",\s*"Día"/);
+    assert.match(mapSource, /mapCtrlDia\s*=\s*(?:initMultiSelect|syncMultiSelectControl\(\s*mapCtrlDia\s*,)\s*"mapMultiDia",\s*"Día"/);
+    assert.match(mapSource, /tdCtrlDia\s*=\s*(?:initMultiSelect|syncMultiSelectControl\(\s*tdCtrlDia\s*,)\s*"tdMultiDia",\s*"Día"/);
 });
 
 test('20-dashboard.js aplica orden cronológico con sortDias en renderModernCharts', () => {

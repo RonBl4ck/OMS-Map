@@ -2471,13 +2471,10 @@
      * Genera la fila de la tabla para SED o Suministro.
      */
     function renderTableRow(item, isSuministro) {
-        const isPluz = typeof isCurrentUserAdmin === 'function' 
-            ? isCurrentUserAdmin() 
-            : (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('oms_user_role') === 'admin' || sessionStorage.getItem('oms_user_role') === '*') : true);
         const pendingHtml = renderPendingTicketsCell(item);
 
         if (isSuministro) {
-            const hasClosures = isPluz && Array.isArray(item.closures) && item.closures.length > 0;
+            const hasClosures = Array.isArray(item.closures) && item.closures.length > 0;
             const closuresCount = hasClosures ? item.closures.length : 0;
             const frText = item.fallaReal || item.falla_real || '-';
             const fallaRealBadge = (frText && frText !== '-')
@@ -2564,10 +2561,10 @@
 
             return mainRow + detailRow;
         } else {
-            const hasClosures = isPluz && Array.isArray(item.closures) && item.closures.length > 0;
+            const hasClosures = Array.isArray(item.closures) && item.closures.length > 0;
             const closuresCount = hasClosures ? item.closures.length : 0;
 
-            const breakdownBadge = (isPluz && item.fallasRealesBreakdown)
+            const breakdownBadge = item.fallasRealesBreakdown
                 ? `<span class="segdia-pill pill-amber" style="font-size: 11px; white-space: normal; display: inline-block; max-width: 100%;" title="${escapeHtml(item.fallasRealesBreakdown)}">⚡ ${escapeHtml(item.fallasRealesBreakdown)}</span>`
                 : '<span style="color: #94a3b8; font-size: 11px;">-</span>';
 
@@ -2669,10 +2666,6 @@
      */
     function render() {
         const isAdmin = (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('oms_user_role') : null) === 'admin';
-        if (!isAdmin) {
-            if (state.containerEl) state.containerEl.innerHTML = '';
-            return;
-        }
         injectStyles();
 
         let container = state.containerEl;
@@ -2697,6 +2690,13 @@
         }
 
         const contractors = getContractorsList(ejecutados, pendientes);
+        if (!isAdmin) {
+            if (contractors.length <= 1) {
+                state.selectedContractor = contractors[0] || 'ALL';
+            } else if (state.selectedContractor !== 'ALL' && !contractors.includes(state.selectedContractor)) {
+                state.selectedContractor = 'ALL';
+            }
+        }
         const fallasList = getFallasList(ejecutados, pendientes);
         const fallasRealesList = getFallasRealesList(ejecutados, pendientes);
 
@@ -2810,11 +2810,13 @@
                             ${availableDays.map(d => `<option value="${d}" ${d === state.selectedDate ? 'selected' : ''}>${d}</option>`).join('')}
                         </select>
 
+                        ${(isAdmin || contractors.length > 1) ? `
                         <label class="segdia-filter-label" for="segdiaSelectContractor">Empresa:</label>
                         <select id="segdiaSelectContractor" class="segdia-select" aria-label="Seleccionar contratista">
                             <option value="ALL" ${state.selectedContractor === 'ALL' ? 'selected' : ''}>Todas las empresas</option>
                             ${contractors.map(c => `<option value="${c}" ${c === state.selectedContractor ? 'selected' : ''}>${c}</option>`).join('')}
                         </select>
+                        ` : ''}
 
                         <label class="segdia-filter-label" for="segFilterFalla">Falla (OMS):</label>
                         <select id="segFilterFalla" class="segdia-select" aria-label="Seleccionar falla OMS">

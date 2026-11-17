@@ -51,7 +51,7 @@
             const isAdmin = typeof isCurrentUserAdmin === 'function' 
                 ? isCurrentUserAdmin() 
                 : (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('oms_user_role') === 'admin' || sessionStorage.getItem('oms_user_role') === '*') : true);
-            const isSuministroReinc = isAdmin && Boolean(loc.suministro_reincidente || (loc.suministro_count >= 2));
+            const isSuministroReinc = Boolean(loc.suministro_reincidente || (loc.suministro_count >= 2));
             const sumCount = parseInt(loc.suministro_count || 1, 10);
             const sumDias = loc.suministro_ventana_dias || 7;
             let titleText = `Ticket: ${safeTicket} | ${safeFalla} | Plazo: ${safeSla}`;

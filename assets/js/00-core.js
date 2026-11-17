@@ -1143,6 +1143,7 @@
             let initialOptions = [...new Set(valuesList)].filter(Boolean).sort(sortFn);
             let options = [...initialOptions];
             let selectedVals = new Set(options);
+            let intendedSelectedVals = new Set(options);
             let isAllSelectedState = true;
 
             const btn = document.createElement("button");
@@ -1207,8 +1208,10 @@
                     cb.addEventListener("change", () => {
                         if (cb.checked) {
                             selectedVals.add(val);
+                            intendedSelectedVals.add(val);
                         } else {
                             selectedVals.delete(val);
+                            intendedSelectedVals.delete(val);
                         }
                         isAllSelectedState = options.length > 0 && selectedVals.size === options.length;
                         allCb.checked = isAllSelectedState;
@@ -1227,10 +1230,14 @@
             allCb.addEventListener("change", () => {
                 const checkAll = allCb.checked;
                 selectedVals.clear();
+                intendedSelectedVals.clear();
                 isAllSelectedState = checkAll;
                 optionCbs.forEach(cb => {
                     cb.checked = checkAll;
-                    if (checkAll) selectedVals.add(cb.value);
+                    if (checkAll) {
+                        selectedVals.add(cb.value);
+                        intendedSelectedVals.add(cb.value);
+                    }
                 });
                 updateBtnLabel();
                 onChangeCallback(Array.from(selectedVals));
@@ -1262,6 +1269,7 @@
                 reset: () => {
                     options = [...initialOptions];
                     selectedVals = new Set(options);
+                    intendedSelectedVals = new Set(options);
                     isAllSelectedState = true;
                     allCb.checked = true;
                     renderOptions();
@@ -1269,6 +1277,7 @@
                 setSelected: (newSelectedVals, triggerChange = true) => {
                     const list = Array.isArray(newSelectedVals) ? newSelectedVals : [newSelectedVals];
                     selectedVals = new Set(list.filter(v => options.includes(v)));
+                    intendedSelectedVals = new Set(selectedVals);
                     isAllSelectedState = options.length > 0 && selectedVals.size === options.length;
                     allCb.checked = isAllSelectedState;
                     optionCbs.forEach(cb => {
@@ -1284,8 +1293,9 @@
                     options = nextList;
                     if (isAllSelectedState) {
                         selectedVals = new Set(options);
+                        intendedSelectedVals = new Set(options);
                     } else {
-                        selectedVals = new Set([...selectedVals].filter(value => options.includes(value)));
+                        selectedVals = new Set([...intendedSelectedVals].filter(value => options.includes(value)));
                     }
                     renderOptions();
                 },

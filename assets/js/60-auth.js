@@ -243,7 +243,9 @@ function updateUserBadge() {
     const tabHistorialPluz = document.getElementById('tabHistorialPluz');
     if (tabHistorialPluz) tabHistorialPluz.style.display = isAdmin ? '' : 'none';
     const tabSeguimientoDia = document.getElementById('tabSeguimientoDia');
-    if (tabSeguimientoDia) tabSeguimientoDia.style.display = isAdmin ? '' : 'none';
+    if (tabSeguimientoDia) tabSeguimientoDia.style.display = '';
+    const btnSubnavCallsFromSeg = document.getElementById('btnSubnavCallsFromSeg');
+    if (btnSubnavCallsFromSeg) btnSubnavCallsFromSeg.style.display = isAdmin ? '' : 'none';
     const btnOpenHistorialPluzFromTdOms = document.getElementById('btnOpenHistorialPluzFromTdOms');
     if (btnOpenHistorialPluzFromTdOms) btnOpenHistorialPluzFromTdOms.style.display = isAdmin ? 'inline-flex' : 'none';
     const btnOpenBulkPluzEnEjecucion = document.getElementById('btnOpenBulkPluzEnEjecucion');
@@ -744,7 +746,9 @@ async function refreshLiveOmsData(options = {}) {
         if (storage) {
             storage.removeItem('oms_seds_criticas_csv');
             storage.removeItem('oms_supervisor_csv');
-            storage.removeItem('oms_config_data_sed_layers');
+            if (!options.silent) {
+                storage.removeItem('oms_config_data_sed_layers');
+            }
         }
 
         const loadFn = (typeof loadData === 'function') ? loadData : (typeof window !== 'undefined' ? window.loadData : null);
