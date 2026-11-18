@@ -99,6 +99,13 @@
             return sessionStorage.getItem('oms_user_role') === 'admin';
         }
 
+        function isCurrentUserSuperAdmin() {
+            if (typeof sessionStorage === 'undefined') return false;
+            const isAdmin = sessionStorage.getItem('oms_user_role') === 'admin';
+            const contractor = (sessionStorage.getItem('oms_assigned_contractor') || '*').trim();
+            return isAdmin && contractor === '*';
+        }
+
         function getSupervisorDataForTicket(ticket) {
             if (!ticket) return null;
             const key = String(ticket).trim().toLowerCase();
@@ -209,6 +216,8 @@
         }
         if (typeof window !== 'undefined') {
             window.isCurrentUserAdmin = isCurrentUserAdmin;
+            window.isCurrentUserSuperAdmin = isCurrentUserSuperAdmin;
+            window.recordMatchesAssignedContractor = recordMatchesAssignedContractor;
             window.cleanSupVal = cleanSupVal;
             window.getSupervisorDataForTicket = getSupervisorDataForTicket;
             window.getSupervisorLogsForSed = getSupervisorLogsForSed;
@@ -770,6 +779,19 @@
                 }
             }
             return 'N/A';
+        }
+
+        function recordMatchesAssignedContractor(recordOrCompany, assignedContractor) {
+            const cleanAssigned = String(assignedContractor || '*').trim().toUpperCase();
+            if (cleanAssigned === '*') return true;
+            if (!cleanAssigned) return false;
+            const targetCompanies = cleanAssigned.split(',').map(s => s.trim()).filter(Boolean);
+            if (targetCompanies.length === 0) return false;
+            const company = (typeof recordOrCompany === 'string')
+                ? recordOrCompany.trim().toUpperCase()
+                : getProp(recordOrCompany, 'Contratista', 'Empresa', 'CONTRATISTA', 'empresa', 'Pto.tbjo.responsable').toUpperCase();
+            if (!company || company === 'N/A') return false;
+            return targetCompanies.some(target => company.includes(target) || target.includes(company));
         }
 
         function filterRecordsForAssignedContractor(records, assignedContractor) {

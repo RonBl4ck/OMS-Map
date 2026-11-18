@@ -1,5 +1,27 @@
 // api/get-users-admin.js
-// Endpoint Serverless para obtener usuarios y contraseñas (requiere PIN maestro)
+// Endpoint Serverless para obtener usuarios (modo público sanitizado o modo admin con PIN maestro)
+
+const DEFAULT_PUBLIC_PROFILES = [
+    { user: 'ALFACO', contractor: 'ALFACO', role: 'contractor' },
+    { user: 'COBRA', contractor: 'COBRA', role: 'contractor' },
+    { user: 'DOMINION', contractor: 'DOMINION', role: 'contractor' },
+    { user: 'INMEL', contractor: 'INMEL', role: 'contractor' },
+    { user: 'LARI', contractor: 'LARI', role: 'contractor' },
+    { user: 'PA', contractor: 'PA', role: 'contractor' },
+    { user: 'PLUZ', contractor: '*', role: 'admin' }
+];
+
+function normalizeContractorList(rawContractor, role, user) {
+    const cleaned = String(rawContractor || '')
+        .trim()
+        .toUpperCase()
+        .split(/[;,]+/)
+        .map(s => s.trim())
+        .filter(Boolean)
+        .join(',');
+    if (cleaned) return cleaned;
+    return role === 'admin' ? '*' : String(user || '').trim().toUpperCase();
+}
 
 module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -13,7 +35,7 @@ module.exports = async (req, res) => {
         return res.end();
     }
 
-    if (req.method !== 'POST') {
+    if (req.method !== 'POST' && req.method !== 'GET') {
         const payload = JSON.stringify({ success: false, message: 'Método no permitido' });
         if (typeof res.status === 'function') return res.status(405).send(payload);
         res.writeHead(405, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -25,17 +47,22 @@ module.exports = async (req, res) => {
         if (typeof body === 'string') {
             try { body = JSON.parse(body); } catch(e) {}
         }
-        const headerPin = req.headers && (req.headers['x-config-pin'] || req.headers['x-pin']);
-        const { pin } = body || {};
-        const inputPin = String(headerPin || pin || '').trim();
 
-        const masterPin = process.env.CONFIG_MASTER_PASSWORD || process.env.PLUZ_CONFIG_PIN || "PLUZ_2026_PLUZ";
+        const isPublic = req.method === 'GET' || Boolean(body && body.public === true);
 
-        if (!inputPin || inputPin !== masterPin) {
-            const payload = JSON.stringify({ success: false, message: 'No autorizado. Clave incorrecta.' });
-            if (typeof res.status === 'function') return res.status(401).send(payload);
-            res.writeHead(401, { 'Content-Type': 'application/json; charset=utf-8' });
-            return res.end(payload);
+        if (!isPublic) {
+            const headerPin = req.headers && (req.headers['x-config-pin'] || req.headers['x-pin']);
+            const { pin } = body || {};
+            const inputPin = String(headerPin || pin || '').trim();
+
+            const masterPin = process.env.CONFIG_MASTER_PASSWORD || process.env.PLUZ_CONFIG_PIN || "PLUZ_2026_PLUZ";
+
+            if (!inputPin || inputPin !== masterPin) {
+                const payload = JSON.stringify({ success: false, message: 'No autorizado. Clave incorrecta.' });
+                if (typeof res.status === 'function') return res.status(401).send(payload);
+                res.writeHead(401, { 'Content-Type': 'application/json; charset=utf-8' });
+                return res.end(payload);
+            }
         }
 
         const usersSheetUrl = process.env.SHEETS_URL_USERS || process.env.SHEETS_URL_ACCESOS;
@@ -66,6 +93,28 @@ module.exports = async (req, res) => {
                     }
                 }
             } catch(e) {}
+        }
+
+        if (isPublic) {
+            const profiles = (!users || users.length === 0)
+                ? DEFAULT_PUBLIC_PROFILES
+                : users
+                    .filter(u => String(u.estado || 'activo').trim().toLowerCase() !== 'inactivo')
+                    .map(u => {
+                        const user = String(u.user || '').trim().toUpperCase();
+                        const role = String(u.role || (user === 'PLUZ' ? 'admin' : 'contractor')).trim().toLowerCase() === 'admin' ? 'admin' : 'contractor';
+                        const contractor = normalizeContractorList(u.contractor, role, user);
+                        return { user, contractor, role };
+                    })
+                    .filter(p => p.user);
+
+            const payload = JSON.stringify({
+                success: true,
+                profiles
+            });
+            if (typeof res.status === 'function') return res.status(200).send(payload);
+            res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+            return res.end(payload);
         }
 
         const payload = JSON.stringify({
@@ -108,11 +157,14 @@ function parseUsersCsv(csvText) {
             const u = (cols[userIdx] || '').trim();
             const p = (cols[passIdx] || '').trim();
             if (u && p) {
+                const role = roleIdx !== -1 ? (cols[roleIdx] || (u.toUpperCase() === 'PLUZ' ? 'admin' : 'contractor')).trim().toLowerCase() : (u.toUpperCase() === 'PLUZ' ? 'admin' : 'contractor');
+                const normRole = role === 'admin' ? 'admin' : 'contractor';
+                const rawContractor = contrIdx !== -1 ? (cols[contrIdx] || '').trim() : '';
                 result.push({
                     user: u,
                     password: p,
-                    contractor: contrIdx !== -1 ? (cols[contrIdx] || u).trim() : (u.toUpperCase() === 'PLUZ' ? '*' : u),
-                    role: roleIdx !== -1 ? (cols[roleIdx] || (u.toUpperCase() === 'PLUZ' ? 'admin' : 'contractor')).trim().toLowerCase() : (u.toUpperCase() === 'PLUZ' ? 'admin' : 'contractor'),
+                    contractor: normalizeContractorList(rawContractor, normRole, u),
+                    role: normRole,
                     estado: estadoIdx !== -1 ? (cols[estadoIdx] || 'activo').trim() : 'activo'
                 });
             }

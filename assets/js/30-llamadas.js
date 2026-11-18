@@ -1,7 +1,45 @@
         // Registro de llamadas (primera versión: visible solo al perfil PLUZ en la interfaz)
         function getLlamadaValue(row, ...fields) {
+            if (typeof getProp !== 'function') return '';
             const val = getProp(row, ...fields);
             return (val === 'N/A' || !val) ? '' : val;
+        }
+
+        function filterLlamadasByAssignedContractor(rows) {
+            const assignedContractor = (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('oms_assigned_contractor') : null) || '*';
+            if (!assignedContractor || assignedContractor.trim() === '*') return rows || [];
+
+            const targetCompanies = assignedContractor.toUpperCase().split(',').map(s => s.trim()).filter(Boolean);
+            const ticketMap = (typeof window !== 'undefined' && window.omsRecordsByTicketMap)
+                || (typeof globalThis !== 'undefined' && globalThis.omsRecordsByTicketMap)
+                || null;
+
+            const lookupTicketRecord = (key) => {
+                if (!ticketMap || !key) return null;
+                const s = String(key).trim();
+                if (!s) return null;
+                if (typeof ticketMap.get === 'function') {
+                    return ticketMap.get(s) || ticketMap.get(s.toLowerCase()) || null;
+                }
+                return ticketMap[s] || ticketMap[s.toLowerCase()] || null;
+            };
+
+            return (rows || []).filter(row => {
+                if (!row) return false;
+                let emp = String(row.empresa || row.contratista || getLlamadaValue(row, 'Empresa', 'Contratista', 'CONTRATISTA') || '').trim();
+                if (!emp) {
+                    const matchedRec = lookupTicketRecord(row.ticket) || lookupTicketRecord(row.odm);
+                    if (matchedRec) {
+                        emp = String(matchedRec.empresa || matchedRec.Contratista || matchedRec.Empresa || '').trim();
+                    }
+                }
+                if (typeof recordMatchesAssignedContractor === 'function') {
+                    return recordMatchesAssignedContractor(emp, assignedContractor);
+                }
+                if (!emp) return false;
+                const upperEmp = emp.toUpperCase();
+                return targetCompanies.some(target => upperEmp.includes(target) || target.includes(upperEmp));
+            });
         }
 
         function isValidCallEntityId(val) {
@@ -124,7 +162,7 @@
         function renderLlamadasTable(records) {
             const body = document.getElementById('llamadasTableBody'), count = document.getElementById('tableLlamadasCount'), input = document.getElementById('inputFilterLlamadas');
             if (!body) return;
-            const targetRecords = records || llamadasRecords;
+            const targetRecords = records || filterLlamadasByAssignedContractor(llamadasRecords);
             const query = String(input ? input.value : '').trim().toLowerCase();
             const repeatFilter = callsRepeatCtrl?.getSelected() || [];
             const statusFilter = callsStatusCtrl?.getSelected() || [];
@@ -390,10 +428,13 @@
                         direccion: getLlamadaValue(row, 'Dirección', 'Direccion', 'DIRECCIÓN', 'DIRECCION'),
                         estado: formatEstadoAviso(getLlamadaValue(row, 'Estado del aviso', 'Estado Aviso', 'ESTADO DEL AVISO', 'Estado')),
                         nota: getLlamadaValue(row, 'Nota específica', 'Nota especifica', 'NOTA ESPECIFICA', 'Nota Específica', 'Nota', 'NOTA'),
+                        empresa: getLlamadaValue(row, 'Empresa', 'Contratista', 'CONTRATISTA', 'empresa'),
                         conteoLlamadas: conteoLlamadas,
                         presionLlamadas: presionLlamadas
                     };
                 }).sort((a, b) => parseLlamadaDate(b.horaRegistro) - parseLlamadaDate(a.horaRegistro));
+                if (typeof window !== 'undefined' && typeof window.rebuildOmsTicketIndex === 'function') window.rebuildOmsTicketIndex();
+                llamadasRecords = filterLlamadasByAssignedContractor(llamadasRecords);
                 llamadasLoaded = true;
                 populateCallsStatusFilter();
                 if (status) status.innerText = `${llamadasRecords.length} registros cargados. Ordenados por hora de registro.`;
@@ -402,7 +443,6 @@
                 console.error('Error cargando llamadas:', error);
                 return;
             }
-            if (typeof window.rebuildOmsTicketIndex === 'function') window.rebuildOmsTicketIndex();
             document.getElementById('llamadasModalOverlay')?.setAttribute('aria-busy', 'false');
             renderLlamadasTable();
         }

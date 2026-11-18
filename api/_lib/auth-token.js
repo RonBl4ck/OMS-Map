@@ -25,15 +25,17 @@ function base64UrlDecode(str) {
  * @param {Object} options
  * @param {string} options.user
  * @param {string} options.role
+ * @param {string} [options.contractor='*']
  * @param {number} [options.expHours=24]
  * @returns {string} Token firmado
  */
-function createAuthToken({ user, role, expHours = 24 }) {
+function createAuthToken({ user, role, contractor = '*', expHours = 24 }) {
     const iat = Date.now();
     const exp = iat + Math.round(Number(expHours) * 3600 * 1000);
     const payloadObj = {
         user: String(user || '').trim(),
         role: String(role || 'contractor').trim().toLowerCase(),
+        contractor: String(contractor || '*').trim().toUpperCase(),
         iat,
         exp
     };

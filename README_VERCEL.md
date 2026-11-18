@@ -24,6 +24,13 @@ En tu archivo de Google Sheets, crea una nueva pestaña llamada **ACCESOS** con 
 | LARI | TuClaveLari2026 | LARI | contractor | activo |
 | PA | TuClavePa2026 | PA | contractor | activo |
 | PLUZ | TuClavePluz2026 | * | admin | activo |
+| ADMIN_NORTE | Clave | COBRA,INMEL | admin | activo |
+| CONCYSSA | Clave | CONCYSSA | contractor | activo |
+
+> 💡 **Perfiles Avanzados y Sincronización:**
+> - **Admin Acotado:** Usa `rol = admin` y lista las contratas separadas por coma en `Contratista` (ej. `ADMIN_NORTE | Clave | COBRA,INMEL | admin | activo`).
+> - **Nueva Contrata:** Agrega una fila con `rol = contractor` y el nombre exacto de la empresa en `Contratista` (ej. `CONCYSSA | Clave | CONCYSSA | contractor | activo`).
+> - **Google Apps Script:** Usa el código unificado en `scripts/google-apps-script-accesos.gs` al desplegar el Web App de Apps Script para sincronizar `ACCESOS`, `CAPAS_SED` y `SEGUIMIENTO_SUPERVISOR`.
 
 **Cómo publicar solo esta pestaña como CSV:**
 1. En Google Sheets ve a: **Archivo** > **Compartir** > **Publicar en la Web**.

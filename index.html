@@ -77,12 +77,12 @@
                         cursor: pointer;
                     ">
                         <option value="ALFACO">ALFACO</option>
-                        <option value="COBRA">COBRA (Contratista)</option>
-                        <option value="DOMINION">DOMINION (Contratista)</option>
-                        <option value="INMEL">INMEL (Contratista)</option>
-                        <option value="LARI">LARI (Contratista)</option>
-                        <option value="PA">PA (Contratista)</option>
-                        <option value="PLUZ" selected>PLUZ (Administrador General)</option>
+                        <option value="COBRA">COBRA</option>
+                        <option value="DOMINION">DOMINION</option>
+                        <option value="INMEL">INMEL</option>
+                        <option value="LARI">LARI</option>
+                        <option value="PA">PA</option>
+                        <option value="PLUZ" selected>PLUZ</option>
                     </select>
                 </div>
 
@@ -1157,11 +1157,22 @@
                             Modifica las contraseñas de los contratistas o del administrador PLUZ y actualízalas directamente en Google Sheets.
                         </p>
                     </div>
-                    <div>
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <button id="btnAddNewUserProfile" type="button" style="background: var(--pluz-blue); color: white; border: 0; padding: 7px 14px; border-radius: 6px; font-size: 12.5px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                            ➕ Nuevo Perfil
+                        </button>
                         <button id="btnSaveUsersConfig" style="background: #16a34a; color: white; border: 0; padding: 7px 16px; border-radius: 6px; font-size: 12.5px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(22,163,74,0.3);">
                             💾 Guardar y Actualizar Sheets
                         </button>
                     </div>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; padding: 8px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+                    <span style="font-size: 11.5px; font-weight: 700; color: #334155;">🏢 Catálogo de Contratas:</span>
+                    <input id="inputNewContractorName" type="text" placeholder="Ej. CONCYSSA" style="padding: 5px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; text-transform: uppercase; width: 160px;">
+                    <button id="btnAddNewContractorOption" type="button" style="background: #0f172a; color: white; border: 0; padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">
+                        + Agregar Contrata
+                    </button>
                 </div>
 
                 <div id="configSaveAlert" style="display: none; padding: 10px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; margin-bottom: 14px;"></div>
@@ -1172,15 +1183,16 @@
                         <thead>
                             <tr style="background: var(--pluz-dark); color: white;">
                                 <th style="padding: 9px 12px;">Usuario / Perfil</th>
-                                <th style="padding: 9px 12px;">Contratista Asignado</th>
                                 <th style="padding: 9px 12px;">Rol</th>
-                                <th style="padding: 9px 12px; width: 260px;">Contraseña</th>
-                                <th style="padding: 9px 12px; width: 140px;">Estado</th>
+                                <th style="padding: 9px 12px;">Contratistas que puede ver</th>
+                                <th style="padding: 9px 12px; width: 200px;">Contraseña</th>
+                                <th style="padding: 9px 12px; width: 130px;">Estado</th>
+                                <th style="padding: 9px 12px; width: 70px; text-align: center;">Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="tbodyUsersConfig">
                             <tr>
-                                <td colspan="5" style="padding: 16px; text-align: center; color: #64748b;">
+                                <td colspan="6" style="padding: 16px; text-align: center; color: #64748b;">
                                     ⏳ Cargando usuarios desde Google Sheets...
                                 </td>
                             </tr>

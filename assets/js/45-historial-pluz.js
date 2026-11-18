@@ -118,9 +118,26 @@
         enrichSupervisorRecordsWithOmsData();
         if (typeof supervisorRecordsMap === 'undefined') return [];
 
+        const assignedContractor = (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('oms_assigned_contractor') : null) || '*';
+        const hasContractorScope = assignedContractor.trim() !== '*';
+        const targetCompanies = hasContractorScope
+            ? assignedContractor.toUpperCase().split(',').map(s => s.trim()).filter(Boolean)
+            : [];
+
         const list = [];
         for (const [key, data] of supervisorRecordsMap.entries()) {
             if (data && data.latest && isTicketQuanticoOrCritico(data)) {
+                if (hasContractorScope) {
+                    let emp = String(data.latest.empresa || '').trim();
+                    if (!emp && Array.isArray(data.history)) {
+                        const withEmp = data.history.find(h => h && String(h.empresa || '').trim());
+                        if (withEmp) emp = String(withEmp.empresa).trim();
+                    }
+                    const matches = typeof recordMatchesAssignedContractor === 'function'
+                        ? recordMatchesAssignedContractor(emp, assignedContractor)
+                        : (Boolean(emp) && targetCompanies.some(t => emp.toUpperCase().includes(t) || t.includes(emp.toUpperCase())));
+                    if (!matches) continue;
+                }
                 list.push(data);
             }
         }

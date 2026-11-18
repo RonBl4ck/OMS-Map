@@ -238,6 +238,7 @@ function updateUserBadge() {
     const userId = (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem("oms_user_id") : null) || "Invitado";
     const contractor = (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem("oms_assigned_contractor") : null) || "*";
     const isAdmin = (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('oms_user_role') : null) === 'admin';
+    const isSuperAdmin = isAdmin && contractor.trim() === '*';
     const tabLlamadas = document.getElementById('tabLlamadas');
     if (tabLlamadas) tabLlamadas.style.display = isAdmin ? '' : 'none';
     const tabHistorialPluz = document.getElementById('tabHistorialPluz');
@@ -270,13 +271,12 @@ function updateUserBadge() {
     if (reportBtns) reportBtns.style.display = isAdmin ? 'inline-flex' : 'none';
     const navUserName = document.getElementById("navUserName");
     if (navUserName) {
-        const contractorLabel = contractor === "*" ? "Admin" : contractor.split(',').join(' + ');
-        navUserName.innerText = `👤 ${userId} (${contractorLabel})`;
+        navUserName.innerText = `👤 ${userId}`;
     }
 
     const btnOpenConfig = document.getElementById("btnOpenConfig");
     if (btnOpenConfig) {
-        btnOpenConfig.style.display = isAdmin ? 'inline-flex' : 'none';
+        btnOpenConfig.style.display = isSuperAdmin ? 'inline-flex' : 'none';
         btnOpenConfig.onclick = () => {
             const pinModal = document.getElementById("configPinModalOverlay");
             const pinInput = document.getElementById("configPinInput");
@@ -696,7 +696,7 @@ async function handleLogin(selectedUser, passVal) {
 
     if (response.ok && data.success) {
         if (typeof sessionStorage !== 'undefined') {
-            sessionStorage.setItem("oms_auth_token", "authenticated");
+            sessionStorage.setItem("oms_auth_token", data.token || "authenticated");
             sessionStorage.setItem("oms_user_id", data.user);
             sessionStorage.setItem("oms_assigned_contractor", data.contractor);
             sessionStorage.setItem("oms_user_role", data.role);
@@ -790,7 +790,7 @@ function startLiveOmsAutoRefresh() {
         try {
             const isVisible = (typeof document === 'undefined' || document.visibilityState !== 'hidden');
             const storage = (typeof sessionStorage !== 'undefined') ? sessionStorage : (typeof window !== 'undefined' ? window.sessionStorage : null);
-            const isAuth = storage && storage.getItem('oms_auth_token') === 'authenticated';
+            const isAuth = Boolean(storage && storage.getItem('oms_auth_token'));
 
             if (isVisible && isAuth) {
                 refreshLiveOmsData({ silent: true });
@@ -814,6 +814,47 @@ function initAuth() {
     }
 }
 
+async function loadPublicLoginProfiles() {
+    if (typeof document === 'undefined') return;
+    const userInput = document.getElementById("authUserInput");
+    if (!userInput) return;
+
+    try {
+        const resp = await fetchWithTimeout('/api/get-users-admin?public=1', {}, 8000);
+        if (!resp || !resp.ok) return;
+        const data = await resp.json();
+        if (!data || !data.success || !Array.isArray(data.profiles) || data.profiles.length === 0) return;
+
+        const prevSelected = userInput.value || 'PLUZ';
+        const merged = new Map();
+
+        data.profiles.forEach(p => {
+            if (!p || !p.user) return;
+            const user = String(p.user).trim().toUpperCase();
+            if (!user) return;
+            merged.set(user, user);
+        });
+
+        if (merged.size === 0) return;
+
+        userInput.innerHTML = '';
+        merged.forEach((label, user) => {
+            const opt = document.createElement('option');
+            opt.value = user;
+            opt.textContent = label;
+            userInput.appendChild(opt);
+        });
+
+        if (merged.has(prevSelected)) {
+            userInput.value = prevSelected;
+        } else if (merged.has('PLUZ')) {
+            userInput.value = 'PLUZ';
+        }
+    } catch (_) {
+        // Silencioso si está offline o falla: mantiene las opciones estáticas
+    }
+}
+
 function checkAuthentication() {
     initAuth();
 
@@ -823,7 +864,7 @@ function checkAuthentication() {
     const btnLogin = document.getElementById("btnAuthLogin");
     const errMsg = document.getElementById("authErrMsg");
 
-    if (sessionStorage.getItem("oms_auth_token") === "authenticated") {
+    if (Boolean(sessionStorage.getItem("oms_auth_token"))) {
         if (authOverlay) authOverlay.style.display = "none";
         updateUserBadge();
         if (typeof initMap === 'function') initMap();
@@ -833,6 +874,7 @@ function checkAuthentication() {
     }
 
     if (authOverlay) authOverlay.style.display = "flex";
+    loadPublicLoginProfiles();
 
     async function validateLogin() {
         const selectedUser = userInput ? userInput.value : "PLUZ";
@@ -919,6 +961,7 @@ if (typeof document !== 'undefined') {
 if (typeof window !== 'undefined') {
     window.handleLogin = handleLogin;
     window.checkAuthentication = checkAuthentication;
+    window.loadPublicLoginProfiles = loadPublicLoginProfiles;
     window.updateUserBadge = updateUserBadge;
     window.loadData = loadData;
     window.refreshLiveOmsData = refreshLiveOmsData;
@@ -941,6 +984,7 @@ if (typeof module !== 'undefined' && module.exports) {
         handleLogin,
         loadData,
         checkAuthentication,
+        loadPublicLoginProfiles,
         updateUserBadge,
         refreshLiveOmsData,
         startLiveOmsAutoRefresh,

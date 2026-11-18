@@ -44,6 +44,30 @@ module.exports = async (req, res) => {
             return res.end(payload);
         }
 
+        const cleanUsers = users.map(u => {
+            const user = String(u.user || '').trim().toUpperCase();
+            const password = String(u.password || '').trim();
+            const role = String(u.role || (user === 'PLUZ' ? 'admin' : 'contractor')).trim().toLowerCase() === 'admin' ? 'admin' : 'contractor';
+            const contractor = user === 'PLUZ'
+                ? '*'
+                : (String(u.contractor || (role === 'admin' ? '*' : user))
+                    .trim()
+                    .toUpperCase()
+                    .split(/[;,]+/)
+                    .map(s => s.trim())
+                    .filter(Boolean)
+                    .join(',') || (role === 'admin' ? '*' : user));
+            const estado = String(u.estado || 'activo').trim().toLowerCase() === 'inactivo' ? 'inactivo' : 'activo';
+            return { user, password, contractor, role, estado };
+        }).filter(u => u.user && u.password);
+
+        if (cleanUsers.length === 0) {
+            const payload = JSON.stringify({ success: false, message: 'No hay usuarios válidos para actualizar.' });
+            if (typeof res.status === 'function') return res.status(400).send(payload);
+            res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+            return res.end(payload);
+        }
+
         const webhookUrl = process.env.GOOGLE_SCRIPT_USERS_URL || scriptUrl || "https://script.google.com/macros/s/AKfycbyUkkCUBRkPU6q0mM36l43LPWc5vUiKVlB2uz0d8p942T37B7YEz75w2YIl8K_O9X__/exec";
 
         let syncSuccess = false;
@@ -55,7 +79,7 @@ module.exports = async (req, res) => {
                 const gasResp = await fetch(webhookUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ users: users }),
+                    body: JSON.stringify({ users: cleanUsers }),
                     redirect: 'follow'
                 });
 
@@ -80,7 +104,7 @@ module.exports = async (req, res) => {
                 const configPath = path.join(process.cwd(), 'config.json');
                 if (fs.existsSync(configPath)) {
                     const cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-                    cfg.users = users;
+                    cfg.users = cleanUsers;
                     fs.writeFileSync(configPath, JSON.stringify(cfg, null, 2), 'utf-8');
                 }
             } catch (_) {}

@@ -102,7 +102,7 @@ module.exports = async (req, res) => {
                 }
                 const canonicalUser = 'ALFACO';
                 const resolvedRole = 'contractor';
-                const token = createAuthToken({ user: canonicalUser, role: resolvedRole });
+                const token = createAuthToken({ user: canonicalUser, role: resolvedRole, contractor: canonicalUser });
                 const resObj = {
                     success: true,
                     user: canonicalUser,
@@ -137,9 +137,16 @@ module.exports = async (req, res) => {
 
         if (match) {
             const resolvedUser = match.user;
-            const resolvedRole = match.role || (match.user.toUpperCase() === 'PLUZ' ? 'admin' : 'contractor');
-            const resolvedContractor = match.contractor || (match.user.toUpperCase() === 'PLUZ' ? '*' : match.user);
-            const token = createAuthToken({ user: resolvedUser, role: resolvedRole });
+            const resolvedRole = String(match.role || (resolvedUser.toUpperCase() === 'PLUZ' ? 'admin' : 'contractor')).trim().toLowerCase() === 'admin' ? 'admin' : 'contractor';
+            const normalizedContractor = String(match.contractor || '')
+                .trim()
+                .toUpperCase()
+                .split(/[;,]+/)
+                .map(s => s.trim())
+                .filter(Boolean)
+                .join(',');
+            const resolvedContractor = normalizedContractor || (resolvedRole === 'admin' ? '*' : resolvedUser);
+            const token = createAuthToken({ user: resolvedUser, role: resolvedRole, contractor: resolvedContractor });
 
             const resObj = {
                 success: true,
