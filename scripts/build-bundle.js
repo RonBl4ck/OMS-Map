@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { syncIndexHtmlVersions } = require('./sync-asset-versions');
 
 const rootDir = path.resolve(__dirname, '..');
 
@@ -102,6 +103,8 @@ function main() {
   try {
     buildJsBundle();
     buildCssBundle();
+    const versionSync = syncIndexHtmlVersions({ rootDir });
+    console.log(`[Build] Asset versions synced (${versionSync.updated.length} updated, ${versionSync.unchanged.length} unchanged).`);
     console.log('[Build] All bundles generated successfully.');
   } catch (err) {
     console.error('[Build Error]', err);

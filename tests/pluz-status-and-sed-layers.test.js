@@ -130,6 +130,16 @@ test('/api/sed-layers endpoint validates admin access and normalizes layers', as
     const localBackupPath = path.join(__dirname, '..', 'data_sed_layers.json');
     const hadLocalBackup = fs.existsSync(localBackupPath);
     const prevLocalContent = hadLocalBackup ? fs.readFileSync(localBackupPath, 'utf8') : null;
+    const originalFetch = global.fetch;
+    let fetchCalls = 0;
+
+    global.fetch = async () => {
+        fetchCalls += 1;
+        return {
+            ok: true,
+            json: async () => ({ success: true, message: 'Mocked GAS response' })
+        };
+    };
 
     const createMockRes = (onResult) => ({
         setHeader() {},
@@ -150,7 +160,7 @@ test('/api/sed-layers endpoint validates admin access and normalizes layers', as
         assert.equal(statusCode, 403);
         assert.equal(bodyObj.success, false);
 
-        // Admin POST should normalize and save layers locally when webhook is not configured
+        // Admin POST should normalize and save layers without hitting real Google Apps Script
         statusCode = 200;
         bodyObj = null;
         await handler(
@@ -171,7 +181,9 @@ test('/api/sed-layers endpoint validates admin access and normalizes layers', as
         assert.equal(bodyObj.layers.length, 1);
         assert.equal(bodyObj.layers[0].name, 'DAN');
         assert.deepEqual(bodyObj.layers[0].seds, ['03033A', '04512B', '08190C']);
+        assert.equal(fetchCalls, 1);
     } finally {
+        global.fetch = originalFetch;
         if (hadLocalBackup) {
             fs.writeFileSync(localBackupPath, prevLocalContent, 'utf8');
         } else if (fs.existsSync(localBackupPath)) {

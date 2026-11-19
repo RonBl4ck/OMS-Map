@@ -53,15 +53,15 @@ test('la leyenda del mapa tiene un control desplegable accesible', () => {
 
 test('los recursos de la leyenda invalidan el cache antiguo en cada despliegue', () => {
     const page = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
-    const release = '20260918-status-map';
     const legendRelease = '20260913-map-legend';
+    const versionPattern = '[a-zA-Z0-9._-]+';
 
-    assert.match(page, new RegExp(`assets/css/10-map\\.css\\?v=${release}`));
-    assert.match(page, new RegExp(`assets/css/20-dashboard\\.css\\?v=${release}`));
-    assert.match(page, new RegExp(`assets/css/90-modern\\.css\\?v=(?:${release}|20260930-studio|20261022-historial)`));
-    assert.match(page, new RegExp(`assets/js/00-core\\.js\\?v=${release}`));
-    assert.match(page, new RegExp(`assets/js/10-map\\.js\\?v=${release}`));
-    assert.match(page, new RegExp(`assets/js/20-dashboard\\.js\\?v=${release}`));
+    assert.match(page, new RegExp(`assets/css/10-map\\.css\\?v=${versionPattern}`));
+    assert.match(page, new RegExp(`assets/css/20-dashboard\\.css\\?v=${versionPattern}`));
+    assert.match(page, new RegExp(`assets/css/90-modern\\.css\\?v=${versionPattern}`));
+    assert.match(page, new RegExp(`assets/js/00-core\\.js\\?v=${versionPattern}`));
+    assert.match(page, new RegExp(`assets/js/10-map\\.js\\?v=${versionPattern}`));
+    assert.match(page, new RegExp(`assets/js/20-dashboard\\.js\\?v=${versionPattern}`));
     for (const name of iconNames) {
         assert.match(page, new RegExp(`assets/icons/${name}\\.svg\\?v=${legendRelease}`));
     }

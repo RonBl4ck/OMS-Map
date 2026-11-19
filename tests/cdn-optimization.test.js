@@ -49,3 +49,48 @@ test('60-auth.js expone refreshLiveOmsData y startLiveOmsAutoRefresh', () => {
     assert.match(authCode, /startLiveOmsAutoRefresh/);
     assert.match(authCode, /btnRefreshLiveOms/);
 });
+
+test('vercel.json fuerza revalidación estricta de index.html y raíz sin servir copias stale', () => {
+    const vercelConfig = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
+    const htmlRule = vercelConfig.headers.find(h => h.source.includes('index.html'));
+    assert.ok(htmlRule, 'Debe existir regla para index.html en vercel.json');
+    const cacheHeader = htmlRule.headers.find(h => h.key.toLowerCase() === 'cache-control');
+    assert.equal(
+        cacheHeader.value,
+        'public, max-age=0, must-revalidate',
+        'index.html debe revalidar siempre con ETag/304 sin s-maxage ni stale-while-revalidate'
+    );
+});
+
+test('syncHtmlAssetVersions agrega ?v=<hash8> a assets sin versión y solo cambia los modificados', () => {
+    const { computeFileHash, syncHtmlAssetVersions } = require('../scripts/sync-asset-versions');
+    const hashFoundation = computeFileHash(path.join(root, 'assets', 'css', '00-foundation.css'));
+    const hashCore = computeFileHash(path.join(root, 'assets', 'js', '00-core.js'));
+    assert.match(hashFoundation, /^[a-f0-9]{8}$/);
+
+    const sampleHtml = [
+        '<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />',
+        '<link rel="stylesheet" href="assets/css/00-foundation.css">',
+        `<script src="assets/js/00-core.js?v=${hashCore}"></script>`,
+        '<script src="assets/js/70-admin.js"></script>'
+    ].join('\n');
+
+    const result = syncHtmlAssetVersions(sampleHtml, root);
+    assert.equal(result.missing.length, 0);
+    assert.deepEqual(result.unchanged, ['assets/js/00-core.js']);
+    assert.equal(result.updated.length, 2);
+    assert.match(result.html, new RegExp(`assets/css/00-foundation\\.css\\?v=${hashFoundation}`));
+    assert.match(result.html, /assets\/js\/70-admin\.js\?v=[a-f0-9]{8}/);
+    assert.match(result.html, /https:\/\/unpkg\.com\/leaflet@1\.9\.4\/dist\/leaflet\.css"/);
+});
+
+test('todos los assets locales CSS y JS en index.html tienen ?v=<hash8> sincronizado con el archivo en disco', () => {
+    const { syncIndexHtmlVersions } = require('../scripts/sync-asset-versions');
+    const result = syncIndexHtmlVersions({ rootDir: root, checkOnly: true });
+    assert.deepEqual(
+        result.updated,
+        [],
+        `Ejecuta "node scripts/sync-asset-versions.js" para sincronizar: ${result.updated.map(u => u.asset).join(', ')}`
+    );
+    assert.ok(result.unchanged.length >= 20, 'Debe validar todos los scripts y hojas de estilo locales');
+});

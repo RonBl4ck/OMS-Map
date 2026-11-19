@@ -20,12 +20,12 @@
     <!-- PapaParse -->
     <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
 
-    <link rel="stylesheet" href="assets/css/00-foundation.css">
-    <link rel="stylesheet" href="assets/css/10-map.css?v=20260918-status-map">
-    <link rel="stylesheet" href="assets/css/20-dashboard.css?v=20260918-status-map">
-    <link rel="stylesheet" href="assets/css/30-responsive.css">
-    <link rel="stylesheet" href="assets/css/40-technicians.css?v=20260910-ticket-search">
-    <link rel="stylesheet" href="assets/css/90-modern.css?v=20261114-1">
+    <link rel="stylesheet" href="assets/css/00-foundation.css?v=5b7f1bb4">
+    <link rel="stylesheet" href="assets/css/10-map.css?v=c36c2c27">
+    <link rel="stylesheet" href="assets/css/20-dashboard.css?v=62b54a4a">
+    <link rel="stylesheet" href="assets/css/30-responsive.css?v=51dfcd88">
+    <link rel="stylesheet" href="assets/css/40-technicians.css?v=c7c503e1">
+    <link rel="stylesheet" href="assets/css/90-modern.css?v=62f4787b">
 </head>
 <body>
 
@@ -141,10 +141,15 @@
                 </div>
             </div>
             <div class="navbar-center">
-                <div class="map-tabs-nav" role="tablist" aria-label="Secciones principales">
-                    <button id="tabMapa" class="tab-btn active" type="button" role="tab" aria-selected="true" aria-controls="map" title="Centro de control cartográfico en tiempo real"><span>🗺️ Operación</span></button>
-                    <button id="tabTdOms" class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="tdOmsModalOverlay" title="Métricas de plazos, balance diario y llamadas"><span>📊 Métricas & Control</span></button>
-                    <button id="tabTecnicos" class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="tecnicosModalOverlay" title="Seguimiento de cuadrillas y técnicos en campo"><span>👷 Cuadrillas & Campo</span></button>
+                <div class="navbar-nav-group">
+                    <div class="map-tabs-nav" role="tablist" aria-label="Secciones principales">
+                        <button id="tabMapa" class="tab-btn active" type="button" role="tab" aria-selected="true" aria-controls="map" title="Centro de control cartográfico en tiempo real"><span>🗺️ Operación</span></button>
+                        <button id="tabTdOms" class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="tdOmsModalOverlay" title="Métricas de plazos, balance diario y llamadas"><span>📊 Métricas & Control</span></button>
+                        <button id="tabTecnicos" class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="tecnicosModalOverlay" title="Seguimiento de cuadrillas y técnicos en campo"><span>👷 Cuadrillas & Campo</span></button>
+                    </div>
+                    <a id="linkOperaLog" class="external-app-btn" href="https://opera-log-pluz.vercel.app/" target="_blank" rel="noopener noreferrer" title="Abrir OperaLog — Capacidad Operativa BT en una nueva pestaña">
+                        <span>📋 OperaLog</span><span class="external-arrow" aria-hidden="true">↗</span>
+                    </a>
                 </div>
             </div>
             <div class="kpi-badges-row">
@@ -1212,22 +1217,22 @@
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
     <!-- Paquete unificado de Estado, Utilidades, Componentes y Servicios Modulares (1 petición en lugar de 13) -->
-    <script src="assets/js/00-modules.bundle.js?v=20261111-bundle"></script>
+    <script src="assets/js/00-modules.bundle.js?v=87a3a59c"></script>
 
-    <script src="assets/js/00-core.js?v=20260918-status-map"></script>
-    <script src="assets/js/sed-geometry.js"></script>
-    <script src="assets/js/10-map.js?v=20260918-status-map"></script>
-    <script src="assets/js/components/pluz24hMatrix.js?v=20261114-1"></script>
-    <script src="assets/js/20-dashboard.js?v=20260918-status-map"></script>
-    <script src="assets/js/22-seguimiento-dia.js?v=20261111-1"></script>
-    <script src="assets/js/25-contractor-report.js?v=20261013-1"></script>
-    <script src="assets/js/30-llamadas.js?v=20260912-facets"></script>
-    <script src="assets/js/35-critical-panel.js?v=20260930-pillbars"></script>
-    <script src="assets/js/40-tecnicos.js?v=20260930-v3"></script>
-    <script src="assets/js/45-historial-pluz.js?v=20261022-historial"></script>
-    <script src="assets/js/50-navigation.js?v=20260912-facets"></script>
-    <script src="assets/js/60-auth.js?v=20260930-v3"></script>
-    <script src="assets/js/70-admin.js"></script>
-    <script src="assets/js/80-bootstrap.js?v=20260913-map-legend"></script>
+    <script src="assets/js/00-core.js?v=9b17dca1"></script>
+    <script src="assets/js/sed-geometry.js?v=3bed3b46"></script>
+    <script src="assets/js/10-map.js?v=f7e29d96"></script>
+    <script src="assets/js/components/pluz24hMatrix.js?v=2334d81c"></script>
+    <script src="assets/js/20-dashboard.js?v=c4b76809"></script>
+    <script src="assets/js/22-seguimiento-dia.js?v=1c987405"></script>
+    <script src="assets/js/25-contractor-report.js?v=365acd1a"></script>
+    <script src="assets/js/30-llamadas.js?v=68748d51"></script>
+    <script src="assets/js/35-critical-panel.js?v=0e488b50"></script>
+    <script src="assets/js/40-tecnicos.js?v=1649aa9e"></script>
+    <script src="assets/js/45-historial-pluz.js?v=3dcc2ee5"></script>
+    <script src="assets/js/50-navigation.js?v=1b4d3173"></script>
+    <script src="assets/js/60-auth.js?v=38ce2c4d"></script>
+    <script src="assets/js/70-admin.js?v=8b2c90a2"></script>
+    <script src="assets/js/80-bootstrap.js?v=d0fcc834"></script>
 </body>
 </html>

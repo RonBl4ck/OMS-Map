@@ -33,3 +33,13 @@ test('indicadores presenta los cuatro estados operativos de plazo', () => {
     assert.match(html, new RegExp(`id=["']${id}["']`));
   }
 });
+
+test('la barra superior incluye acceso externo seguro a OperaLog fuera del tablist', () => {
+  assert.match(
+    html,
+    /<a[^>]*id=["']linkOperaLog["'][^>]*href=["']https:\/\/opera-log-pluz\.vercel\.app\/["'][^>]*target=["']_blank["'][^>]*rel=["'][^"']*noopener[^"']*noreferrer[^"']*["'][^>]*>/i
+  );
+  const tablistMatch = html.match(/<div[^>]*role=["']tablist["'][^>]*>([\s\S]*?)<\/div>/i);
+  assert.ok(tablistMatch, 'Debe existir el contenedor role="tablist"');
+  assert.doesNotMatch(tablistMatch[1], /id=["']linkOperaLog["']/);
+});
