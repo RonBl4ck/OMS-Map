@@ -73,21 +73,27 @@
     }
 
     /**
-     * Construye el resumen estructurado de tickets >= 24h agrupados por intervalo, falla y estado PLUZ.
+     * Construye el resumen estructurado de tickets agrupados por intervalo, falla y estado PLUZ.
      * @param {Array<Object>} records
+     * @param {{ scope?: 'all' | 'over24' }} [options]
      */
-    function buildPluz24hSummary(records) {
+    function buildPluz24hSummary(records, options = {}) {
+        const scope = options && options.scope === 'all' ? 'all' : 'over24';
         const safeRecords = Array.isArray(records) ? records : [];
-        const over24Records = safeRecords.filter((r) => r && isOver24hInterval(r.intervalo));
+        const targetRecords = scope === 'all'
+            ? safeRecords.filter((r) => Boolean(r))
+            : safeRecords.filter((r) => r && isOver24hInterval(r.intervalo));
 
         const presentStates = new Set();
         const intervalMap = new Map();
         const pendingCompanyMap = new Map();
         let totalPending = 0;
 
-        for (let i = 0; i < over24Records.length; i++) {
-            const r = over24Records[i];
-            const interval = String(r.intervalo).trim();
+        for (let i = 0; i < targetRecords.length; i++) {
+            const r = targetRecords[i];
+            const interval = (r.intervalo && String(r.intervalo).trim())
+                ? String(r.intervalo).trim()
+                : 'SIN INTERVALO';
             const falla = (r.falla && String(r.falla).trim()) ? String(r.falla).trim() : 'SIN FALLA';
             const state = resolveRecordPluzState(r);
 
@@ -147,6 +153,7 @@
 
             return {
                 interval: intervalKey,
+                isOver24h: isOver24hInterval(intervalKey),
                 total: intEntry.total,
                 byState,
                 fallas
@@ -161,7 +168,8 @@
             });
 
         return {
-            total: over24Records.length,
+            scope,
+            total: targetRecords.length,
             totalPending,
             states,
             intervals,
@@ -170,16 +178,19 @@
     }
 
     /**
-     * Formatea el texto plano del reporte +24h para portapapeles.
+     * Formatea el texto plano del reporte para portapapeles según el alcance activo.
      */
     function formatPluz24hText(summary) {
+        const header = summary && summary.scope === 'all'
+            ? 'ESTADO DE TICKETS (TODOS)'
+            : 'ESTADO DE TICKETS +24 HRS';
         if (!summary || !summary.totalPending) {
-            return 'ESTADO DE TICKETS +24 HRS\nSIN TICKETS PENDIENTES';
+            return `${header}\nSIN TICKETS PENDIENTES`;
         }
         const lines = (summary.pendingByCompany || []).map(
             (item) => `- ${item.empresa}: ${item.count}`
         );
-        return `ESTADO DE TICKETS +24 HRS\nTICKETS PENDIENTES:\n${lines.join('\n')}`;
+        return `${header}\nTICKETS PENDIENTES:\n${lines.join('\n')}`;
     }
 
     function formatCutDateTime(date) {
@@ -201,7 +212,8 @@
     function renderPluz24hCanvas(summary, logoImg) {
         if (typeof document === 'undefined') return null;
 
-        const safeSummary = summary || { total: 0, totalPending: 0, states: [], intervals: [], pendingByCompany: [] };
+        const safeSummary = summary || { scope: 'over24', total: 0, totalPending: 0, states: [], intervals: [], pendingByCompany: [] };
+        const isAll = safeSummary.scope === 'all';
         const states = Array.isArray(safeSummary.states) ? safeSummary.states : [];
         const intervals = Array.isArray(safeSummary.intervals) ? safeSummary.intervals : [];
         const pendingByCompany = Array.isArray(safeSummary.pendingByCompany) ? safeSummary.pendingByCompany : [];
@@ -267,11 +279,11 @@
         ctx.font = `700 17px ${fontBase}`;
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
-        ctx.fillText('ESTADO DE TICKETS +24 HRS', titleX, 27);
+        ctx.fillText(isAll ? 'ESTADO DE TICKETS — GENERAL' : 'ESTADO DE TICKETS +24 HRS', titleX, 27);
 
         ctx.fillStyle = '#cbd5e1';
         ctx.font = `500 12px ${fontBase}`;
-        ctx.fillText(`Corte: ${formatCutDateTime(new Date())}  |  Total +24h: ${safeSummary.total || 0}`, titleX, 50);
+        ctx.fillText(`Corte: ${formatCutDateTime(new Date())}  |  ${isAll ? 'Total' : 'Total +24h'}: ${safeSummary.total || 0}`, titleX, 50);
 
         // Tabla Intervalo / Falla x Estado (PLUZ) x Total
         let y = headerH + 20;
@@ -305,7 +317,11 @@
             ctx.fillStyle = TEXT_MUTED;
             ctx.font = `500 12px ${fontBase}`;
             ctx.textAlign = 'center';
-            ctx.fillText('Sin tickets +24h registrados en el corte actual', padX + actualTableW / 2, y + emptyNoticeH / 2);
+            ctx.fillText(
+                isAll ? 'Sin tickets registrados en el corte actual' : 'Sin tickets +24h registrados en el corte actual',
+                padX + actualTableW / 2,
+                y + emptyNoticeH / 2
+            );
             y += emptyNoticeH;
         } else {
             const grandByState = createEmptyStateMap(states);
@@ -316,6 +332,10 @@
                 // Fila padre (Intervalo) resaltada en #f1f5f9
                 ctx.fillStyle = PARENT_ROW_BG;
                 ctx.fillRect(padX, y, actualTableW, rowH);
+                if (isAll && intItem.isOver24h) {
+                    ctx.fillStyle = PENDING_ACCENT;
+                    ctx.fillRect(padX, y, 3, rowH);
+                }
                 ctx.strokeStyle = BORDER_COLOR;
                 ctx.beginPath();
                 ctx.moveTo(padX, y + rowH);
@@ -498,8 +518,9 @@
         if (typeof document !== 'undefined' && typeof URL !== 'undefined' && URL.createObjectURL) {
             const url = URL.createObjectURL(imageBlob);
             const a = document.createElement('a');
+            const prefix = summary && summary.scope === 'all' ? 'estado_tickets_general' : 'estado_tickets_24h';
             a.href = url;
-            a.download = `estado_tickets_24h_${Date.now()}.png`;
+            a.download = `${prefix}_${Date.now()}.png`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);

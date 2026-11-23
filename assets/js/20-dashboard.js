@@ -748,6 +748,8 @@
         const PLUZ24H_EXPANDED_KEY = 'oms_pluz24h_expanded';
         const expandedPluz24hIntervals = new Set();
         let currentPluz24hSummary = null;
+        let currentPluz24hScope = 'all';
+        let lastPluz24hRecords = [];
         let pluz24hEventsBound = false;
 
         function escapePluz24hHtml(str) {
@@ -786,6 +788,7 @@
         }
 
         function isPluz24hAllActive() {
+            if (currentPluz24hScope !== 'over24') return false;
             const over24 = getOver24hIntervalsFromRecords();
             if (over24.length === 0) return false;
             const selInt = tdCtrlIntervalo ? tdCtrlIntervalo.getSelected() : [];
@@ -800,6 +803,14 @@
 
         function handlePluz24hTotalClick() {
             const estPluzCtrl = getPluz24hEstadoCtrl();
+            if (currentPluz24hScope !== 'over24') {
+                if (tdCtrlIntervalo) tdCtrlIntervalo.reset();
+                if (tdCtrlEmpresa) tdCtrlEmpresa.reset();
+                if (tdCtrlFalla) tdCtrlFalla.reset();
+                if (estPluzCtrl) estPluzCtrl.reset();
+                triggerPluz24hDashboardRefresh();
+                return;
+            }
             if (isPluz24hAllActive()) {
                 if (tdCtrlIntervalo) tdCtrlIntervalo.reset();
             } else {
@@ -820,10 +831,13 @@
             const estPluzCtrl = getPluz24hEstadoCtrl();
             const selEstPluz = estPluzCtrl ? estPluzCtrl.getSelected() : [];
             const selInt = tdCtrlIntervalo ? tdCtrlIntervalo.getSelected() : [];
-            const over24 = getOver24hIntervalsFromRecords();
 
             const empMatch = selEmps.length === 1 && selEmps[0] === empresa;
             const estMatch = selEstPluz.length === 1 && selEstPluz[0] === 'PENDIENTE';
+            if (currentPluz24hScope !== 'over24') {
+                return empMatch && estMatch && selInt.length === 0;
+            }
+            const over24 = getOver24hIntervalsFromRecords();
             const intMatch = over24.length === 0
                 ? selInt.length === 0
                 : (selInt.length === over24.length && over24.every(iv => selInt.includes(iv)));
@@ -853,12 +867,16 @@
                 if (estPluzCtrl) estPluzCtrl.reset();
                 if (tdCtrlIntervalo) tdCtrlIntervalo.reset();
             } else {
-                const over24 = getOver24hIntervalsFromRecords();
                 if (tdCtrlEmpresa) tdCtrlEmpresa.setSelected([empresa], false);
                 if (estPluzCtrl) estPluzCtrl.setSelected(['PENDIENTE'], false);
                 if (tdCtrlIntervalo) {
-                    if (over24.length > 0) tdCtrlIntervalo.setSelected(over24, false);
-                    else tdCtrlIntervalo.reset();
+                    if (currentPluz24hScope === 'over24') {
+                        const over24 = getOver24hIntervalsFromRecords();
+                        if (over24.length > 0) tdCtrlIntervalo.setSelected(over24, false);
+                        else tdCtrlIntervalo.reset();
+                    } else {
+                        tdCtrlIntervalo.reset();
+                    }
                 }
             }
 
@@ -917,6 +935,15 @@
                 });
             }
 
+            panel.querySelectorAll('.pluz24h-scope-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const nextScope = btn.dataset.pluzScope === 'over24' ? 'over24' : 'all';
+                    if (nextScope === currentPluz24hScope) return;
+                    currentPluz24hScope = nextScope;
+                    renderPluz24hPanel(lastPluz24hRecords);
+                });
+            });
+
             const totalBadgeBtn = document.getElementById('pluz24hTotalBadge');
             if (totalBadgeBtn) {
                 totalBadgeBtn.addEventListener('click', () => {
@@ -972,18 +999,19 @@
                 btnImg.addEventListener('click', async () => {
                     if (!currentPluz24hSummary || !window.Pluz24hMatrix || typeof window.Pluz24hMatrix.copyPluz24hImage !== 'function') return;
                     btnImg.disabled = true;
+                    const scopeLabel = currentPluz24hScope === 'over24' ? 'Tickets +24h' : 'Matriz Estado PLUZ';
                     try {
-                        const mode = await window.Pluz24hMatrix.copyPluz24hImage(currentPluz24hSummary);
+                        const res = await window.Pluz24hMatrix.copyPluz24hImage(currentPluz24hSummary);
                         if (typeof showNotificationToast === 'function') {
-                            const msg = mode === 'download'
-                                ? '📥 Imagen de Tickets +24h descargada'
-                                : '✅ Imagen de Tickets +24h copiada al portapapeles';
+                            const msg = res && res.mode === 'fallback_download'
+                                ? `📥 Imagen de ${scopeLabel} descargada`
+                                : `✅ Imagen de ${scopeLabel} copiada al portapapeles`;
                             showNotificationToast(msg, '📸');
                         }
                     } catch (err) {
-                        console.error('Error copiando imagen +24h:', err);
+                        console.error('Error copiando imagen matriz PLUZ:', err);
                         if (typeof showNotificationToast === 'function') {
-                            showNotificationToast('❌ No se pudo copiar la imagen de Tickets +24h', '⚠️');
+                            showNotificationToast(`❌ No se pudo copiar la imagen de ${scopeLabel}`, '⚠️');
                         }
                     } finally {
                         btnImg.disabled = false;
@@ -996,15 +1024,16 @@
                 btnTxt.addEventListener('click', async () => {
                     if (!currentPluz24hSummary || !window.Pluz24hMatrix || typeof window.Pluz24hMatrix.copyPluz24hText !== 'function') return;
                     btnTxt.disabled = true;
+                    const scopeLabel = currentPluz24hScope === 'over24' ? 'Tickets +24h' : 'Matriz Estado PLUZ';
                     try {
                         await window.Pluz24hMatrix.copyPluz24hText(currentPluz24hSummary);
                         if (typeof showNotificationToast === 'function') {
-                            showNotificationToast('📝 Resumen de Tickets +24h copiado al portapapeles', '📝');
+                            showNotificationToast(`📝 Resumen de ${scopeLabel} copiado al portapapeles`, '📝');
                         }
                     } catch (err) {
-                        console.error('Error copiando texto +24h:', err);
+                        console.error('Error copiando texto matriz PLUZ:', err);
                         if (typeof showNotificationToast === 'function') {
-                            showNotificationToast('❌ No se pudo copiar el texto de Tickets +24h', '⚠️');
+                            showNotificationToast(`❌ No se pudo copiar el texto de ${scopeLabel}`, '⚠️');
                         }
                     } finally {
                         btnTxt.disabled = false;
@@ -1038,7 +1067,22 @@
                 } catch (_) {}
             }
 
-            const summary = window.Pluz24hMatrix.buildPluz24hSummary(Array.isArray(records) ? records : []);
+            lastPluz24hRecords = Array.isArray(records) ? records : [];
+            const isOver24Scope = currentPluz24hScope === 'over24';
+            panel.classList.toggle('is-scope-over24', isOver24Scope);
+
+            const btnScopeAll = document.getElementById('btnPluzScopeAll');
+            const btnScope24h = document.getElementById('btnPluzScope24h');
+            if (btnScopeAll) {
+                btnScopeAll.classList.toggle('is-active', !isOver24Scope);
+                btnScopeAll.setAttribute('aria-pressed', !isOver24Scope ? 'true' : 'false');
+            }
+            if (btnScope24h) {
+                btnScope24h.classList.toggle('is-active', isOver24Scope);
+                btnScope24h.setAttribute('aria-pressed', isOver24Scope ? 'true' : 'false');
+            }
+
+            const summary = window.Pluz24hMatrix.buildPluz24hSummary(lastPluz24hRecords, { scope: currentPluz24hScope });
             currentPluz24hSummary = summary;
 
             const badgeEl = document.getElementById('pluz24hTotalBadge');
@@ -1046,6 +1090,11 @@
                 badgeEl.textContent = String(summary.total || 0);
                 badgeEl.classList.toggle('is-active', isPluz24hAllActive());
                 badgeEl.setAttribute('aria-pressed', isPluz24hAllActive() ? 'true' : 'false');
+                const badgeLabel = isOver24Scope
+                    ? 'Filtrar todos los tickets +24h'
+                    : 'Limpiar filtros de la matriz';
+                badgeEl.title = badgeLabel;
+                badgeEl.setAttribute('aria-label', badgeLabel);
             }
 
             const chipsEl = document.getElementById('pluz24hPendingChips');
@@ -1069,7 +1118,10 @@
             const states = Array.isArray(summary.states) ? summary.states : [];
 
             if (intervals.length === 0) {
-                tableWrap.innerHTML = '<div class="pluz24h-empty-state">Sin tickets +24h para los filtros actuales</div>';
+                const emptyMsg = isOver24Scope
+                    ? 'Sin tickets +24h para los filtros actuales'
+                    : 'Sin tickets para los filtros actuales';
+                tableWrap.innerHTML = `<div class="pluz24h-empty-state">${emptyMsg}</div>`;
                 return;
             }
 
@@ -1100,8 +1152,9 @@
                     ? `<td><button type="button" class="pluz24h-cell-btn${isPluz24hCellActive(iv, '', '') ? ' is-active' : ''}" data-interval="${escIv}">${ivTotal}</button></td>`
                     : '<td></td>';
 
+                const over24Cls = (!isOver24Scope && ivObj.isOver24h) ? ' is-over24h' : '';
                 const parentRow = `
-                    <tr class="pluz24h-row-interval${isCollapsed ? ' is-collapsed' : ''}" data-interval="${escIv}">
+                    <tr class="pluz24h-row-interval${isCollapsed ? ' is-collapsed' : ''}${over24Cls}" data-interval="${escIv}">
                         <td>
                             <button type="button" class="pluz24h-interval-btn" data-toggle-interval="${escIv}" aria-expanded="${isCollapsed ? 'false' : 'true'}">
                                 <svg class="pluz24h-row-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -1161,7 +1214,7 @@
                     <tbody>
                         ${rowsHtml}
                         <tr class="pluz24h-row-total">
-                            <td>Total +24h</td>
+                            <td>${isOver24Scope ? 'Total +24h' : 'Total General'}</td>
                             ${totalStateCells}
                             ${grandTotalCell}
                         </tr>

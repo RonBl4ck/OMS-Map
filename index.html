@@ -25,7 +25,7 @@
     <link rel="stylesheet" href="assets/css/20-dashboard.css?v=62b54a4a">
     <link rel="stylesheet" href="assets/css/30-responsive.css?v=51dfcd88">
     <link rel="stylesheet" href="assets/css/40-technicians.css?v=c7c503e1">
-    <link rel="stylesheet" href="assets/css/90-modern.css?v=62f4787b">
+    <link rel="stylesheet" href="assets/css/90-modern.css?v=24d8201d">
 </head>
 <body>
 
@@ -406,9 +406,13 @@
                                 <svg class="pluz24h-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                     <polyline points="9 18 15 12 9 6"></polyline>
                                 </svg>
-                                <span class="pluz24h-title">Tickets +24h</span>
+                                <span class="pluz24h-title">Matriz Estado PLUZ</span>
                             </button>
-                            <button type="button" id="pluz24hTotalBadge" class="pluz24h-badge" title="Filtrar todos los tickets +24h" aria-label="Filtrar todos los tickets +24h">0</button>
+                            <div class="pluz24h-scope-toggle" role="group" aria-label="Alcance de intervalos">
+                                <button type="button" id="btnPluzScopeAll" class="pluz24h-scope-btn is-active" data-pluz-scope="all" aria-pressed="true">Todos</button>
+                                <button type="button" id="btnPluzScope24h" class="pluz24h-scope-btn" data-pluz-scope="over24" aria-pressed="false">+24h</button>
+                            </div>
+                            <button type="button" id="pluz24hTotalBadge" class="pluz24h-badge" title="Total de tickets en la matriz" aria-label="Total de tickets en la matriz">0</button>
                         </div>
                         <div class="pluz24h-pending-bar">
                             <span class="pluz24h-pending-label">Pendientes:</span>
@@ -1222,8 +1226,8 @@
     <script src="assets/js/00-core.js?v=9b17dca1"></script>
     <script src="assets/js/sed-geometry.js?v=3bed3b46"></script>
     <script src="assets/js/10-map.js?v=f7e29d96"></script>
-    <script src="assets/js/components/pluz24hMatrix.js?v=2334d81c"></script>
-    <script src="assets/js/20-dashboard.js?v=c4b76809"></script>
+    <script src="assets/js/components/pluz24hMatrix.js?v=4c70deaf"></script>
+    <script src="assets/js/20-dashboard.js?v=10a2cf28"></script>
     <script src="assets/js/22-seguimiento-dia.js?v=1c987405"></script>
     <script src="assets/js/25-contractor-report.js?v=365acd1a"></script>
     <script src="assets/js/30-llamadas.js?v=68748d51"></script>

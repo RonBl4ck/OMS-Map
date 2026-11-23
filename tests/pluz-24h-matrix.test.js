@@ -110,3 +110,47 @@ test('formatPluz24hText formatea exactamente sin pendientes y con pendientes', (
         'ESTADO DE TICKETS +24 HRS\nTICKETS PENDIENTES:\n- LARI: 3\n- COBRA: 2'
     );
 });
+
+test('buildPluz24hSummary con scope "all" incluye todos los intervalos y marca isOver24h', () => {
+    const records = [
+        { ticket: 'T1', intervalo: '0-2h', falla: 'SUMINISTRO', estado_pluz: 'PENDIENTE', empresa: 'LARI' },
+        { ticket: 'T2', intervalo: '12-24h>', falla: 'RED AEREA', estado_pluz: 'DERIVADO', empresa: 'COBRA' },
+        { ticket: 'T3', intervalo: '24-36h>', falla: 'POSTE', estado_pluz: 'PENDIENTE', empresa: 'COBRA' },
+        { ticket: 'T4', intervalo: '', falla: 'MEDIDOR', estado_pluz: 'PENDIENTE', empresa: 'DOMINION' }
+    ];
+
+    const summary = Pluz24hMatrix.buildPluz24hSummary(records, { scope: 'all' });
+
+    assert.equal(summary.scope, 'all');
+    assert.equal(summary.total, 4);
+    assert.equal(summary.totalPending, 3);
+    assert.deepEqual(
+        summary.intervals.map(i => ({ interval: i.interval, isOver24h: i.isOver24h })),
+        [
+            { interval: '0-2h', isOver24h: false },
+            { interval: '12-24h>', isOver24h: false },
+            { interval: '24-36h>', isOver24h: true },
+            { interval: 'SIN INTERVALO', isOver24h: false }
+        ]
+    );
+    assert.deepEqual(summary.pendingByCompany, [
+        { empresa: 'COBRA', count: 1 },
+        { empresa: 'DOMINION', count: 1 },
+        { empresa: 'LARI', count: 1 }
+    ]);
+});
+
+test('formatPluz24hText adapta el encabezado cuando summary.scope es "all"', () => {
+    assert.equal(
+        Pluz24hMatrix.formatPluz24hText({ scope: 'all', totalPending: 0, pendingByCompany: [] }),
+        'ESTADO DE TICKETS (TODOS)\nSIN TICKETS PENDIENTES'
+    );
+    assert.equal(
+        Pluz24hMatrix.formatPluz24hText({
+            scope: 'all',
+            totalPending: 2,
+            pendingByCompany: [{ empresa: 'LARI', count: 2 }]
+        }),
+        'ESTADO DE TICKETS (TODOS)\nTICKETS PENDIENTES:\n- LARI: 2'
+    );
+});
