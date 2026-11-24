@@ -62,6 +62,22 @@
             sedBadgeHtml = `<span style="font-size:10px; font-weight:bold; color:#2b4791; background:#dbeafe; padding:1px 6px; border-radius:4px;">(7D: ${loc.sed_count} fallas)</span>`;
         }
 
+        // Tarjeta de suministro importante (Exclusivo Perfil PLUZ)
+        const impInfo = isAdmin
+            ? (loc.es_suministro_importante
+                ? { titular: loc.suministro_importante_titular || 'CLIENTE IMPORTANTE' }
+                : (typeof getSuministroImportante === 'function' ? getSuministroImportante(loc.suministro) : null))
+            : null;
+        let impCardHtml = '';
+        if (impInfo) {
+            impCardHtml = `
+                <div class="popup-importante-card" style="margin-top:8px; padding:7px 9px; border:1px solid #fca5a5; background:#fef2f2; border-radius:6px;">
+                    <div style="font-weight:700; color:#b91c1c; font-size:11.5px;">🔴 SUMINISTRO IMPORTANTE</div>
+                    <div style="font-size:11px; color:#7f1d1d; margin-top:2px; font-weight:600;">${escapeHtml(impInfo.titular)}</div>
+                </div>
+            `;
+        }
+
         // Historial y tarjeta de suministro reincidente (Exclusivo Perfil PLUZ)
         const isSuministroReinc = Boolean(loc.suministro_reincidente || (loc.suministro_count >= 2));
         let reincCardHtml = '';
@@ -186,6 +202,7 @@
                 <b>SED Llave:</b> ${escapeHtml(loc.sed)} ${sedBadgeHtml}<br>
                 <b>Alimentador:</b> ${escapeHtml(loc.alimentador || 'N/A')}<br>
                 <b>Suministro:</b> ${escapeHtml(loc.suministro)} ${isSuministroReinc ? `<span style="font-size:10px; font-weight:bold; color:#b45309; background:#fef3c7; border:1px solid #fcd34d; padding:1px 6px; border-radius:4px;">(${escapeHtml(loc.suministro_ventana_dias || 7)}D: ${escapeHtml(loc.suministro_count || 2)} fallas ⚠️)</span>` : (loc.suministro_count > 0 ? `<span style="font-size:10px; font-weight:bold; color:#0d9488; background:#ccfbf1; padding:1px 6px; border-radius:4px;">(7D: ${escapeHtml(loc.suministro_count)} fallas)</span>` : '')}<br>
+                ${impCardHtml}
                 ${reincCardHtml}
                 <b>Llamadas:</b> ${escapeHtml(llamadasLabel)} ${numLlamadas >= 7 ? `<span style="font-size:10px; font-weight:bold; color:#be123c; background:#ffe4e6; border:1px solid #fecdd3; padding:1px 6px; border-radius:4px;">📞 ≥7 LLAMADAS</span>` : ''}<br>
                 <b>Fecha Inicio:</b> ${escapeHtml(loc.fecha_inicio)}<br>
@@ -257,16 +274,22 @@
             : (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('oms_user_role') === 'admin' || sessionStorage.getItem('oms_user_role') === '*') : true);
 
         const isSuministroReinc = Boolean(loc.suministro_reincidente || (loc.suministro_count >= 2));
+        const isSuministroImp = isAdmin && Boolean(loc.es_suministro_importante || (typeof isSuministroImportante === 'function' && isSuministroImportante(loc.suministro)));
         const sumCount = parseInt(loc.suministro_count || (isSuministroReinc ? ((loc.suministro_historial && loc.suministro_historial.length) ? loc.suministro_historial.length + 1 : 2) : 1), 10);
         const sumDias = loc.suministro_ventana_dias || 7;
 
         let titleText = `Ticket: ${escapeHtml(loc.ticket)} | ${escapeHtml(loc.falla)} | Plazo: ${escapeHtml(sla.label)}`;
+        if (isSuministroImp) {
+            const impTit = loc.suministro_importante_titular || ((typeof getSuministroImportante === 'function' && getSuministroImportante(loc.suministro)?.titular) || 'IMPORTANTE');
+            titleText += ` | 🔴 S. IMPORTANTE: ${escapeHtml(impTit)}`;
+        }
         if (isSuministroReinc) {
             titleText += ` | ⚠️ S. REINCIDENTE (${sumCount} fallas en ${sumDias} días)`;
         }
 
         return `
-            <div class="marker-sla-badge ${sla.statusClass}${isExecution ? ' is-execution' : ''}${loc.es_top_critica ? ' is-sed-critica-pulse' : ''}${isSuministroReinc ? ' is-suministro-reincidente' : ''}" title="${titleText}">
+            <div class="marker-sla-badge ${sla.statusClass}${isExecution ? ' is-execution' : ''}${loc.es_top_critica ? ' is-sed-critica-pulse' : ''}${isSuministroReinc ? ' is-suministro-reincidente' : ''}${isSuministroImp ? ' is-suministro-importante' : ''}" title="${titleText}">
+                ${isSuministroImp ? '<span class="marker-imp-badge" title="Suministro Importante">IMP</span>' : ''}
                 ${isSuministroReinc ? `<span class="marker-reinc-badge" title="Falla recurrente: ${escapeHtml(sumCount)} veces">x${escapeHtml(sumCount)}</span>` : ''}
                 ${isExecution ? '<span class="marker-vehicle-backdrop" aria-hidden="true">🚚</span>' : ''}
                 <span class="marker-fault-icon">${faultIconHtml}</span>

@@ -208,7 +208,10 @@
                 return `<tr class="calls-row calls-row--${pressure.key}" tabindex="0" role="button" aria-label="Ver detalle de llamadas de ${hasValidTicket ? `Ticket ${escapeHtml(row.ticket)}` : `Aviso ${escapeHtml(row.aviso || 'sin dato')}`}" onclick="openCallDetail(${index})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openCallDetail(${index});}">
                     <td data-label="Aviso"><strong>${escapeHtml(row.aviso || 'Sin dato')}</strong></td>
                     <td data-label="Ticket">${hasValidTicket ? `<div class="ticket-cell"><span class="ticket-number">${escapeHtml(row.ticket)}</span><button type="button" class="btn-ticket-pin" onclick="event.stopPropagation(); navigateToTicketOnMap('${escapeHtml(row.ticket)}')" title="Localizar ticket #${escapeHtml(row.ticket)} en el mapa" aria-label="Localizar ticket #${escapeHtml(row.ticket)} en el mapa">📍</button></div>` : 'Sin dato'}</td>
-                    <td data-label="Suministro">${escapeHtml(row.suministro || 'Sin dato')}</td>
+                    <td data-label="Suministro">${escapeHtml(row.suministro || 'Sin dato')}${(() => {
+                        const imp = (typeof getSuministroImportante === 'function') ? getSuministroImportante(row.suministro) : null;
+                        return imp ? ` <span class="badge-suministro-importante" title="🔴 Suministro Importante: ${escapeHtml(imp.titular)}">🔴 IMP</span>` : '';
+                    })()}</td>
                     <td data-label="ODM"><strong>${escapeHtml(odmDisplay)}</strong><span class="call-pressure call-pressure--${pressure.key}">${frequency} ${frequency === 1 ? 'llamada' : 'llamadas'} · ${pressure.label}</span></td>
                     <td data-label="Nombre">${escapeHtml(row.nombre || 'Sin dato')}</td>
                     <td data-label="Hora de registro">${escapeHtml(row.horaRegistro || 'Sin dato')}</td>

@@ -35,12 +35,42 @@
         var GOOGLE_SHEET_LLAMADAS_URL = (typeof omsStore !== 'undefined') ? (omsStore.get('GOOGLE_SHEET_LLAMADAS_URL') || "") : "";
         var GOOGLE_SHEET_TECNICOS_URL = (typeof omsStore !== 'undefined') ? (omsStore.get('GOOGLE_SHEET_TECNICOS_URL') || "") : "";
         var GOOGLE_SHEET_SED_CRITICAS_URL = (typeof omsStore !== 'undefined') ? (omsStore.get('GOOGLE_SHEET_SED_CRITICAS_URL') || "") : "";
+        var GOOGLE_SHEET_SUMINISTROS_IMPORTANTES_URL = (typeof omsStore !== 'undefined') ? (omsStore.get('GOOGLE_SHEET_SUMINISTROS_IMPORTANTES_URL') || "") : "";
         var GOOGLE_SHEET_SUPERVISOR_URL = (typeof omsStore !== 'undefined') ? (omsStore.get('GOOGLE_SHEET_SUPERVISOR_URL') || "") : "";
         var supervisorRecordsMap = (typeof omsStore !== 'undefined' && omsStore.get('supervisorRecordsMap')) || new Map();
         var supervisorRecordsBySedMap = (typeof omsStore !== 'undefined' && omsStore.get('supervisorRecordsBySedMap')) || new Map();
+        var suministrosImportantesMap = (typeof omsStore !== 'undefined' && omsStore.get('suministrosImportantesMap')) || new Map();
+
+        function normalizeSuministroCode(val) {
+            if (val === null || val === undefined) return '';
+            const raw = String(val).trim();
+            if (!raw || raw === 'N/A' || raw === '-' || raw.toLowerCase() === 'sin dato') return '';
+            const cleaned = raw.replace(/\.0+$/, '').replace(/\s+/g, '');
+            if (!cleaned || /^0+$/.test(cleaned)) return '';
+            return cleaned.replace(/^0+/, '');
+        }
+
+        function getSuministroImportante(suministro) {
+            const key = normalizeSuministroCode(suministro);
+            if (!key) return null;
+            const mapRef = (typeof suministrosImportantesMap !== 'undefined' && suministrosImportantesMap)
+                ? suministrosImportantesMap
+                : (typeof omsStore !== 'undefined' ? omsStore.get('suministrosImportantesMap') : null);
+            if (!mapRef || typeof mapRef.get !== 'function') return null;
+            return mapRef.get(key) || null;
+        }
+
+        function isSuministroImportante(suministro) {
+            return Boolean(getSuministroImportante(suministro));
+        }
+
         if (typeof window !== 'undefined') {
             window.supervisorRecordsMap = supervisorRecordsMap;
             window.supervisorRecordsBySedMap = supervisorRecordsBySedMap;
+            window.suministrosImportantesMap = suministrosImportantesMap;
+            window.normalizeSuministroCode = normalizeSuministroCode;
+            window.getSuministroImportante = getSuministroImportante;
+            window.isSuministroImportante = isSuministroImportante;
             window.getFaultIconSvg = getFaultIconSvg;
             window.getFaultIconHtml = getFaultIconHtml;
         }

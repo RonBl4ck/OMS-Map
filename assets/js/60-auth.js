@@ -257,6 +257,10 @@ function updateUserBadge() {
     if (lblCriticaMap) lblCriticaMap.style.display = isAdmin ? 'inline-flex' : 'none';
     const lblCriticaModal = document.getElementById("lblCriticaModal");
     if (lblCriticaModal) lblCriticaModal.style.display = isAdmin ? 'inline-flex' : 'none';
+    const lblImpSuminMap = document.getElementById("lblImpSuminMap");
+    if (lblImpSuminMap) lblImpSuminMap.style.display = isAdmin ? 'inline-flex' : 'none';
+    const lblImpSuminModal = document.getElementById("lblImpSuminModal");
+    if (lblImpSuminModal) lblImpSuminModal.style.display = isAdmin ? 'inline-flex' : 'none';
     const lblFilterQC = document.getElementById("lblFilterQuanticoCritico");
     if (lblFilterQC) lblFilterQC.style.display = isAdmin ? 'inline-flex' : 'none';
     const mapMultiEstadoPluz = document.getElementById("mapMultiEstadoPluz");
@@ -305,6 +309,9 @@ async function loadData() {
     try {
         // 1. Revisar si config-data está en caché (TTL 15 min), evitando invocar Serverless si es reciente
         let cfg = getSessionCache('oms_config_data_' + userRole, 15 * 60 * 1000);
+        if (isAdmin && cfg && !cfg.sheets_url_suministros_importantes) {
+            cfg = null;
+        }
         if (!cfg) {
             try {
                 const token = (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('oms_auth_token') : null) || '';
@@ -337,6 +344,7 @@ async function loadData() {
             GOOGLE_SHEET_LLAMADAS_URL = (isAdmin && cfg.sheets_url_llamadas) ? cfg.sheets_url_llamadas : "";
             if (cfg.sheets_url_tecnicos) GOOGLE_SHEET_TECNICOS_URL = cfg.sheets_url_tecnicos;
             GOOGLE_SHEET_SED_CRITICAS_URL = (isAdmin && cfg.sheets_url_sed_criticas) ? cfg.sheets_url_sed_criticas : "";
+            GOOGLE_SHEET_SUMINISTROS_IMPORTANTES_URL = (isAdmin && cfg.sheets_url_suministros_importantes) ? cfg.sheets_url_suministros_importantes : "";
             GOOGLE_SHEET_SUPERVISOR_URL = (isAdmin && cfg.sheets_url_supervisor) ? cfg.sheets_url_supervisor : "";
             if (cfg.carto_api_key) {
                 if (typeof sessionStorage !== 'undefined') sessionStorage.setItem("oms_carto_key", cfg.carto_api_key);
@@ -589,8 +597,75 @@ async function loadData() {
             }
         })();
 
+        const suministrosImportantesPromise = (async () => {
+            if (isAdmin && GOOGLE_SHEET_SUMINISTROS_IMPORTANTES_URL) {
+                let impCsv = getSessionCache('oms_suministros_importantes_csv', OMS_CACHE_TTL_MS);
+                if (!impCsv) {
+                    let impUrl = GOOGLE_SHEET_SUMINISTROS_IMPORTANTES_URL;
+                    if (impUrl.includes('docs.google.com/spreadsheets') && !impUrl.includes('gviz/tq') && !impUrl.includes('/pub')) {
+                        const match = impUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+                        if (match) {
+                            impUrl = `https://docs.google.com/spreadsheets/d/${match[1]}/gviz/tq?tqx=out:csv&sheet=SUMINISTROS_IMPORTANTES`;
+                        }
+                    }
+                    if (impUrl.includes('docs.google.com')) {
+                        impUrl += (impUrl.includes('?') ? '&' : '?') + '_nocache=' + Date.now();
+                    }
+
+                    try {
+                        const resp = await fetchWithTimeout(impUrl, {}, 12000);
+                        if (resp && resp.ok) {
+                            impCsv = await resp.text();
+                            setSessionCache('oms_suministros_importantes_csv', impCsv);
+                        }
+                    } catch (e) {
+                        console.warn("⚠️ fetchWithTimeout falló para SUMINISTROS_IMPORTANTES:", e);
+                    }
+                }
+
+                if (impCsv) {
+                    await new Promise((resolve) => {
+                        Papa.parse(impCsv, {
+                            header: true,
+                            skipEmptyLines: true,
+                            complete: function(results) {
+                                if (typeof suministrosImportantesMap !== 'undefined' && suministrosImportantesMap.clear) {
+                                    suministrosImportantesMap.clear();
+                                }
+                                (results.data || []).forEach(row => {
+                                    const sumVal = typeof getProp === 'function'
+                                        ? getProp(row, 'Suministro', 'SUMINISTRO', 'suministro')
+                                        : (row.Suministro || row.SUMINISTRO || row.suministro);
+                                    const titVal = typeof getProp === 'function'
+                                        ? getProp(row, 'Titular', 'TITULAR', 'titular', 'Cliente', 'CLIENTE')
+                                        : (row.Titular || row.TITULAR || row.titular || '');
+                                    const norm = typeof normalizeSuministroCode === 'function'
+                                        ? normalizeSuministroCode(sumVal)
+                                        : String(sumVal || '').trim().replace(/^0+/, '');
+                                    if (norm && typeof suministrosImportantesMap !== 'undefined') {
+                                        suministrosImportantesMap.set(norm, {
+                                            suministro: String(sumVal || '').trim(),
+                                            titular: (titVal && titVal !== 'N/A') ? String(titVal).trim() : 'CLIENTE IMPORTANTE'
+                                        });
+                                    }
+                                });
+                                console.log(`🔴 [Suministros Importantes] ${typeof suministrosImportantesMap !== 'undefined' ? suministrosImportantesMap.size : 0} suministros cargados.`);
+                                resolve();
+                            },
+                            error: function(err) {
+                                console.warn("⚠️ No se pudo procesar SUMINISTROS_IMPORTANTES:", err);
+                                resolve();
+                            }
+                        });
+                    });
+                }
+            } else if (typeof suministrosImportantesMap !== 'undefined' && suministrosImportantesMap.clear) {
+                suministrosImportantesMap.clear();
+            }
+        })();
+
         await Promise.allSettled([sedsCriticasPromise, supervisorPromise]);
-        await sedLayersPromise;
+        await Promise.allSettled([sedLayersPromise, suministrosImportantesPromise]);
 
         // 3. Carga de Ejecutados (para alimentar el historial de 7 días y análisis, segmentado por contratista)
         if (GOOGLE_SHEET_EJECUTADOS_URL) {

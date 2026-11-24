@@ -354,11 +354,21 @@
                 });
 
                 const estadoPluzVal = (typeof getTicketPluzStatus === 'function') ? getTicketPluzStatus(ticket) : 'SIN REGISTRO';
+                const isAdminRecord = (typeof isCurrentUserAdmin === 'function')
+                    ? isCurrentUserAdmin()
+                    : (typeof sessionStorage !== 'undefined' && (sessionStorage.getItem('oms_user_role') === 'admin' || sessionStorage.getItem('oms_user_role') === '*'));
+                const impSuministroInfo = (isAdminRecord && typeof getSuministroImportante === 'function')
+                    ? getSuministroImportante(suministro)
+                    : null;
+                const esSuministroImportante = Boolean(impSuministroInfo);
+                const suministroImportanteTitular = impSuministroInfo ? impSuministroInfo.titular : '';
 
                 const record = {
                     lat, lon, ticket, odm, estado: est, estado_pluz: estadoPluzVal, empresa: emp, falla: fal, prioridad, duracion, sla,
                     sla_max_horas: slaMaxHoras, fecha_limite_sla: fechaLimiteSla,
-                    cadena, suministro, suministro_count: finalSuministroCount, suministro_historial: parsedHistorialItems, suministro_ventana_dias: parsedDias, suministro_reincidente: isSuministroReincidente, fecha_inicio: fechaIni, hora_inicio: fechaIni,
+                    cadena, suministro, suministro_count: finalSuministroCount, suministro_historial: parsedHistorialItems, suministro_ventana_dias: parsedDias, suministro_reincidente: isSuministroReincidente,
+                    es_suministro_importante: esSuministroImportante, suministro_importante_titular: suministroImportanteTitular,
+                    fecha_inicio: fechaIni, hora_inicio: fechaIni,
                     direccion, distrito, intervalo, dia, sed: (sedCanonica !== 'N/A' && sedCanonica) ? sedCanonica : sed,
                     alimentador, sed_count: sedCount, sed_reincidente: sedReincidente, es_sed_critica: esCritica, afectacion, llamadas,
                     latitud: latitudVal, longitud: longitudVal, emoji: getEmoji(fal),
@@ -1229,6 +1239,8 @@
             const isAdmin = typeof isCurrentUserAdmin === 'function' ? isCurrentUserAdmin() : (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('oms_user_role') === 'admin');
             const chkCrit = document.getElementById("chkCriticaMap");
             const onlyCritica = isAdmin && chkCrit ? chkCrit.checked : false;
+            const chkImp = document.getElementById("chkImpSuminMap");
+            const onlyImpSum = isAdmin && chkImp ? chkImp.checked : false;
 
             markersGroup.clearLayers();
             let count = 0;
@@ -1262,8 +1274,10 @@
                 const matchSum = !onlyReincSum || (item.suministro_reincidente || item.suministro_count >= 2);
                 const isTopCrit = isAdmin && (typeof isTopCriticalSed === 'function' ? isTopCriticalSed(item.sed) : !!item.es_top_critica);
                 const matchCrit = !onlyCritica || isTopCrit;
+                const isImpSum = isAdmin && Boolean(item.es_suministro_importante || (typeof isSuministroImportante === 'function' && isSuministroImportante(item.suministro)));
+                const matchImp = !onlyImpSum || isImpSum;
 
-                return matchQuery && matchDia && matchEst && matchEmp && matchFal && matchEstPluz && matchCapaSed && matchLlamadas && matchSed && matchSum && matchCrit;
+                return matchQuery && matchDia && matchEst && matchEmp && matchFal && matchEstPluz && matchCapaSed && matchLlamadas && matchSed && matchSum && matchCrit && matchImp;
             }
 
             // Contar el total de incidencias que cumplen el filtro (incluyendo las no georreferenciadas / sin GPS)
@@ -1573,6 +1587,8 @@
                 if (chkSumMap) chkSumMap.checked = false;
                 const chkCritMap = document.getElementById("chkCriticaMap");
                 if (chkCritMap) chkCritMap.checked = false;
+                const chkImpMap = document.getElementById("chkImpSuminMap");
+                if (chkImpMap) chkImpMap.checked = false;
 
                 if (mapCtrlDia) mapCtrlDia.reset();
                 if (mapCtrlEstado) mapCtrlEstado.reset();
@@ -1592,6 +1608,8 @@
         if (chkMapSum) chkMapSum.addEventListener("change", filterMapMarkers);
         const chkMapCrit = document.getElementById("chkCriticaMap");
         if (chkMapCrit) chkMapCrit.addEventListener("change", filterMapMarkers);
+        const chkMapImp = document.getElementById("chkImpSuminMap");
+        if (chkMapImp) chkMapImp.addEventListener("change", filterMapMarkers);
 
         if (btnAddressSearchEl) btnAddressSearchEl.addEventListener('click', buscarDireccionEnMapa);
         if (typeof window !== 'undefined') window.addEventListener('resize', syncAddressResultPosition);

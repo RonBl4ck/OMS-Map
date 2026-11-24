@@ -42,6 +42,8 @@
             const isAdmin = typeof isCurrentUserAdmin === 'function' ? isCurrentUserAdmin() : (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('oms_user_role') === 'admin');
             const chkCritModal = document.getElementById("chkCriticaModal");
             const onlyCritModal = isAdmin && chkCritModal ? chkCritModal.checked : false;
+            const chkImpModal = document.getElementById("chkImpSuminModal");
+            const onlyImpModal = isAdmin && chkImpModal ? chkImpModal.checked : false;
             const chkQuantCrit = document.getElementById("checkFilterQuanticoCritico");
             const onlyQuanticoCritico = isAdmin && chkQuantCrit ? chkQuantCrit.checked : false;
             const chkOverdue = document.getElementById("checkFilterOverdue");
@@ -56,6 +58,7 @@
                 const matchSed = !onlyReincSed || (r.sed_reincidente || r.sed_count > 2);
                 const matchSum = !onlyReincSum || (r.suministro_reincidente || r.suministro_count >= 2);
                 const matchCrit = !onlyCritModal || r.es_top_critica;
+                const matchImp = !onlyImpModal || (isAdmin && Boolean(r.es_suministro_importante || (typeof isSuministroImportante === 'function' && isSuministroImportante(r.suministro))));
                 const matchDia = matchesMultiSelection(r.dia, selDias) && (!tdFilterDia || r.dia === tdFilterDia);
 
                 const itemEstPluz = r.estado_pluz || (typeof getTicketPluzStatus === 'function' ? getTicketPluzStatus(r.ticket) : 'SIN REGISTRO');
@@ -85,6 +88,7 @@
                     matchSed &&
                     matchSum &&
                     matchCrit &&
+                    matchImp &&
                     matchDia &&
                     matchQuanticoCritico &&
                     matchOverdue
@@ -643,6 +647,9 @@
                                 <button type="button" class="btn-ticket-pin" onclick="navigateToTicketOnMap('${escapeHtml(r.ticket)}')" title="Localizar ticket #${escapeHtml(r.ticket)} en el mapa" aria-label="Localizar ticket #${escapeHtml(r.ticket)} en el mapa">📍</button>
                                 ${(r.suministro_reincidente || (r.suministro_count >= 2)) ? `
                                     <button type="button" class="btn-ticket-reinc" onclick="event.stopPropagation(); openSuministroHistoryModal('${escapeHtml(r.ticket)}')" title="⚠️ Suministro Reincidente: ${escapeHtml(r.suministro_count)} fallas (${escapeHtml(r.suministro_ventana_dias || 7)}D). Clic para ver historial de notas">⚠️ x${escapeHtml(r.suministro_count)}</button>
+                                ` : ''}
+                                ${(isPluz && r.es_suministro_importante) ? `
+                                    <span class="badge-suministro-importante" title="🔴 Suministro Importante: ${escapeHtml(r.suministro_importante_titular || 'CLIENTE IMPORTANTE')}">🔴 IMP</span>
                                 ` : ''}
                             </div>
                         </td>
@@ -1357,6 +1364,8 @@
         if (chkModalSum) chkModalSum.addEventListener("change", refreshDashboard);
         const chkModalCrit = document.getElementById("chkCriticaModal");
         if (chkModalCrit) chkModalCrit.addEventListener("change", refreshDashboard);
+        const chkModalImp = document.getElementById("chkImpSuminModal");
+        if (chkModalImp) chkModalImp.addEventListener("change", refreshDashboard);
         const chkModalQuantCrit = document.getElementById("checkFilterQuanticoCritico");
         if (chkModalQuantCrit) chkModalQuantCrit.addEventListener("change", refreshDashboard);
         const chkModalOverdue = document.getElementById("checkFilterOverdue");
@@ -1373,6 +1382,8 @@
             if (chkSumMod) chkSumMod.checked = false;
             const chkCritMod = document.getElementById("chkCriticaModal");
             if (chkCritMod) chkCritMod.checked = false;
+            const chkImpMod = document.getElementById("chkImpSuminModal");
+            if (chkImpMod) chkImpMod.checked = false;
             const chkQCMod = document.getElementById("checkFilterQuanticoCritico");
             if (chkQCMod) chkQCMod.checked = false;
             const chkOverdueMod = document.getElementById("checkFilterOverdue");

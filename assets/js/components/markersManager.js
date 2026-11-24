@@ -52,14 +52,20 @@
                 ? isCurrentUserAdmin() 
                 : (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('oms_user_role') === 'admin' || sessionStorage.getItem('oms_user_role') === '*') : true);
             const isSuministroReinc = Boolean(loc.suministro_reincidente || (loc.suministro_count >= 2));
+            const isSuministroImp = isAdmin && Boolean(loc.es_suministro_importante || (typeof isSuministroImportante === 'function' && isSuministroImportante(loc.suministro)));
             const sumCount = parseInt(loc.suministro_count || 1, 10);
             const sumDias = loc.suministro_ventana_dias || 7;
             let titleText = `Ticket: ${safeTicket} | ${safeFalla} | Plazo: ${safeSla}`;
+            if (isSuministroImp) {
+                const safeTit = String(loc.suministro_importante_titular || 'IMPORTANTE').replace(/"/g, '&quot;');
+                titleText += ` | 🔴 S. IMPORTANTE: ${safeTit}`;
+            }
             if (isSuministroReinc) {
                 titleText += ` | ⚠️ S. REINCIDENTE (${sumCount} fallas en ${sumDias} días)`;
             }
             iconHtml = `
-                <div class="marker-sla-badge ${sla.statusClass}${isExecution ? ' is-execution' : ''}${loc.es_top_critica ? ' is-sed-critica-pulse' : ''}${isSuministroReinc ? ' is-suministro-reincidente' : ''}" title="${titleText}">
+                <div class="marker-sla-badge ${sla.statusClass}${isExecution ? ' is-execution' : ''}${loc.es_top_critica ? ' is-sed-critica-pulse' : ''}${isSuministroReinc ? ' is-suministro-reincidente' : ''}${isSuministroImp ? ' is-suministro-importante' : ''}" title="${titleText}">
+                    ${isSuministroImp ? '<span class="marker-imp-badge" title="Suministro Importante">IMP</span>' : ''}
                     ${isSuministroReinc ? `<span class="marker-reinc-badge" title="Falla recurrente: ${sumCount} veces">x${sumCount}</span>` : ''}
                     ${isExecution ? '<span class="marker-vehicle-backdrop" aria-hidden="true">🚚</span>' : ''}
                     <span class="marker-fault-icon">${faultIcon}</span>
@@ -195,6 +201,8 @@
         const isAdmin = typeof isCurrentUserAdmin === 'function' ? isCurrentUserAdmin() : (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('oms_user_role') === 'admin');
         const chkCrit = document.getElementById("chkCriticaMap");
         const onlyCritica = isAdmin && chkCrit ? chkCrit.checked : false;
+        const chkImp = document.getElementById("chkImpSuminMap");
+        const onlyImpSum = isAdmin && chkImp ? chkImp.checked : false;
 
         if (mg && typeof mg.clearLayers === 'function') mg.clearLayers();
         let count = 0;
@@ -226,8 +234,10 @@
             const matchSum = !onlyReincSum || (item.suministro_reincidente || item.suministro_count >= 2);
             const isTopCrit = isAdmin && (typeof isTopCriticalSed === 'function' ? isTopCriticalSed(item.sed) : !!item.es_top_critica);
             const matchCrit = !onlyCritica || isTopCrit;
+            const isImpSum = isAdmin && Boolean(item.es_suministro_importante || (typeof isSuministroImportante === 'function' && isSuministroImportante(item.suministro)));
+            const matchImp = !onlyImpSum || isImpSum;
 
-            return matchQuery && matchDia && matchEst && matchEmp && matchFal && matchEstPluz && matchCapaSed && matchLlamadas && matchSed && matchSum && matchCrit;
+            return matchQuery && matchDia && matchEst && matchEmp && matchFal && matchEstPluz && matchCapaSed && matchLlamadas && matchSed && matchSum && matchCrit && matchImp;
         }
 
         const allRecordsSource = (tdRecords && tdRecords.length > 0) ? tdRecords : locs;

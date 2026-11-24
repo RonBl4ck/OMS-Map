@@ -4,6 +4,7 @@
  * 1. Gestión de Perfiles, Contratas y Admins Acotados en pestaña "ACCESOS"
  * 2. Gestión de Capas SED en pestaña "CAPAS_SED"
  * 3. Registro de Supervisión en pestaña "SEGUIMIENTO_SUPERVISOR"
+ * 4. Consulta de solo lectura de Suministros Importantes en pestaña "SUMINISTROS_IMPORTANTES"
  */
 function doPost(e) {
   var lock = LockService.getScriptLock();
@@ -103,6 +104,28 @@ function doPost(e) {
         data.usuario || "PLUZ"
       ]);
       return ContentService.createTextOutput(JSON.stringify({ success: true }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 4. CONSULTA SOLO LECTURA DE SUMINISTROS IMPORTANTES (Hoja: SUMINISTROS_IMPORTANTES)
+    if (data.action === "get_suministros_importantes") {
+      var impSheet = ss.getSheetByName("SUMINISTROS_IMPORTANTES");
+      if (!impSheet || impSheet.getLastRow() < 2) {
+        return ContentService.createTextOutput(JSON.stringify({ success: true, items: [] }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      var impVals = impSheet.getDataRange().getValues();
+      var impItems = [];
+      for (var k = 1; k < impVals.length; k++) {
+        var sVal = String(impVals[k][0] || "").trim();
+        if (sVal) {
+          impItems.push({
+            suministro: sVal,
+            titular: String(impVals[k][1] || "").trim()
+          });
+        }
+      }
+      return ContentService.createTextOutput(JSON.stringify({ success: true, items: impItems }))
         .setMimeType(ContentService.MimeType.JSON);
     }
 

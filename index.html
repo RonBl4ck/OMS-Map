@@ -25,7 +25,7 @@
     <link rel="stylesheet" href="assets/css/20-dashboard.css?v=62b54a4a">
     <link rel="stylesheet" href="assets/css/30-responsive.css?v=51dfcd88">
     <link rel="stylesheet" href="assets/css/40-technicians.css?v=c7c503e1">
-    <link rel="stylesheet" href="assets/css/90-modern.css?v=ce3f74d2">
+    <link rel="stylesheet" href="assets/css/90-modern.css?v=e7b9fd09">
 </head>
 <body>
 
@@ -220,6 +220,10 @@
                     <input type="checkbox" id="chkReincSuminMap" data-requires-primary-data style="cursor: pointer; accent-color: #0d9488; width: 13px; height: 13px;">
                     <span>👤 S. Reincidentes</span>
                 </label>
+                <label id="lblImpSuminMap" class="checkbox-filter-label" style="display: none; align-items: center; gap: 5px; padding: 4px 8px; background: #fee2e2; border: 1px solid #fca5a5; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; color: #b91c1c; user-select: none;" title="Filtrar Suministros Importantes (Exclusivo Perfil PLUZ)">
+                    <input type="checkbox" id="chkImpSuminMap" data-requires-primary-data style="cursor: pointer; accent-color: #dc2626; width: 13px; height: 13px;">
+                    <span>🔴 S. Importantes</span>
+                </label>
                 <label id="lblCriticaMap" class="checkbox-filter-label" style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; background: #fef3c7; border: 1px solid #fcd34d; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; color: #b45309; user-select: none;" title="Filtrar por SEDs más críticas y reincidentes (Top de Severidad)">
                     <input type="checkbox" id="chkCriticaMap" data-requires-primary-data style="cursor: pointer; accent-color: #d97706; width: 13px; height: 13px;">
                     <span>🚨 Top Críticas</span>
@@ -364,6 +368,10 @@
                         <label id="lblReincSuminModal" class="checkbox-filter-label" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #ccfbf1; border: 1px solid #99f6e4; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700; color: #0d9488; user-select: none;" title="Filtrar Suministros Reincidentes (≥2 fallas en la ventana configurada)">
                             <input type="checkbox" id="chkReincSuminModal" style="cursor: pointer; accent-color: #0d9488; width: 15px; height: 15px;">
                             <span>👤 S. Reincidentes</span>
+                        </label>
+                        <label id="lblImpSuminModal" class="checkbox-filter-label" style="display: none; align-items: center; gap: 6px; padding: 6px 12px; background: #fee2e2; border: 1px solid #fca5a5; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700; color: #b91c1c; user-select: none;" title="Filtrar Suministros Importantes (Exclusivo Perfil PLUZ)">
+                            <input type="checkbox" id="chkImpSuminModal" style="cursor: pointer; accent-color: #dc2626; width: 15px; height: 15px;">
+                            <span>🔴 S. Importantes</span>
                         </label>
                         <label id="lblCriticaModal" class="checkbox-filter-label" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #fef3c7; border: 1px solid #fcd34d; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700; color: #b45309; user-select: none;" title="Filtrar por SEDs más críticas y reincidentes (Top de Severidad)">
                             <input type="checkbox" id="chkCriticaModal" style="cursor: pointer; accent-color: #d97706; width: 15px; height: 15px;">
@@ -1221,21 +1229,21 @@
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
     <!-- Paquete unificado de Estado, Utilidades, Componentes y Servicios Modulares (1 petición en lugar de 13) -->
-    <script src="assets/js/00-modules.bundle.js?v=87a3a59c"></script>
+    <script src="assets/js/00-modules.bundle.js?v=1f17e0e7"></script>
 
-    <script src="assets/js/00-core.js?v=9b17dca1"></script>
+    <script src="assets/js/00-core.js?v=1c894c9e"></script>
     <script src="assets/js/sed-geometry.js?v=3bed3b46"></script>
-    <script src="assets/js/10-map.js?v=f7e29d96"></script>
+    <script src="assets/js/10-map.js?v=1066a183"></script>
     <script src="assets/js/components/pluz24hMatrix.js?v=4c70deaf"></script>
-    <script src="assets/js/20-dashboard.js?v=10a2cf28"></script>
+    <script src="assets/js/20-dashboard.js?v=cd060262"></script>
     <script src="assets/js/22-seguimiento-dia.js?v=1c987405"></script>
     <script src="assets/js/25-contractor-report.js?v=365acd1a"></script>
-    <script src="assets/js/30-llamadas.js?v=68748d51"></script>
+    <script src="assets/js/30-llamadas.js?v=a1479eae"></script>
     <script src="assets/js/35-critical-panel.js?v=0e488b50"></script>
     <script src="assets/js/40-tecnicos.js?v=1649aa9e"></script>
     <script src="assets/js/45-historial-pluz.js?v=3dcc2ee5"></script>
     <script src="assets/js/50-navigation.js?v=1b4d3173"></script>
-    <script src="assets/js/60-auth.js?v=38ce2c4d"></script>
+    <script src="assets/js/60-auth.js?v=92a06f60"></script>
     <script src="assets/js/70-admin.js?v=8b2c90a2"></script>
     <script src="assets/js/80-bootstrap.js?v=d0fcc834"></script>
 </body>

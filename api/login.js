@@ -186,9 +186,10 @@ function buildUserConfig(role, cartoApiKey) {
     let sheetsUrlLlamadas = process.env.SHEETS_URL_LLAMADAS || "";
     let sheetsUrlTecnicos = process.env.SHEETS_URL_TECNICOS || "";
     let sheetsUrlSedCriticas = process.env.SHEETS_URL_SED_CRITICAS || "";
+    let sheetsUrlSuministrosImportantes = process.env.SHEETS_URL_SUMINISTROS_IMPORTANTES || "";
     let sheetsUrlSupervisor = process.env.SHEETS_URL_SUPERVISOR || "";
 
-    if (!sheetsUrl || !sheetsUrlEjecutados || !sheetsUrlLlamadas || !sheetsUrlTecnicos || !sheetsUrlSedCriticas || !sheetsUrlSupervisor) {
+    if (!sheetsUrl || !sheetsUrlEjecutados || !sheetsUrlLlamadas || !sheetsUrlTecnicos || !sheetsUrlSedCriticas || !sheetsUrlSuministrosImportantes || !sheetsUrlSupervisor) {
         try {
             const fs = require('fs');
             const path = require('path');
@@ -200,6 +201,7 @@ function buildUserConfig(role, cartoApiKey) {
                 if (!sheetsUrlLlamadas && cfg.sheets_url_llamadas) sheetsUrlLlamadas = cfg.sheets_url_llamadas;
                 if (!sheetsUrlTecnicos && cfg.sheets_url_tecnicos) sheetsUrlTecnicos = cfg.sheets_url_tecnicos;
                 if (!sheetsUrlSedCriticas && cfg.sheets_url_sed_criticas) sheetsUrlSedCriticas = cfg.sheets_url_sed_criticas;
+                if (!sheetsUrlSuministrosImportantes && cfg.sheets_url_suministros_importantes) sheetsUrlSuministrosImportantes = cfg.sheets_url_suministros_importantes;
                 if (!sheetsUrlSupervisor && cfg.sheets_url_supervisor) sheetsUrlSupervisor = cfg.sheets_url_supervisor;
             }
         } catch (_) {}
@@ -216,6 +218,10 @@ function buildUserConfig(role, cartoApiKey) {
         sheetsUrlSedCriticas = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRzHH9n7otRwazt1x3iWe9qDNVHeHBo0oMGM4i9LiO-Y3VM504bgNx7GihLR0Yb81DtqoiLt3QIRrmY/pub?output=csv&single=true&gid=1398943131";
     }
 
+    if (!sheetsUrlSuministrosImportantes) {
+        sheetsUrlSuministrosImportantes = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRzHH9n7otRwazt1x3iWe9qDNVHeHBo0oMGM4i9LiO-Y3VM504bgNx7GihLR0Yb81DtqoiLt3QIRrmY/pub?output=csv&single=true&gid=1845027694";
+    }
+
     if (!sheetsUrlSupervisor) {
         sheetsUrlSupervisor = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRzHH9n7otRwazt1x3iWe9qDNVHeHBo0oMGM4i9LiO-Y3VM504bgNx7GihLR0Yb81DtqoiLt3QIRrmY/pub?output=csv&single=true&gid=143086031";
     }
@@ -226,6 +232,7 @@ function buildUserConfig(role, cartoApiKey) {
         sheets_url_llamadas: isAdmin ? sheetsUrlLlamadas : "",
         sheets_url_tecnicos: sheetsUrlTecnicos,
         sheets_url_sed_criticas: isAdmin ? sheetsUrlSedCriticas : "",
+        sheets_url_suministros_importantes: isAdmin ? sheetsUrlSuministrosImportantes : "",
         sheets_url_supervisor: isAdmin ? sheetsUrlSupervisor : "",
         carto_api_key: cartoApiKey
     };

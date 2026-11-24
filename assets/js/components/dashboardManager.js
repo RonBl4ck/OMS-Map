@@ -397,6 +397,9 @@
                             ${(r.suministro_reincidente || (r.suministro_count >= 2)) ? `
                                 <button type="button" class="btn-ticket-reinc" onclick="event.stopPropagation(); openSuministroHistoryModal('${esc(r.ticket)}')" title="⚠️ Suministro Reincidente: ${esc(r.suministro_count)} fallas (${esc(r.suministro_ventana_dias || 7)}D). Clic para ver historial de notas">⚠️ x${esc(r.suministro_count)}</button>
                             ` : ''}
+                            ${(isPluz && r.es_suministro_importante) ? `
+                                <span class="badge-suministro-importante" title="🔴 Suministro Importante: ${esc(r.suministro_importante_titular || 'CLIENTE IMPORTANTE')}">🔴 IMP</span>
+                            ` : ''}
                         </div>
                     </td>
                     <td data-label="ODM" style="padding: 7px 10px; white-space: nowrap;">${odmCellHtml}</td>

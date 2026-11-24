@@ -321,6 +321,45 @@ body:not([data-primary-view="map"]) .map-legend {
     transform: scale(0.96);
 }
 
+/* --- RESALTADO DE SUMINISTRO IMPORTANTE (EXCLUSIVO PERFIL PLUZ) --- */
+.marker-sla-badge.is-suministro-importante {
+    border: 2px solid #dc2626 !important;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.35), 0 2px 6px rgba(15, 23, 42, 0.25) !important;
+}
+
+.marker-imp-badge {
+    position: absolute;
+    top: -6px;
+    left: -7px;
+    background: #991b1b;
+    color: #ffffff;
+    font-size: 8.5px;
+    font-weight: 800;
+    line-height: 1;
+    padding: 2px 4px;
+    border-radius: 999px;
+    border: 1.5px solid #ffffff;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.35);
+    z-index: 4;
+    letter-spacing: 0.02em;
+}
+
+.badge-suministro-importante {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    background: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fca5a5;
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
 /* --- MODAL FLOTANTE DE HISTORIAL DE SUMINISTRO --- */
 .modal-suministro-overlay {
     position: fixed;
