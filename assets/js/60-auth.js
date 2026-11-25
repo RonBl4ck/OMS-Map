@@ -4,6 +4,154 @@
 
 const OMS_CACHE_TTL_MS = 5 * 60 * 1000;
 
+/**
+ * Reconstruye supervisorRecordsMap y supervisorRecordsBySedMap desde las filas CSV de SEGUIMIENTO_SUPERVISOR.
+ * Soporta el modelo compacto (1 fila por ticket + columna Historial_JSON con eventos previos)
+ * y mantiene 100% retrocompatibilidad con filas legacy planas (múltiples filas por ticket).
+ */
+function buildSupervisorMapsFromRows(rows, targetTicketMap, targetSedMap) {
+    if (targetTicketMap && typeof targetTicketMap.clear === 'function') {
+        targetTicketMap.clear();
+    }
+    if (targetSedMap && typeof targetSedMap.clear === 'function') {
+        targetSedMap.clear();
+    }
+    if (!Array.isArray(rows) || rows.length === 0) return;
+
+    const cleanVal = (raw) => {
+        if (raw === null || raw === undefined || raw === '') return '';
+        const s = String(raw).trim();
+        return (/^n\/?a$/i.test(s) || s === '--' || s === 'null' || s === 'undefined') ? '' : s;
+    };
+
+    const indexBySed = (entry) => {
+        if (!entry || !entry.sed || !targetSedMap) return;
+        const sKey = entry.sed.toUpperCase();
+        let sList = targetSedMap.get(sKey);
+        if (!sList) {
+            sList = [];
+            targetSedMap.set(sKey, sList);
+        }
+        sList.push(entry);
+    };
+
+    rows.forEach(r => {
+        const ticketVal = typeof getProp === 'function' ? getProp(r, 'Ticket', 'ticket', 'TICKET', 'nro_ticket') : (r.Ticket || r.ticket);
+        const tKey = String(ticketVal || '').trim().toLowerCase();
+        if (!tKey) return;
+
+        const cleanProp = (...keys) => {
+            const raw = typeof getProp === 'function' ? getProp(r, ...keys) : r[keys[0]];
+            return cleanVal(raw);
+        };
+
+        const ticketClean = String(ticketVal).trim();
+        const sedVal = cleanProp('SED', 'sed', 'Sed', 'Subestacion', 'subestacion');
+        const horaIniVal = cleanProp('Hora_Inicio', 'hora_inicio', 'Hora Inicio', 'Fecha_Inicio', 'fecha_inicio', 'HoraInicio');
+        const alimentadorVal = cleanProp('Alimentador', 'alimentador', 'ALIMENTADOR');
+        const empresaVal = cleanProp('Empresa', 'empresa', 'Contratista', 'contratista');
+
+        const estadoOperativo = cleanProp('Estado_Operativo', 'estado_operativo', 'Estado_Supervisor', 'estado_supervisor', 'Estado', 'estado');
+        const detalleOperativo = cleanProp('Detalle_Operativo', 'detalle_operativo', 'Detalle', 'detalle', 'Observaciones', 'observaciones', 'novedad');
+        const jefeCuadrilla = cleanProp('Jefe_Cuadrilla', 'jefe_cuadrilla', 'JC', 'jc', 'JefeCuadrilla');
+        const finEstimado = cleanProp('Fin_Estimado ', 'fin_estimado ', 'Fin_Estimado', 'fin_estimado', 'FinEstimado', 'Hora_Fin_Estimada', 'hora_fin_estimada', 'Fecha_Fin_Estimada', 'fecha_fin_estimada', 'Hora_Limite', 'hora_limite', 'Hora Fin', 'hora_fin');
+        const estadoCritico = cleanProp('Estado_Critico', 'estado_critico', 'Criticidad', 'criticidad');
+        const detalleCritico = cleanProp('Detalle_Critico', 'detalle_critico');
+
+        let resolvedOperativo = estadoOperativo;
+        let resolvedCritico = estadoCritico;
+        let resolvedDetalleOp = detalleOperativo;
+        let resolvedDetalleCrit = detalleCritico;
+
+        if (!resolvedCritico && (resolvedOperativo.toUpperCase() === 'QUANTICO' || resolvedOperativo.toUpperCase() === 'CRITICO')) {
+            resolvedCritico = resolvedOperativo.toUpperCase();
+            resolvedDetalleCrit = resolvedDetalleOp;
+            resolvedOperativo = '';
+            resolvedDetalleOp = '';
+        }
+
+        const latestEntry = {
+            fecha: cleanProp('Fecha_Hora', 'fecha_hora', 'Fecha', 'fecha', 'Timestamp', 'timestamp'),
+            ticket: ticketClean,
+            sed: sedVal,
+            horaInicio: horaIniVal,
+            alimentador: alimentadorVal,
+            empresa: empresaVal,
+            estadoOperativo: resolvedOperativo,
+            detalleOperativo: resolvedDetalleOp,
+            jefeCuadrilla: jefeCuadrilla,
+            finEstimado: finEstimado,
+            estadoCritico: resolvedCritico,
+            detalleCritico: resolvedDetalleCrit,
+            estado: resolvedOperativo || resolvedCritico,
+            detalle: resolvedDetalleOp || resolvedDetalleCrit,
+            usuario: cleanProp('Usuario', 'usuario', 'perfil') || 'PLUZ'
+        };
+
+        // Expandir Historial_JSON (array cronológico antiguo -> penúltimo)
+        const rawHistJson = cleanProp('Historial_JSON', 'historial_json', 'Historial', 'historial');
+        const prevEvents = [];
+        if (rawHistJson) {
+            try {
+                const parsed = JSON.parse(rawHistJson);
+                if (Array.isArray(parsed)) {
+                    for (let i = 0; i < parsed.length; i++) {
+                        const ev = parsed[i];
+                        if (!ev || typeof ev !== 'object') continue;
+                        let evOp = cleanVal(ev.op !== undefined ? ev.op : ev.estadoOperativo);
+                        let evDetOp = cleanVal(ev.do !== undefined ? ev.do : ev.detalleOperativo);
+                        let evCrit = cleanVal(ev.cr !== undefined ? ev.cr : ev.estadoCritico);
+                        let evDetCrit = cleanVal(ev.dc !== undefined ? ev.dc : ev.detalleCritico);
+                        if (!evCrit && (evOp.toUpperCase() === 'QUANTICO' || evOp.toUpperCase() === 'CRITICO')) {
+                            evCrit = evOp.toUpperCase();
+                            evDetCrit = evDetOp;
+                            evOp = '';
+                            evDetOp = '';
+                        }
+                        prevEvents.push({
+                            fecha: cleanVal(ev.f !== undefined ? ev.f : ev.fecha),
+                            ticket: ticketClean,
+                            sed: sedVal,
+                            horaInicio: horaIniVal,
+                            alimentador: alimentadorVal,
+                            empresa: empresaVal,
+                            estadoOperativo: evOp,
+                            detalleOperativo: evDetOp,
+                            jefeCuadrilla: cleanVal(ev.jc !== undefined ? ev.jc : ev.jefeCuadrilla),
+                            finEstimado: cleanVal(ev.fe !== undefined ? ev.fe : ev.finEstimado),
+                            estadoCritico: evCrit,
+                            detalleCritico: evDetCrit,
+                            estado: evOp || evCrit,
+                            detalle: evDetOp || evDetCrit,
+                            usuario: cleanVal(ev.u !== undefined ? ev.u : ev.usuario) || 'PLUZ'
+                        });
+                    }
+                }
+            } catch (e) {
+                console.warn(`⚠️ [Supervisión PLUZ] Historial_JSON inválido en ticket ${ticketClean}:`, e);
+            }
+        }
+
+        if (targetTicketMap) {
+            let record = targetTicketMap.get(tKey);
+            // Ordenar eventos previos del más reciente al más antiguo después de latestEntry
+            const prevDesc = prevEvents.slice().reverse();
+            if (!record) {
+                record = { latest: latestEntry, history: [latestEntry, ...prevDesc] };
+                targetTicketMap.set(tKey, record);
+            } else {
+                record.latest = latestEntry;
+                record.history.unshift(latestEntry, ...prevDesc);
+            }
+        }
+
+        indexBySed(latestEntry);
+        for (let j = prevEvents.length - 1; j >= 0; j--) {
+            indexBySed(prevEvents[j]);
+        }
+    });
+}
+
 // Utilidades de Caché con TTL en sessionStorage y localStorage (para config persistente entre pestañas)
 function getSessionCache(key, ttlMs = OMS_CACHE_TTL_MS) {
     const isConfigKey = typeof key === 'string' && key.startsWith('oms_config_data_');
@@ -470,88 +618,11 @@ async function loadData() {
                             header: true,
                             skipEmptyLines: true,
                             complete: function(results) {
-                                if (typeof supervisorRecordsMap !== 'undefined' && supervisorRecordsMap.clear) {
-                                    supervisorRecordsMap.clear();
-                                }
-                                if (typeof supervisorRecordsBySedMap !== 'undefined' && supervisorRecordsBySedMap.clear) {
-                                    supervisorRecordsBySedMap.clear();
-                                }
-                                const rows = results.data || [];
-                                rows.forEach(r => {
-                                    const ticketVal = typeof getProp === 'function' ? getProp(r, 'Ticket', 'ticket', 'TICKET', 'nro_ticket') : (r.Ticket || r.ticket);
-                                    const tKey = String(ticketVal || '').trim().toLowerCase();
-                                    if (!tKey) return;
-
-                                    const cleanProp = (...keys) => {
-                                        const raw = typeof getProp === 'function' ? getProp(r, ...keys) : r[keys[0]];
-                                        if (!raw) return '';
-                                        const s = String(raw).trim();
-                                        return (/^n\/?a$/i.test(s) || s === '--' || s === 'null' || s === 'undefined') ? '' : s;
-                                    };
-
-                                    const sedVal = cleanProp('SED', 'sed', 'Sed', 'Subestacion', 'subestacion');
-                                    const horaIniVal = cleanProp('Hora_Inicio', 'hora_inicio', 'Hora Inicio', 'Fecha_Inicio', 'fecha_inicio', 'HoraInicio');
-                                    const alimentadorVal = cleanProp('Alimentador', 'alimentador', 'ALIMENTADOR');
-                                    const empresaVal = cleanProp('Empresa', 'empresa', 'Contratista', 'contratista');
-
-                                    const estadoOperativo = cleanProp('Estado_Operativo', 'estado_operativo', 'Estado_Supervisor', 'estado_supervisor', 'Estado', 'estado');
-                                    const detalleOperativo = cleanProp('Detalle_Operativo', 'detalle_operativo', 'Detalle', 'detalle', 'Observaciones', 'observaciones', 'novedad');
-                                    const jefeCuadrilla = cleanProp('Jefe_Cuadrilla', 'jefe_cuadrilla', 'JC', 'jc', 'JefeCuadrilla');
-                                    const finEstimado = cleanProp('Fin_Estimado ', 'fin_estimado ', 'Fin_Estimado', 'fin_estimado', 'FinEstimado', 'Hora_Fin_Estimada', 'hora_fin_estimada', 'Fecha_Fin_Estimada', 'fecha_fin_estimada', 'Hora_Limite', 'hora_limite', 'Hora Fin', 'hora_fin');
-                                    const estadoCritico = cleanProp('Estado_Critico', 'estado_critico', 'Criticidad', 'criticidad');
-                                    const detalleCritico = cleanProp('Detalle_Critico', 'detalle_critico');
-
-                                    let resolvedOperativo = estadoOperativo;
-                                    let resolvedCritico = estadoCritico;
-                                    let resolvedDetalleOp = detalleOperativo;
-                                    let resolvedDetalleCrit = detalleCritico;
-
-                                    if (!resolvedCritico && (resolvedOperativo.toUpperCase() === 'QUANTICO' || resolvedOperativo.toUpperCase() === 'CRITICO')) {
-                                        resolvedCritico = resolvedOperativo.toUpperCase();
-                                        resolvedDetalleCrit = resolvedDetalleOp;
-                                        resolvedOperativo = '';
-                                        resolvedDetalleOp = '';
-                                    }
-
-                                    const entry = {
-                                        fecha: cleanProp('Fecha_Hora', 'fecha_hora', 'Fecha', 'fecha', 'Timestamp', 'timestamp'),
-                                        ticket: String(ticketVal).trim(),
-                                        sed: sedVal,
-                                        horaInicio: horaIniVal,
-                                        alimentador: alimentadorVal,
-                                        empresa: empresaVal,
-                                        estadoOperativo: resolvedOperativo,
-                                        detalleOperativo: resolvedDetalleOp,
-                                        jefeCuadrilla: jefeCuadrilla,
-                                        finEstimado: finEstimado,
-                                        estadoCritico: resolvedCritico,
-                                        detalleCritico: resolvedDetalleCrit,
-                                        estado: resolvedOperativo || resolvedCritico,
-                                        detalle: resolvedDetalleOp || resolvedDetalleCrit,
-                                        usuario: cleanProp('Usuario', 'usuario', 'perfil') || 'PLUZ'
-                                    };
-
-                                    if (typeof supervisorRecordsMap !== 'undefined') {
-                                        let record = supervisorRecordsMap.get(tKey);
-                                        if (!record) {
-                                            record = { latest: entry, history: [entry] };
-                                            supervisorRecordsMap.set(tKey, record);
-                                        } else {
-                                            record.latest = entry;
-                                            record.history.unshift(entry);
-                                        }
-                                    }
-
-                                    if (entry.sed && typeof supervisorRecordsBySedMap !== 'undefined') {
-                                        const sKey = entry.sed.toUpperCase();
-                                        let sList = supervisorRecordsBySedMap.get(sKey);
-                                        if (!sList) {
-                                            sList = [];
-                                            supervisorRecordsBySedMap.set(sKey, sList);
-                                        }
-                                        sList.push(entry);
-                                    }
-                                });
+                                buildSupervisorMapsFromRows(
+                                    results.data || [],
+                                    typeof supervisorRecordsMap !== 'undefined' ? supervisorRecordsMap : null,
+                                    typeof supervisorRecordsBySedMap !== 'undefined' ? supervisorRecordsBySedMap : null
+                                );
                                 console.log(`🛡️ [Supervisión PLUZ] ${typeof supervisorRecordsMap !== 'undefined' ? supervisorRecordsMap.size : 0} tickets con novedades cargados.`);
                                 resolve();
                             },

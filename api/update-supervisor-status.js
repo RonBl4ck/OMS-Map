@@ -208,43 +208,51 @@ module.exports = async (req, res) => {
         }
 
         let syncSuccessCount = 0;
+        let syncInserted = 0;
+        let syncUpdated = 0;
+        let syncSkipped = 0;
         let syncMsg = '';
 
-        // Helper para despachar peticiones a Google Apps Script con concurrencia controlada
-        async function sendToGoogleScript(entry) {
-            if (!webhookUrl || !webhookUrl.startsWith('http')) return false;
+        // 1. Envío en 1 único POST batch a Google Apps Script (upsert_supervisor_batch)
+        if (webhookUrl && webhookUrl.startsWith('http')) {
             try {
                 const gasResp = await fetch(webhookUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        action: 'append_supervisor_log',
-                        ...entry
+                        action: 'upsert_supervisor_batch',
+                        entries: logEntries
                     }),
                     redirect: 'follow'
                 });
-                return gasResp.ok;
-            } catch (err) {
-                console.error(`Error enviando ticket ${entry.ticket} a Google Apps Script:`, err);
-                return false;
-            }
-        }
 
-        // 1. Envío al Webhook de Google Apps Script para anexar filas en Google Sheets
-        if (webhookUrl && webhookUrl.startsWith('http')) {
-            const chunkSize = 3; // Lotes de hasta 3 concurrentes para no saturar Apps Script
-            for (let i = 0; i < logEntries.length; i += chunkSize) {
-                const chunk = logEntries.slice(i, i + chunkSize);
-                const results = await Promise.allSettled(chunk.map(entry => sendToGoogleScript(entry)));
-                results.forEach(res => {
-                    if (res.status === 'fulfilled' && res.value === true) {
-                        syncSuccessCount++;
+                if (gasResp && gasResp.ok) {
+                    let gasData = null;
+                    try {
+                        const rawText = typeof gasResp.text === 'function' ? await gasResp.text() : '';
+                        if (rawText) gasData = JSON.parse(rawText);
+                    } catch (_) {}
+
+                    if (!gasData || gasData.success !== false) {
+                        syncInserted = Number(gasData && gasData.inserted) || 0;
+                        syncUpdated = Number(gasData && gasData.updated) || 0;
+                        syncSkipped = Number(gasData && gasData.skipped) || 0;
+                        const counted = syncInserted + syncUpdated + syncSkipped;
+                        syncSuccessCount = counted > 0 ? counted : logEntries.length;
+
+                        if (gasData && gasData.message) {
+                            syncMsg = gasData.message;
+                        } else {
+                            syncMsg = `${syncSuccessCount} de ${logEntries.length} novedades sincronizadas con Google Sheets.`;
+                        }
+                    } else {
+                        syncMsg = gasData.message || 'Google Sheets rechazó la actualización (guardado localmente).';
                     }
-                });
-            }
-            if (syncSuccessCount > 0) {
-                syncMsg = `${syncSuccessCount} de ${logEntries.length} novedades sincronizadas con Google Sheets.`;
-            } else {
+                } else {
+                    syncMsg = 'No se pudo conectar con Google Sheets (guardado localmente).';
+                }
+            } catch (err) {
+                console.error(`Error enviando lote de ${logEntries.length} tickets a Google Apps Script:`, err);
                 syncMsg = 'No se pudo conectar con Google Sheets (guardado localmente).';
             }
         }
@@ -269,6 +277,9 @@ module.exports = async (req, res) => {
             success: true,
             batch: isBatch,
             count: logEntries.length,
+            inserted: syncInserted,
+            updated: syncUpdated,
+            skipped: syncSkipped,
             syncedToSheets: syncSuccessCount > 0,
             message: syncMsg || `${logEntries.length} tickets registrados exitosamente en Supervisión PLUZ.`,
             entries: logEntries,

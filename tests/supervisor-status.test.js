@@ -187,3 +187,208 @@ test('45-historial-pluz.js restringe la lista exclusivamente a Quánticos y Crí
     assert.ok(hpCode.includes('isEntryCritico'), 'Debe validar si la entrada es Crítica');
     assert.ok(!hpCode.includes("data-val=\"VENCIDO\""), 'No debe contener chip de Vencidos');
 });
+
+test('api/update-supervisor-status envía 1 único POST batch (upsert_supervisor_batch) con todos los tickets', async () => {
+    const handler = require('../api/update-supervisor-status.js');
+    const originalFetch = global.fetch;
+    const fetchCalls = [];
+
+    global.fetch = async (url, opts) => {
+        fetchCalls.push({ url, opts, body: JSON.parse(opts.body) });
+        return {
+            ok: true,
+            status: 200,
+            async text() {
+                return JSON.stringify({
+                    success: true,
+                    inserted: 3,
+                    updated: 1,
+                    skipped: 1,
+                    total: 5,
+                    message: 'SEGUIMIENTO_SUPERVISOR: 3 nuevos, 1 actualizados, 1 sin cambios.'
+                });
+            }
+        };
+    };
+
+    try {
+        let statusCode = 200;
+        let payload = null;
+        const req = {
+            method: 'POST',
+            headers: { 'x-user-role': 'admin' },
+            body: {
+                role: 'admin',
+                scriptUrl: 'https://script.google.com/macros/s/fake-test-id/exec',
+                estadoOperativo: 'EN EJECUCION',
+                tickets: [
+                    { ticket: '2600001', jc: 'PEREZ' },
+                    { ticket: '2600002', jc: 'GOMEZ' },
+                    { ticket: '2600003', jc: 'LOPEZ' },
+                    { ticket: '2600004', jc: 'DIAZ' },
+                    { ticket: '2600005', jc: 'RUIZ' }
+                ]
+            }
+        };
+        const res = {
+            setHeader() {},
+            writeHead(code) { statusCode = code; },
+            end(data) { payload = JSON.parse(data); },
+            status(code) { statusCode = code; return { send(data) { payload = JSON.parse(data); } }; }
+        };
+
+        await handler(req, res);
+
+        assert.equal(statusCode, 200);
+        assert.equal(fetchCalls.length, 1, 'Debe realizar exactamente 1 POST batch a Apps Script');
+        assert.equal(fetchCalls[0].body.action, 'upsert_supervisor_batch');
+        assert.equal(fetchCalls[0].body.entries.length, 5);
+        assert.equal(payload.syncedToSheets, true);
+        assert.equal(payload.inserted, 3);
+        assert.equal(payload.updated, 1);
+        assert.equal(payload.skipped, 1);
+    } finally {
+        global.fetch = originalFetch;
+    }
+});
+
+test('60-auth.js expande Historial_JSON (1 fila/ticket) y mantiene retrocompatibilidad con filas legacy', () => {
+    const vm = require('node:vm');
+    const authCode = fs.readFileSync(path.join(root, 'assets', 'js', '60-auth.js'), 'utf-8');
+    const fnStart = authCode.indexOf('function buildSupervisorMapsFromRows');
+    assert.ok(fnStart !== -1, '60-auth.js debe definir buildSupervisorMapsFromRows');
+    let depth = 0;
+    let fnEnd = -1;
+    for (let i = authCode.indexOf('{', fnStart); i < authCode.length; i++) {
+        if (authCode[i] === '{') depth++;
+        else if (authCode[i] === '}') {
+            depth--;
+            if (depth === 0) { fnEnd = i + 1; break; }
+        }
+    }
+    assert.ok(fnEnd > fnStart, 'Debe extraer el bloque completo de buildSupervisorMapsFromRows');
+    const fnSource = authCode.slice(fnStart, fnEnd);
+
+    const ctx = {
+        getProp(obj, ...keys) {
+            for (const k of keys) {
+                if (obj && Object.prototype.hasOwnProperty.call(obj, k)) return obj[k];
+            }
+            return '';
+        },
+        Map,
+        Array,
+        Object,
+        String,
+        JSON,
+        console
+    };
+    vm.createContext(ctx);
+    vm.runInContext(fnSource, ctx);
+
+    const byTicket = new Map();
+    const bySed = new Map();
+
+    const rows = [
+        // Caso 1: 1 fila con 1 solo evento (Historial_JSON vacío)
+        {
+            Fecha_Hora: '2026-11-25 08:00:00',
+            Ticket: '2600100',
+            SED: '00100A',
+            Hora_Inicio: '25/11/2026 07:30:00',
+            Alimentador: 'A-01',
+            Empresa: 'COBRA',
+            Estado_Operativo: 'EN CAMINO',
+            JC: 'PEREZ',
+            Fin_Estimado: '',
+            Detalle_Operativo: 'Saliendo a zona',
+            Estado_Critico: '',
+            Detalle_Critico: '',
+            Usuario: 'PLUZ',
+            Actualizaciones: '1',
+            Historial_JSON: ''
+        },
+        // Caso 2: 1 fila con Historial_JSON de 2 eventos previos (orden cronológico antiguo -> penúltimo)
+        {
+            Fecha_Hora: '2026-11-25 11:00:00',
+            Ticket: '2600200',
+            SED: '00200B',
+            Hora_Inicio: '25/11/2026 07:00:00',
+            Alimentador: 'B-02',
+            Empresa: 'DOMINION',
+            Estado_Operativo: 'NORMALIZADO',
+            JC: 'QUISPE',
+            Fin_Estimado: '2026-11-25 11:30',
+            Detalle_Operativo: 'Energizado OK',
+            Estado_Critico: 'CRITICO',
+            Detalle_Critico: 'Hospital cercano',
+            Usuario: 'PLUZ',
+            Actualizaciones: '3',
+            Historial_JSON: JSON.stringify([
+                { f: '2026-11-25 08:00:00', op: 'EN CAMINO', jc: 'QUISPE' },
+                { f: '2026-11-25 09:30:00', op: 'EN EJECUCION', jc: 'QUISPE', fe: '2026-11-25 11:30', do: 'Cambiando fusible', cr: 'CRITICO', dc: 'Hospital cercano' }
+            ])
+        },
+        // Caso 3: Filas legacy repetidas sin Historial_JSON
+        {
+            Fecha_Hora: '2026-11-24 10:00:00',
+            Ticket: '2600300',
+            SED: '00300C',
+            Empresa: 'PA',
+            Estado_Operativo: 'EN CAMINO',
+            JC: 'SILVA'
+        },
+        {
+            Fecha_Hora: '2026-11-24 12:00:00',
+            Ticket: '2600300',
+            SED: '00300C',
+            Empresa: 'PA',
+            Estado_Operativo: 'EN EJECUCION',
+            JC: 'SILVA'
+        },
+        // Caso 4: Historial_JSON malformado no debe romper el parseo
+        {
+            Fecha_Hora: '2026-11-25 12:00:00',
+            Ticket: '2600400',
+            SED: '00400D',
+            Empresa: 'LARI',
+            Estado_Operativo: 'IMPEDIDO',
+            Historial_JSON: '{malformed-json'
+        }
+    ];
+
+    ctx.buildSupervisorMapsFromRows(rows, byTicket, bySed);
+
+    // Caso 1
+    const r1 = byTicket.get('2600100');
+    assert.ok(r1);
+    assert.equal(r1.history.length, 1);
+    assert.equal(r1.latest.estadoOperativo, 'EN CAMINO');
+
+    // Caso 2: history ordenado del más reciente (latest) al más antiguo
+    const r2 = byTicket.get('2600200');
+    assert.ok(r2);
+    assert.equal(r2.history.length, 3);
+    assert.equal(r2.latest.estadoOperativo, 'NORMALIZADO');
+    assert.equal(r2.history[0].estadoOperativo, 'NORMALIZADO');
+    assert.equal(r2.history[1].estadoOperativo, 'EN EJECUCION');
+    assert.equal(r2.history[1].detalleOperativo, 'Cambiando fusible');
+    assert.equal(r2.history[1].sed, '00200B');
+    assert.equal(r2.history[1].usuario, 'PLUZ');
+    assert.equal(r2.history[2].estadoOperativo, 'EN CAMINO');
+    assert.equal(bySed.get('00200B').length, 3);
+
+    // Caso 3: Legacy
+    const r3 = byTicket.get('2600300');
+    assert.ok(r3);
+    assert.equal(r3.history.length, 2);
+    assert.equal(r3.latest.estadoOperativo, 'EN EJECUCION');
+    assert.equal(r3.history[0].estadoOperativo, 'EN EJECUCION');
+    assert.equal(r3.history[1].estadoOperativo, 'EN CAMINO');
+
+    // Caso 4: JSON malformado tolerado
+    const r4 = byTicket.get('2600400');
+    assert.ok(r4);
+    assert.equal(r4.history.length, 1);
+    assert.equal(r4.latest.estadoOperativo, 'IMPEDIDO');
+});
