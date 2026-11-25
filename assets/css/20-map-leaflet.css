@@ -139,6 +139,39 @@ body:not([data-primary-view="map"]) .map-legend {
   gap: 6px;
 }
 
+.ticket-cell--stacked {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+.ticket-cell-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ticket-cell-badges {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.ticket-cell-badges .btn-ticket-reinc {
+  margin-left: 0;
+  font-size: 9.5px;
+  padding: 1px 5px;
+  line-height: 1.25;
+}
+
+.ticket-cell-badges .badge-suministro-importante {
+  font-size: 9.5px;
+  padding: 1px 5px;
+  line-height: 1.25;
+}
+
 .ticket-number {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-weight: 700;

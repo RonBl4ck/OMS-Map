@@ -643,18 +643,26 @@
                     }
                 }
 
+                const hasReincidente = Boolean(r.suministro_reincidente || (r.suministro_count >= 2));
+                const hasImportante = Boolean(isPluz && r.es_suministro_importante);
+                const ticketAlertsHtml = (hasReincidente || hasImportante) ? `
+                                <div class="ticket-cell-badges">
+                                    ${hasReincidente ? `
+                                        <button type="button" class="btn-ticket-reinc" onclick="event.stopPropagation(); openSuministroHistoryModal('${escapeHtml(r.ticket)}')" title="⚠️ Suministro Reincidente: ${escapeHtml(r.suministro_count)} fallas (${escapeHtml(r.suministro_ventana_dias || 7)}D). Clic para ver historial de notas">⚠️ x${escapeHtml(r.suministro_count)}</button>
+                                    ` : ''}
+                                    ${hasImportante ? `
+                                        <span class="badge-suministro-importante" title="🔴 Suministro Importante: ${escapeHtml(r.suministro_importante_titular || 'CLIENTE IMPORTANTE')}">🔴 IMP</span>
+                                    ` : ''}
+                                </div>` : '';
+
                 return `
                     <tr class="${rowClass}" style="background: ${rowBg}; border-bottom: 1px solid #e2e8f0; ${rowBorderLeft}">
                         <td data-label="Ticket" style="padding: 7px 10px; white-space: nowrap;">
-                            <div class="ticket-cell">
-                                <span class="ticket-number">${escapeHtml(r.ticket)}</span>
-                                <button type="button" class="btn-ticket-pin" onclick="navigateToTicketOnMap('${escapeHtml(r.ticket)}')" title="Localizar ticket #${escapeHtml(r.ticket)} en el mapa" aria-label="Localizar ticket #${escapeHtml(r.ticket)} en el mapa">📍</button>
-                                ${(r.suministro_reincidente || (r.suministro_count >= 2)) ? `
-                                    <button type="button" class="btn-ticket-reinc" onclick="event.stopPropagation(); openSuministroHistoryModal('${escapeHtml(r.ticket)}')" title="⚠️ Suministro Reincidente: ${escapeHtml(r.suministro_count)} fallas (${escapeHtml(r.suministro_ventana_dias || 7)}D). Clic para ver historial de notas">⚠️ x${escapeHtml(r.suministro_count)}</button>
-                                ` : ''}
-                                ${(isPluz && r.es_suministro_importante) ? `
-                                    <span class="badge-suministro-importante" title="🔴 Suministro Importante: ${escapeHtml(r.suministro_importante_titular || 'CLIENTE IMPORTANTE')}">🔴 IMP</span>
-                                ` : ''}
+                            <div class="ticket-cell ticket-cell--stacked">
+                                <div class="ticket-cell-main">
+                                    <span class="ticket-number">${escapeHtml(r.ticket)}</span>
+                                    <button type="button" class="btn-ticket-pin" onclick="navigateToTicketOnMap('${escapeHtml(r.ticket)}')" title="Localizar ticket #${escapeHtml(r.ticket)} en el mapa" aria-label="Localizar ticket #${escapeHtml(r.ticket)} en el mapa">📍</button>
+                                </div>${ticketAlertsHtml}
                             </div>
                         </td>
                         <td data-label="ODM" style="padding: 7px 10px; white-space: nowrap;">${odmCellHtml}</td>
