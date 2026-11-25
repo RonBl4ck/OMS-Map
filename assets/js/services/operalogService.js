@@ -223,6 +223,42 @@
         return matches[0];
     }
 
+    function getPhoneForJc(jcName, contratista = '') {
+        const match = findMatchByJcName(jcName, contratista);
+        if (!match) return null;
+        const phone = formatPhoneForCopy(match.celular);
+        return phone.digits ? phone : null;
+    }
+
+    function copyPhoneNumber(digits, btnEl) {
+        if (!digits) return;
+        const onSuccess = () => {
+            if (!btnEl) return;
+            const prev = btnEl.textContent;
+            btnEl.textContent = '✓';
+            btnEl.classList.add('is-copied');
+            setTimeout(() => {
+                btnEl.textContent = prev || '📋';
+                btnEl.classList.remove('is-copied');
+            }, 1400);
+        };
+        if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+            navigator.clipboard.writeText(digits).then(onSuccess).catch(() => {});
+            return;
+        }
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = digits;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            onSuccess();
+        } catch (_) {}
+    }
+
     function _setCachedRows(rows, fecha) {
         cachedRows = Array.isArray(rows) ? rows : [];
         cachedFecha = fecha || getLimaTodayStr();
@@ -239,6 +275,8 @@
         getFieldCandidates,
         findMatchByJcName,
         formatPhoneForCopy,
+        getPhoneForJc,
+        copyPhoneNumber,
         getLimaTodayStr,
         getCachedRows,
         _setCachedRows

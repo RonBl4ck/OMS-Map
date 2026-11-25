@@ -575,6 +575,9 @@
                         const opEstado = supLatest.estadoOperativo || supLatest.estado || 'PENDIENTE';
                         const opDetalle = supLatest.detalleOperativo || supLatest.detalle || '';
                         const opJc = supLatest.jefeCuadrilla || '';
+                        const opJcPhone = (opJc && typeof OperaLogService !== 'undefined' && typeof OperaLogService.getPhoneForJc === 'function')
+                            ? OperaLogService.getPhoneForJc(opJc, r.empresa || supLatest.empresa || '')
+                            : null;
                         const opBadgeClass = (typeof getSupervisorBadgeClass === 'function') ? getSupervisorBadgeClass(opEstado) : 'sup-status-generic';
                         const opSnippet = opDetalle ? escapeHtml(opDetalle.length > 40 ? opDetalle.slice(0, 37) + '...' : opDetalle) : '';
 
@@ -587,6 +590,7 @@
                                     </button>
                                 </div>
                                 ${opJc ? `<div style="font-size: 10px; font-weight: 700; color: #1e293b; line-height: 1.2;">JC: ${escapeHtml(opJc)}</div>` : ''}
+                                ${opJcPhone ? `<div class="sup-cell-jc-phone"><span>📞 ${escapeHtml(opJcPhone.display)}</span><button type="button" class="sup-jc-copy-btn sup-jc-copy-btn-xs" onclick="event.stopPropagation(); if(typeof OperaLogService!=='undefined') OperaLogService.copyPhoneNumber('${escapeHtml(opJcPhone.digits)}', this);" title="Copiar celular" aria-label="Copiar celular">📋</button></div>` : ''}
                                 ${overdueInfo ? (
                                     overdueInfo.isOverdue ? `
                                         <div class="sup-eta-tag overdue" style="margin-top: 3px;" title="Fin estimado: ${escapeHtml(overdueInfo.fullLabel)} (vencido hace ${escapeHtml(overdueInfo.timeLabel)})">

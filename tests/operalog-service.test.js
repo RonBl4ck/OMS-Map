@@ -91,3 +91,16 @@ test('api/config-data entrega operalog_gas_url únicamente al rol admin', async 
     else process.env.OPERALOG_GAS_URL = prev;
   }
 });
+
+test('getPhoneForJc devuelve display/digits solo para JC registrados en OperaLog con celular', () => {
+  OperaLogService._setCachedRows([
+    { id: '1', contratista: 'LARI', frente: 'REPARACIONES', nombres: 'JUAN PEREZ', skill: 'BT', celular: '+51 987 654 321' },
+    { id: '2', contratista: 'LARI', frente: 'TEKO', nombres: 'SIN TELEFONO', skill: '', celular: '' },
+  ]);
+  assert.deepEqual(OperaLogService.getPhoneForJc('JUAN PEREZ', 'LARI'), {
+    display: '987654321',
+    digits: '987654321'
+  });
+  assert.equal(OperaLogService.getPhoneForJc('SIN TELEFONO', 'LARI'), null);
+  assert.equal(OperaLogService.getPhoneForJc('JUNIOR PERSONALIZADO', 'LARI'), null);
+});

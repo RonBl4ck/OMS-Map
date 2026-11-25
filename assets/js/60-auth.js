@@ -351,6 +351,17 @@ async function loadData() {
             if (typeof omsStore !== 'undefined' && typeof omsStore.setState === 'function') {
                 omsStore.setState({ OPERALOG_GAS_URL: operalogGasUrl });
             }
+            if (isAdmin && operalogGasUrl && typeof OperaLogService !== 'undefined' && typeof OperaLogService.loadTodayTurns === 'function') {
+                OperaLogService.loadTodayTurns(false).then((res) => {
+                    if (!res || !res.ok || !Array.isArray(res.rows) || res.rows.length === 0) return;
+                    if (typeof renderTdOmsTable === 'function' && typeof getFilteredTdOms === 'function') {
+                        renderTdOmsTable(getFilteredTdOms());
+                    }
+                    if (typeof renderHistorialPluz === 'function' && typeof document !== 'undefined' && document.body && document.body.dataset.primaryView === 'historialPluz') {
+                        renderHistorialPluz();
+                    }
+                }).catch(() => {});
+            }
             if (cfg.carto_api_key) {
                 if (typeof sessionStorage !== 'undefined') sessionStorage.setItem("oms_carto_key", cfg.carto_api_key);
                 if (typeof applyBaseLayers === 'function') applyBaseLayers(cfg.carto_api_key);

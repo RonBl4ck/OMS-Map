@@ -303,6 +303,9 @@
             const alimentador = latest.alimentador && latest.alimentador !== 'N/A' ? latest.alimentador : '--';
             const empresa = latest.empresa && latest.empresa !== 'N/A' ? latest.empresa : '--';
             const jcVal = latest.jefeCuadrilla || '';
+            const jcPhone = (jcVal && typeof OperaLogService !== 'undefined' && typeof OperaLogService.getPhoneForJc === 'function')
+                ? OperaLogService.getPhoneForJc(jcVal, empresa !== '--' ? empresa : '')
+                : null;
 
             const critNorm = critEst.toLowerCase();
             const opNorm = opEst.toLowerCase();
@@ -350,6 +353,7 @@
                             ${alimentador !== '--' ? `<span>⚡ Ali: <b>${escapeHtml(alimentador)}</b></span>` : ''}
                             ${empresa !== '--' ? `<span style="background: #f1f5f9; padding: 2px 7px; border-radius: 4px; font-weight: 700; color: #334155;">🏢 ${escapeHtml(empresa)}</span>` : ''}
                             ${jcVal ? `<span style="font-weight: 700; color: #1e293b; background: #e2e8f0; padding: 2px 7px; border-radius: 4px;">JC: ${escapeHtml(jcVal)}</span>` : ''}
+                            ${jcPhone ? `<span class="hp-jc-phone-pill"><span>📞 ${escapeHtml(jcPhone.display)}</span><button type="button" class="sup-jc-copy-btn sup-jc-copy-btn-xs" onclick="event.stopPropagation(); if(typeof OperaLogService!=='undefined') OperaLogService.copyPhoneNumber('${escapeHtml(jcPhone.digits)}', this);" title="Copiar celular" aria-label="Copiar celular">📋</button></span>` : ''}
                         </div>
                     </div>
 
@@ -380,6 +384,9 @@
                                         const hOpClass = typeof getSupervisorBadgeClass === 'function' ? getSupervisorBadgeClass(hOp) : 'sup-status-normal';
                                         const hCritClass = hCrit && typeof getCriticoBadgeClass === 'function' ? getCriticoBadgeClass(hCrit) : '';
                                         const hJc = h.jefeCuadrilla || '';
+                                        const hJcPhone = (hJc && typeof OperaLogService !== 'undefined' && typeof OperaLogService.getPhoneForJc === 'function')
+                                            ? OperaLogService.getPhoneForJc(hJc, empresa !== '--' ? empresa : '')
+                                            : null;
                                         const hOpDet = h.detalleOperativo || h.detalle || '';
                                         const hCritDet = h.detalleCritico || '';
 
@@ -392,6 +399,7 @@
                                                             <span class="sup-status-badge ${hOpClass}" style="font-size: 10px; padding: 2px 7px;">⚙️ ${escapeHtml(hOp)}</span>
                                                             ${hCrit ? `<span class="sup-status-badge ${hCritClass}" style="font-size: 10px; padding: 2px 7px;">${escapeHtml(hCrit)}</span>` : ''}
                                                             ${hJc ? `<span style="font-size: 10.5px; font-weight: 700; color: #1e293b;">JC: ${escapeHtml(hJc)}</span>` : ''}
+                                                            ${hJcPhone ? `<span class="hp-jc-phone-pill"><span>📞 ${escapeHtml(hJcPhone.display)}</span><button type="button" class="sup-jc-copy-btn sup-jc-copy-btn-xs" onclick="event.stopPropagation(); if(typeof OperaLogService!=='undefined') OperaLogService.copyPhoneNumber('${escapeHtml(hJcPhone.digits)}', this);" title="Copiar celular" aria-label="Copiar celular">📋</button></span>` : ''}
                                                             ${h.finEstimado ? `<span style="font-size: 10px; font-weight: 700; color: #b45309; background: #fef3c7; border: 1px solid #fde68a; padding: 1px 6px; border-radius: 4px;">⏱️ Fin Est: ${escapeHtml(h.finEstimado)}</span>` : ''}
                                                         </div>
                                                         <span style="font-size: 10.5px; color: #64748b; font-weight: 600;">

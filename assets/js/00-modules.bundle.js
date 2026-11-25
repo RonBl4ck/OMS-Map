@@ -3789,6 +3789,42 @@
         return matches[0];
     }
 
+    function getPhoneForJc(jcName, contratista = '') {
+        const match = findMatchByJcName(jcName, contratista);
+        if (!match) return null;
+        const phone = formatPhoneForCopy(match.celular);
+        return phone.digits ? phone : null;
+    }
+
+    function copyPhoneNumber(digits, btnEl) {
+        if (!digits) return;
+        const onSuccess = () => {
+            if (!btnEl) return;
+            const prev = btnEl.textContent;
+            btnEl.textContent = '✓';
+            btnEl.classList.add('is-copied');
+            setTimeout(() => {
+                btnEl.textContent = prev || '📋';
+                btnEl.classList.remove('is-copied');
+            }, 1400);
+        };
+        if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+            navigator.clipboard.writeText(digits).then(onSuccess).catch(() => {});
+            return;
+        }
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = digits;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            onSuccess();
+        } catch (_) {}
+    }
+
     function _setCachedRows(rows, fecha) {
         cachedRows = Array.isArray(rows) ? rows : [];
         cachedFecha = fecha || getLimaTodayStr();
@@ -3805,6 +3841,8 @@
         getFieldCandidates,
         findMatchByJcName,
         formatPhoneForCopy,
+        getPhoneForJc,
+        copyPhoneNumber,
         getLimaTodayStr,
         getCachedRows,
         _setCachedRows
@@ -6660,6 +6698,9 @@
                     const opEstado = supLatest.estadoOperativo || supLatest.estado || 'PENDIENTE';
                     const opDetalle = supLatest.detalleOperativo || supLatest.detalle || '';
                     const opJc = supLatest.jefeCuadrilla || '';
+                    const opJcPhone = (opJc && typeof OperaLogService !== 'undefined' && typeof OperaLogService.getPhoneForJc === 'function')
+                        ? OperaLogService.getPhoneForJc(opJc, r.empresa || supLatest.empresa || '')
+                        : null;
                     const opBadgeClass = getBadgeClass(opEstado);
                     const opSnippet = opDetalle ? esc(opDetalle.length > 40 ? opDetalle.slice(0, 37) + '...' : opDetalle) : '';
 
@@ -6672,6 +6713,7 @@
                                 </button>
                             </div>
                             ${opJc ? `<div style="font-size: 10px; font-weight: 700; color: #1e293b; line-height: 1.2;">JC: ${esc(opJc)}</div>` : ''}
+                            ${opJcPhone ? `<div class="sup-cell-jc-phone"><span>📞 ${esc(opJcPhone.display)}</span><button type="button" class="sup-jc-copy-btn sup-jc-copy-btn-xs" onclick="event.stopPropagation(); if(typeof OperaLogService!=='undefined') OperaLogService.copyPhoneNumber('${esc(opJcPhone.digits)}', this);" title="Copiar celular" aria-label="Copiar celular">📋</button></div>` : ''}
                             ${overdueInfo ? (
                                 overdueInfo.isOverdue ? `
                                     <div class="sup-eta-tag overdue" style="margin-top: 3px;" title="Fin estimado: ${esc(overdueInfo.fullLabel)} (vencido hace ${esc(overdueInfo.timeLabel)})">

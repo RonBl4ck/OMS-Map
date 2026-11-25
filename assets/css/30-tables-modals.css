@@ -1628,3 +1628,35 @@ tr.row-sup-overdue:hover {
   flex-wrap: wrap;
   gap: 5px;
 }
+
+.sup-cell-jc-phone {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #0369a1;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.hp-jc-phone-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  color: #0369a1;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.sup-jc-copy-btn-xs {
+  min-width: 19px;
+  height: 18px;
+  padding: 0 3px;
+  font-size: 10px;
+}
