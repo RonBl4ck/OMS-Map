@@ -15,6 +15,7 @@ const JS_MODULES = [
   'assets/js/components/markersManager.js',
   'assets/js/components/sedCloudsManager.js',
   'assets/js/services/supervisorService.js',
+  'assets/js/services/operalogService.js',
   'assets/js/services/seguimientoDiaService.js',
   'assets/js/components/chartsManager.js',
   'assets/js/components/modalsManager.js',

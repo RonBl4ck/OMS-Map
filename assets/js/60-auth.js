@@ -309,7 +309,7 @@ async function loadData() {
     try {
         // 1. Revisar si config-data está en caché (TTL 15 min), evitando invocar Serverless si es reciente
         let cfg = getSessionCache('oms_config_data_' + userRole, 15 * 60 * 1000);
-        if (isAdmin && cfg && !cfg.sheets_url_suministros_importantes) {
+        if (isAdmin && cfg && (!cfg.sheets_url_suministros_importantes || cfg.operalog_gas_url === undefined)) {
             cfg = null;
         }
         if (!cfg) {
@@ -346,6 +346,11 @@ async function loadData() {
             GOOGLE_SHEET_SED_CRITICAS_URL = (isAdmin && cfg.sheets_url_sed_criticas) ? cfg.sheets_url_sed_criticas : "";
             GOOGLE_SHEET_SUMINISTROS_IMPORTANTES_URL = (isAdmin && cfg.sheets_url_suministros_importantes) ? cfg.sheets_url_suministros_importantes : "";
             GOOGLE_SHEET_SUPERVISOR_URL = (isAdmin && cfg.sheets_url_supervisor) ? cfg.sheets_url_supervisor : "";
+            const operalogGasUrl = (isAdmin && cfg.operalog_gas_url) ? String(cfg.operalog_gas_url).trim() : "";
+            if (typeof window !== 'undefined') window.OPERALOG_GAS_URL = operalogGasUrl;
+            if (typeof omsStore !== 'undefined' && typeof omsStore.setState === 'function') {
+                omsStore.setState({ OPERALOG_GAS_URL: operalogGasUrl });
+            }
             if (cfg.carto_api_key) {
                 if (typeof sessionStorage !== 'undefined') sessionStorage.setItem("oms_carto_key", cfg.carto_api_key);
                 if (typeof applyBaseLayers === 'function') applyBaseLayers(cfg.carto_api_key);

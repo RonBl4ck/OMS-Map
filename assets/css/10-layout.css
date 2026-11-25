@@ -110,6 +110,42 @@ select:focus-visible,
   opacity: 0.85;
 }
 
+.navbar-nav-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.external-app-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 36px;
+  padding: 7px 13px;
+  border: 1px solid rgba(251, 193, 64, 0.35);
+  border-radius: 10px;
+  background: rgba(251, 193, 64, 0.1);
+  color: #fde68a;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.15s ease;
+}
+
+.external-app-btn:hover,
+.external-app-btn:focus-visible {
+  background: rgba(251, 193, 64, 0.22);
+  border-color: var(--pluz-yellow);
+  color: #ffffff;
+  outline: none;
+}
+
+.external-app-btn .external-arrow {
+  font-size: 11px;
+  opacity: 0.85;
+}
+
 .nav-kpi-item {
   border-radius: 8px;
 }

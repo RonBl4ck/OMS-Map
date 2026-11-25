@@ -43,3 +43,10 @@ test('la barra superior incluye acceso externo seguro a OperaLog fuera del tabli
   assert.ok(tablistMatch, 'Debe existir el contenedor role="tablist"');
   assert.doesNotMatch(tablistMatch[1], /id=["']linkOperaLog["']/);
 });
+
+test('el modal Detalle PLUZ incluye combobox JC y ficha de contacto OperaLog sin WhatsApp', () => {
+  for (const id of ['supJcDropdown', 'supJcContactCard', 'btnRefreshOperaLogJc']) {
+    assert.match(html, new RegExp(`id=["']${id}["']`));
+  }
+  assert.doesNotMatch(html, /wa\.me/i);
+});

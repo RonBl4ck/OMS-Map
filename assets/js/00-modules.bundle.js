@@ -3563,6 +3563,257 @@
 
 ;/* --- End: assets/js/services/supervisorService.js --- */
 
+/* --- Begin: assets/js/services/operalogService.js --- */
+/**
+ * OperaLog Service (Solo Lectura - Grupo BT)
+ * Consulta directamente el Google Apps Script de OperaLog (action=getTurn&grupo=BT)
+ * para alimentar el combobox de JC (Frente, Skill y Teléfono) en el modal Detalle PLUZ.
+ */
+(function (root, factory) {
+    const api = factory(root);
+    if (typeof module === 'object' && module.exports) {
+        module.exports = api;
+        module.exports.default = api;
+    }
+    if (root) {
+        root.OperaLogService = api;
+        if (typeof window !== 'undefined' && window !== root) {
+            window.OperaLogService = api;
+        }
+    }
+}(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this), function (root) {
+
+    const CACHE_TTL_MS = 5 * 60 * 1000;
+    const FIELD_FRONTS = new Set(['REPARACIONES', 'TEKO', 'RECLAMOS', 'LOCALIZADORES']);
+
+    let cachedRows = [];
+    let cachedFecha = '';
+    let cachedAt = 0;
+    let inFlightPromise = null;
+
+    function getLimaTodayStr() {
+        try {
+            return new Intl.DateTimeFormat('en-CA', {
+                timeZone: 'America/Lima',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            }).format(new Date());
+        } catch (_) {
+            const now = new Date(Date.now() - 5 * 3600000);
+            return now.toISOString().slice(0, 10);
+        }
+    }
+
+    function normalizeText(val) {
+        return String(val || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .toUpperCase();
+    }
+
+    function normalizeTurnRows(rawRows) {
+        if (!Array.isArray(rawRows)) return [];
+        return rawRows
+            .filter(r => r && String(r.grupo || 'BT').trim().toUpperCase() === 'BT' && String(r.nombres || '').trim())
+            .map(r => ({
+                id: String(r.id || '').trim(),
+                contratista: String(r.contratista || '').trim().toUpperCase(),
+                frente: String(r.frente || '').trim().toUpperCase(),
+                nombres: String(r.nombres || '').trim().toUpperCase(),
+                skill: String(r.skill || '').trim().toUpperCase(),
+                celular: String(r.celular || '').trim(),
+                usuario_ssam: String(r.usuario_ssam || '').trim().toUpperCase()
+            }));
+    }
+
+    function formatPhoneForCopy(rawPhone) {
+        const digitsOnly = String(rawPhone || '').replace(/\D+/g, '');
+        if (!digitsOnly) return { display: '', digits: '' };
+        let cleanDigits = digitsOnly;
+        if (cleanDigits.length === 11 && cleanDigits.startsWith('51')) {
+            cleanDigits = cleanDigits.slice(2);
+        }
+        return { display: cleanDigits, digits: cleanDigits };
+    }
+
+    function getConfiguredGasUrl() {
+        if (typeof window !== 'undefined' && window.OPERALOG_GAS_URL) {
+            return String(window.OPERALOG_GAS_URL).trim();
+        }
+        if (root && root.omsStore && typeof root.omsStore.get === 'function') {
+            const fromStore = root.omsStore.get('OPERALOG_GAS_URL');
+            if (fromStore) return String(fromStore).trim();
+        }
+        return '';
+    }
+
+    function readSessionCache(fecha) {
+        try {
+            if (typeof sessionStorage === 'undefined') return null;
+            const raw = sessionStorage.getItem('oms_operalog_bt_turns_' + fecha);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            if (!parsed || !Array.isArray(parsed.rows)) return null;
+            if (Date.now() - (parsed.ts || 0) > CACHE_TTL_MS) return null;
+            return parsed.rows;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function writeSessionCache(fecha, rows) {
+        try {
+            if (typeof sessionStorage === 'undefined') return;
+            sessionStorage.setItem('oms_operalog_bt_turns_' + fecha, JSON.stringify({
+                ts: Date.now(),
+                rows
+            }));
+        } catch (_) {}
+    }
+
+    async function loadTodayTurns(forceRefresh = false) {
+        const fecha = getLimaTodayStr();
+        const gasUrl = getConfiguredGasUrl();
+        if (!gasUrl) {
+            return { ok: false, configured: false, fecha, rows: cachedRows };
+        }
+
+        const isMemFresh = !forceRefresh && cachedFecha === fecha && cachedRows.length > 0 && (Date.now() - cachedAt) < CACHE_TTL_MS;
+        if (isMemFresh) {
+            return { ok: true, configured: true, fecha, rows: cachedRows };
+        }
+
+        if (!forceRefresh) {
+            const fromSession = readSessionCache(fecha);
+            if (fromSession) {
+                cachedRows = fromSession;
+                cachedFecha = fecha;
+                cachedAt = Date.now();
+                return { ok: true, configured: true, fecha, rows: cachedRows };
+            }
+        }
+
+        if (inFlightPromise && !forceRefresh) {
+            return inFlightPromise;
+        }
+
+        inFlightPromise = (async () => {
+            try {
+                const url = new URL(gasUrl);
+                url.searchParams.set('action', 'getTurn');
+                url.searchParams.set('fecha', fecha);
+                url.searchParams.set('rol', 'ADMIN');
+                url.searchParams.set('contratista', 'ALL');
+                url.searchParams.set('grupo', 'BT');
+
+                const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+                const timer = controller ? setTimeout(() => controller.abort(), 9000) : null;
+                const resp = await fetch(url.toString(), {
+                    method: 'GET',
+                    redirect: 'follow',
+                    signal: controller ? controller.signal : undefined
+                });
+                if (timer) clearTimeout(timer);
+
+                if (!resp || !resp.ok) {
+                    return { ok: false, configured: true, fecha, rows: cachedRows };
+                }
+                const json = await resp.json();
+                const rows = normalizeTurnRows(json && json.rows);
+                cachedRows = rows;
+                cachedFecha = fecha;
+                cachedAt = Date.now();
+                writeSessionCache(fecha, rows);
+                return { ok: true, configured: true, fecha, rows };
+            } catch (_) {
+                return { ok: false, configured: true, fecha, rows: cachedRows };
+            } finally {
+                inFlightPromise = null;
+            }
+        })();
+
+        return inFlightPromise;
+    }
+
+    function getFieldCandidates({ contratista = '', query = '' } = {}) {
+        const targetCompany = normalizeText(contratista);
+        const q = normalizeText(query);
+        const qDigits = String(query || '').replace(/\D+/g, '');
+
+        const fieldRows = cachedRows.filter(r => FIELD_FRONTS.has(normalizeText(r.frente)));
+        const filtered = !q && !qDigits
+            ? fieldRows
+            : fieldRows.filter(r => {
+                const hay = [
+                    normalizeText(r.nombres),
+                    normalizeText(r.frente),
+                    normalizeText(r.skill),
+                    normalizeText(r.contratista)
+                ].join(' ');
+                if (q && hay.includes(q)) return true;
+                if (qDigits && String(r.celular || '').replace(/\D+/g, '').includes(qDigits)) return true;
+                return false;
+            });
+
+        const sameCompany = [];
+        const otherCompanies = [];
+        filtered.forEach(r => {
+            if (targetCompany && normalizeText(r.contratista) === targetCompany) {
+                sameCompany.push(r);
+            } else {
+                otherCompanies.push(r);
+            }
+        });
+
+        const sortByName = (a, b) => a.nombres.localeCompare(b.nombres);
+        sameCompany.sort(sortByName);
+        otherCompanies.sort((a, b) => a.contratista.localeCompare(b.contratista) || a.nombres.localeCompare(b.nombres));
+
+        return { sameCompany, otherCompanies };
+    }
+
+    function findMatchByJcName(jcName, contratista = '') {
+        const targetName = normalizeText(jcName);
+        if (!targetName) return null;
+        const targetCompany = normalizeText(contratista);
+
+        const matches = cachedRows.filter(r => normalizeText(r.nombres) === targetName);
+        if (matches.length === 0) return null;
+        if (targetCompany) {
+            const same = matches.find(r => normalizeText(r.contratista) === targetCompany);
+            if (same) return same;
+        }
+        return matches[0];
+    }
+
+    function _setCachedRows(rows, fecha) {
+        cachedRows = Array.isArray(rows) ? rows : [];
+        cachedFecha = fecha || getLimaTodayStr();
+        cachedAt = Date.now();
+    }
+
+    function getCachedRows() {
+        return cachedRows;
+    }
+
+    return {
+        loadTodayTurns,
+        normalizeTurnRows,
+        getFieldCandidates,
+        findMatchByJcName,
+        formatPhoneForCopy,
+        getLimaTodayStr,
+        getCachedRows,
+        _setCachedRows
+    };
+}));
+
+
+;/* --- End: assets/js/services/operalogService.js --- */
+
 /* --- Begin: assets/js/services/seguimientoDiaService.js --- */
 /**
  * SeguimientoDiaService - Motor de datos y métricas para Seguimiento y Productividad Diaria
@@ -5214,6 +5465,9 @@
 }(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : this), function (root) {
 
     let currentSupervisorTicket = null;
+    let currentSupervisorEmpresa = '';
+    let currentHeroJcName = '';
+    let operaLogJcEventsBound = false;
 
     function getCurrentSupervisorTicket() {
         return currentSupervisorTicket;
@@ -5221,6 +5475,152 @@
 
     function setCurrentSupervisorTicket(t) {
         currentSupervisorTicket = t;
+    }
+
+    function getOperaLogSvc() {
+        if (typeof OperaLogService !== 'undefined') return OperaLogService;
+        if (typeof window !== 'undefined' && window.OperaLogService) return window.OperaLogService;
+        if (root && root.OperaLogService) return root.OperaLogService;
+        return null;
+    }
+
+    function copyPhoneNumber(digits, btnEl) {
+        if (!digits) return;
+        const onSuccess = () => {
+            if (!btnEl) return;
+            const prev = btnEl.textContent;
+            btnEl.textContent = '✓';
+            btnEl.classList.add('is-copied');
+            setTimeout(() => {
+                btnEl.textContent = prev || '📋';
+                btnEl.classList.remove('is-copied');
+            }, 1400);
+        };
+        if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+            navigator.clipboard.writeText(digits).then(onSuccess).catch(() => {});
+            return;
+        }
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = digits;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            onSuccess();
+        } catch (_) {}
+    }
+
+    function buildJcContactMarkup(match, esc) {
+        if (!match) return '';
+        const svc = getOperaLogSvc();
+        const phone = svc ? svc.formatPhoneForCopy(match.celular) : { display: String(match.celular || '').trim(), digits: String(match.celular || '').replace(/\D+/g, '') };
+        const frenteHtml = match.frente ? `<span class="sup-jc-badge sup-jc-badge-frente">${esc(match.frente)}</span>` : '';
+        const skillHtml = match.skill ? `<span class="sup-jc-badge sup-jc-badge-skill">${esc(match.skill)}</span>` : '';
+        const phoneHtml = phone.display
+            ? `<span class="sup-jc-phone-val">📞 ${esc(phone.display)}</span><button type="button" class="sup-jc-copy-btn" data-copy-phone="${esc(phone.digits)}" title="Copiar celular" aria-label="Copiar celular">📋</button>`
+            : '';
+        return `${frenteHtml}${skillHtml}${phoneHtml}`;
+    }
+
+    function updateJcContactCard(jcName) {
+        if (typeof document === 'undefined') return;
+        const card = document.getElementById('supJcContactCard');
+        if (!card) return;
+        const svc = getOperaLogSvc();
+        if (!svc) {
+            card.style.display = 'none';
+            card.innerHTML = '';
+            return;
+        }
+        const match = svc.findMatchByJcName(jcName, currentSupervisorEmpresa);
+        if (!match) {
+            card.style.display = 'none';
+            card.innerHTML = '';
+            return;
+        }
+        const esc = (typeof escapeHtml === 'function') ? escapeHtml : (s => String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[c]));
+        const inner = buildJcContactMarkup(match, esc);
+        if (!inner) {
+            card.style.display = 'none';
+            card.innerHTML = '';
+            return;
+        }
+        card.innerHTML = `<span class="sup-jc-contact-name">👷 ${esc(match.nombres)}</span><div class="sup-jc-contact-meta">${inner}</div>`;
+        card.style.display = 'flex';
+    }
+
+    function updateHeroJcOperaLogMeta() {
+        if (typeof document === 'undefined') return;
+        const metaEl = document.getElementById('supHeroJcMeta');
+        if (!metaEl || !currentHeroJcName) return;
+        const svc = getOperaLogSvc();
+        if (!svc) return;
+        const match = svc.findMatchByJcName(currentHeroJcName, currentSupervisorEmpresa);
+        if (!match) {
+            metaEl.innerHTML = '';
+            return;
+        }
+        const esc = (typeof escapeHtml === 'function') ? escapeHtml : (s => String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[c]));
+        metaEl.innerHTML = buildJcContactMarkup(match, esc);
+    }
+
+    function hideJcDropdown() {
+        if (typeof document === 'undefined') return;
+        const dd = document.getElementById('supJcDropdown');
+        if (dd) dd.hidden = true;
+    }
+
+    function renderJcDropdown(query) {
+        if (typeof document === 'undefined') return;
+        const dd = document.getElementById('supJcDropdown');
+        if (!dd) return;
+        const svc = getOperaLogSvc();
+        if (!svc) {
+            dd.hidden = true;
+            return;
+        }
+        const { sameCompany, otherCompanies } = svc.getFieldCandidates({
+            contratista: currentSupervisorEmpresa,
+            query: query || ''
+        });
+        if (sameCompany.length === 0 && otherCompanies.length === 0) {
+            dd.hidden = true;
+            dd.innerHTML = '';
+            return;
+        }
+        const esc = (typeof escapeHtml === 'function') ? escapeHtml : (s => String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[c]));
+        const renderItem = (row, showCompany) => {
+            const phone = svc.formatPhoneForCopy(row.celular);
+            return `
+                <button type="button" class="sup-jc-option" role="option" data-jc-name="${esc(row.nombres)}">
+                    <div class="sup-jc-option-top">
+                        <span class="sup-jc-option-name">${esc(row.nombres)}</span>
+                        ${showCompany && row.contratista ? `<span class="sup-jc-option-company">${esc(row.contratista)}</span>` : ''}
+                    </div>
+                    <div class="sup-jc-option-meta">
+                        ${row.frente ? `<span class="sup-jc-badge sup-jc-badge-frente">${esc(row.frente)}</span>` : ''}
+                        ${row.skill ? `<span class="sup-jc-badge sup-jc-badge-skill">${esc(row.skill)}</span>` : ''}
+                        ${phone.display ? `<span class="sup-jc-phone-val">📞 ${esc(phone.display)}</span>` : ''}
+                    </div>
+                </button>
+            `;
+        };
+
+        let htmlParts = '';
+        if (sameCompany.length > 0) {
+            const label = currentSupervisorEmpresa ? `En turno — ${esc(currentSupervisorEmpresa)}` : 'En turno BT';
+            htmlParts += `<div class="sup-jc-group-title">${label} (${sameCompany.length})</div>`;
+            htmlParts += sameCompany.map(r => renderItem(r, false)).join('');
+        }
+        if (otherCompanies.length > 0) {
+            htmlParts += `<div class="sup-jc-group-title">Otras contratas BT (${otherCompanies.length})</div>`;
+            htmlParts += otherCompanies.map(r => renderItem(r, true)).join('');
+        }
+        dd.innerHTML = htmlParts;
+        dd.hidden = false;
     }
 
     /**
@@ -5391,7 +5791,9 @@
         const getCritBadge = (typeof getCriticoBadgeClass === 'function') ? getCriticoBadgeClass : (typeof SupervisorService !== 'undefined' ? SupervisorService.getCriticoBadgeClass : () => 'sup-status-normal');
 
         if (tNum) tNum.textContent = cleanTicket;
-        if (bEmp) bEmp.textContent = clean(rec.empresa) || clean(supLatest ? supLatest.empresa : '') || 'N/A';
+        currentSupervisorEmpresa = clean(rec.empresa) || clean(supLatest ? supLatest.empresa : '') || '';
+        currentHeroJcName = clean(supLatest ? supLatest.jefeCuadrilla : '');
+        if (bEmp) bEmp.textContent = currentSupervisorEmpresa || 'N/A';
         if (bEst) bEst.textContent = clean(rec.estado) || (supLatest ? clean(supLatest.estadoOperativo || supLatest.estado) : '') || 'PENDIENTE';
         if (sSed) sSed.textContent = clean(rec.sed) || clean(supLatest ? supLatest.sed : '') || 'N/A';
         if (sAli) sAli.textContent = clean(rec.alimentador) || clean(supLatest ? supLatest.alimentador : '') || 'N/A';
@@ -5432,7 +5834,7 @@
                             </div>
                             <span style="font-size: 10px; color: #64748b; font-weight: 600;">🕒 ${esc(supLatest.fecha || '')} • por <b>${esc(supLatest.usuario || 'PLUZ')}</b></span>
                         </div>
-                        ${jcVal ? `<div style="font-size: 11px; color: #0f172a; margin-bottom: 4px; font-weight: 700;">JC: <span style="font-weight: 600; color: #1e293b;">${esc(jcVal)}</span></div>` : ''}
+                        ${jcVal ? `<div class="sup-hero-jc-row"><span>JC: <span style="font-weight: 600; color: #1e293b;">${esc(jcVal)}</span></span><span id="supHeroJcMeta" class="sup-hero-jc-meta"></span></div>` : ''}
                         ${supLatest && supLatest.finEstimado ? (() => {
                             const fInfo = (typeof getSupervisorFinEstimadoInfo === 'function') ? getSupervisorFinEstimadoInfo(rec) : null;
                             if (!fInfo) return `<div style="font-size: 11px; color: #b45309; margin-bottom: 4px; font-weight: 600;">⏱️ Fin Estimado: ${esc(supLatest.finEstimado)}</div>`;
@@ -5458,6 +5860,17 @@
         }
 
         if (inJc) inJc.value = clean(supLatest ? supLatest.jefeCuadrilla : '');
+        hideJcDropdown();
+        updateJcContactCard(inJc ? inJc.value : '');
+        updateHeroJcOperaLogMeta();
+        const opSvc = getOperaLogSvc();
+        if (opSvc && typeof opSvc.loadTodayTurns === 'function') {
+            opSvc.loadTodayTurns(false).then(() => {
+                if (currentSupervisorTicket !== cleanTicket) return;
+                updateJcContactCard(inJc ? inJc.value : '');
+                updateHeroJcOperaLogMeta();
+            }).catch(() => {});
+        }
         if (inEstOp) inEstOp.value = clean(supLatest ? (supLatest.estadoOperativo || supLatest.estado) : '') || 'PENDIENTE';
         if (inDetOp) inDetOp.value = '';
         if (inEstCrit) inEstCrit.value = clean(supLatest ? supLatest.estadoCritico : '');
@@ -5480,10 +5893,13 @@
      */
     function closeSupervisorModal() {
         if (typeof document !== 'undefined') {
+            hideJcDropdown();
             const modal = document.getElementById("supervisorModalOverlay");
             if (modal) modal.style.display = "none";
         }
         currentSupervisorTicket = null;
+        currentSupervisorEmpresa = '';
+        currentHeroJcName = '';
         if (typeof globalThis !== 'undefined') globalThis.currentSupervisorTicket = null;
         if (typeof window !== 'undefined') window.currentSupervisorTicket = null;
     }
@@ -5680,6 +6096,11 @@
                     closeBulkPluzModal();
                 }
                 if (e.key === 'Escape' && modal && modal.style.display !== 'none') {
+                    const dd = document.getElementById('supJcDropdown');
+                    if (dd && !dd.hidden) {
+                        hideJcDropdown();
+                        return;
+                    }
                     closeSupervisorModal();
                 }
             });
@@ -5736,6 +6157,9 @@
             });
         }
 
+        // Combobox JC + Copiar celular desde OperaLog (Solo lectura BT)
+        initOperaLogJcEvents();
+
         // Checkbox Filtro Quántico / Crítico en la barra superior
         const chkQC = document.getElementById("checkFilterQuanticoCritico");
         if (chkQC) {
@@ -5788,6 +6212,104 @@
         }
     }
 
+    function syncSupervisorOperaLogContext({ ticket = '', empresa = '', heroJcName = '', inputJcValue = '' } = {}) {
+        currentSupervisorTicket = ticket || currentSupervisorTicket;
+        currentSupervisorEmpresa = String(empresa || '').trim();
+        currentHeroJcName = String(heroJcName || '').trim();
+        hideJcDropdown();
+        updateJcContactCard(inputJcValue);
+        updateHeroJcOperaLogMeta();
+        const opSvc = getOperaLogSvc();
+        if (opSvc && typeof opSvc.loadTodayTurns === 'function') {
+            opSvc.loadTodayTurns(false).then(() => {
+                if (ticket && currentSupervisorTicket !== ticket) return;
+                const inJc = typeof document !== 'undefined' ? document.getElementById('supInputJefeCuadrilla') : null;
+                updateJcContactCard(inJc ? inJc.value : inputJcValue);
+                updateHeroJcOperaLogMeta();
+                if (inJc && document.activeElement === inJc) {
+                    renderJcDropdown(inJc.value);
+                }
+            }).catch(() => {});
+        }
+    }
+
+    function initOperaLogJcEvents() {
+        if (typeof document === 'undefined' || operaLogJcEventsBound) return;
+        operaLogJcEventsBound = true;
+
+        const modal = document.getElementById('supervisorModalOverlay');
+        const inJcField = document.getElementById('supInputJefeCuadrilla');
+        const jcDropdown = document.getElementById('supJcDropdown');
+        const btnRefreshOperaLog = document.getElementById('btnRefreshOperaLogJc');
+
+        if (inJcField) {
+            inJcField.addEventListener('focus', () => {
+                const svc = getOperaLogSvc();
+                if (!svc) return;
+                if (svc.getCachedRows().length > 0) {
+                    renderJcDropdown(inJcField.value);
+                } else {
+                    svc.loadTodayTurns(false).then(() => {
+                        if (document.activeElement === inJcField) {
+                            renderJcDropdown(inJcField.value);
+                        }
+                    }).catch(() => {});
+                }
+            });
+            inJcField.addEventListener('input', () => {
+                renderJcDropdown(inJcField.value);
+                updateJcContactCard(inJcField.value);
+            });
+        }
+
+        if (jcDropdown) {
+            jcDropdown.addEventListener('mousedown', (e) => {
+                const opt = e.target.closest('.sup-jc-option');
+                if (!opt) return;
+                e.preventDefault();
+                const name = opt.getAttribute('data-jc-name') || '';
+                if (inJcField) inJcField.value = name;
+                hideJcDropdown();
+                updateJcContactCard(name);
+            });
+        }
+
+        if (btnRefreshOperaLog) {
+            btnRefreshOperaLog.addEventListener('click', () => {
+                const svc = getOperaLogSvc();
+                if (!svc) return;
+                btnRefreshOperaLog.disabled = true;
+                btnRefreshOperaLog.textContent = '⏳';
+                svc.loadTodayTurns(true).then(() => {
+                    updateJcContactCard(inJcField ? inJcField.value : '');
+                    updateHeroJcOperaLogMeta();
+                    if (inJcField) {
+                        inJcField.focus();
+                        renderJcDropdown(inJcField.value);
+                    }
+                }).finally(() => {
+                    btnRefreshOperaLog.disabled = false;
+                    btnRefreshOperaLog.textContent = '🔄 OperaLog';
+                });
+            });
+        }
+
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                const copyBtn = e.target.closest('[data-copy-phone]');
+                if (copyBtn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    copyPhoneNumber(copyBtn.getAttribute('data-copy-phone') || '', copyBtn);
+                    return;
+                }
+                if (!e.target.closest('.sup-jc-combobox') && !e.target.closest('#btnRefreshOperaLogJc')) {
+                    hideJcDropdown();
+                }
+            });
+        }
+    }
+
     return {
         openSupervisorModal,
         closeSupervisorModal,
@@ -5799,6 +6321,9 @@
         renderSupervisorTimeline,
         updateBulkPluzCounter,
         initSupervisorModalEvents,
+        initOperaLogJcEvents,
+        syncSupervisorOperaLogContext,
+        hideJcDropdown,
         getCurrentSupervisorTicket,
         setCurrentSupervisorTicket
     };

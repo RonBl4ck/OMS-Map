@@ -74,6 +74,7 @@ module.exports = async (req, res) => {
         let sheetsUrlSedCriticas = process.env.SHEETS_URL_SED_CRITICAS || "";
         let sheetsUrlSuministrosImportantes = process.env.SHEETS_URL_SUMINISTROS_IMPORTANTES || "";
         let sheetsUrlSupervisor = process.env.SHEETS_URL_SUPERVISOR || "";
+        let operalogGasUrl = process.env.OPERALOG_GAS_URL || "";
 
         let cartoApiKey = process.env.CARTO_API_KEY || 
                           process.env.CARTO_KEY || 
@@ -87,7 +88,7 @@ module.exports = async (req, res) => {
                           process.env.NEXT_PUBLIC_CARTO_KEY || "";
 
         // Fallback a config.json si alguna variable no está en process.env
-        if (!sheetsUrl || !sheetsUrlEjecutados || !sheetsUrlLlamadas || !sheetsUrlTecnicos || !sheetsUrlSedCriticas || !sheetsUrlSuministrosImportantes || !sheetsUrlSupervisor || !cartoApiKey) {
+        if (!sheetsUrl || !sheetsUrlEjecutados || !sheetsUrlLlamadas || !sheetsUrlTecnicos || !sheetsUrlSedCriticas || !sheetsUrlSuministrosImportantes || !sheetsUrlSupervisor || !operalogGasUrl || !cartoApiKey) {
             const fs = require('fs');
             const path = require('path');
             try {
@@ -101,6 +102,7 @@ module.exports = async (req, res) => {
                     if (!sheetsUrlSedCriticas && cfg.sheets_url_sed_criticas) sheetsUrlSedCriticas = cfg.sheets_url_sed_criticas;
                     if (!sheetsUrlSuministrosImportantes && cfg.sheets_url_suministros_importantes) sheetsUrlSuministrosImportantes = cfg.sheets_url_suministros_importantes;
                     if (!sheetsUrlSupervisor && cfg.sheets_url_supervisor) sheetsUrlSupervisor = cfg.sheets_url_supervisor;
+                    if (!operalogGasUrl && cfg.operalog_gas_url) operalogGasUrl = cfg.operalog_gas_url;
                     if (!cartoApiKey && (cfg.carto_api_key || cfg.cartoApiKey || cfg.carto_key)) {
                         cartoApiKey = cfg.carto_api_key || cfg.cartoApiKey || cfg.carto_key;
                     }
@@ -137,6 +139,7 @@ module.exports = async (req, res) => {
             sheets_url_sed_criticas: isAdmin ? sheetsUrlSedCriticas : "",
             sheets_url_suministros_importantes: isAdmin ? sheetsUrlSuministrosImportantes : "",
             sheets_url_supervisor: isAdmin ? sheetsUrlSupervisor : "",
+            operalog_gas_url: isAdmin ? operalogGasUrl : "",
             carto_api_key: cartoApiKey
         });
 

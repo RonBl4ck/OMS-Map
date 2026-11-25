@@ -25,7 +25,7 @@
     <link rel="stylesheet" href="assets/css/20-dashboard.css?v=62b54a4a">
     <link rel="stylesheet" href="assets/css/30-responsive.css?v=51dfcd88">
     <link rel="stylesheet" href="assets/css/40-technicians.css?v=c7c503e1">
-    <link rel="stylesheet" href="assets/css/90-modern.css?v=e7b9fd09">
+    <link rel="stylesheet" href="assets/css/90-modern.css?v=66a550a3">
 </head>
 <body>
 
@@ -874,14 +874,21 @@
                         </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 6px;">
                             <div>
-                                <label for="supInputJefeCuadrilla" style="font-size: 10px; font-weight: 700; color: #475569; display: block; margin-bottom: 3px;">JC:</label>
-                                <input type="text" id="supInputJefeCuadrilla" placeholder="Nombre JC..." style="width: 100%; box-sizing: border-box; padding: 6px 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 4px; outline: none;">
+                                <label for="supInputJefeCuadrilla" style="font-size: 10px; font-weight: 700; color: #475569; display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px;">
+                                    <span>JC:</span>
+                                    <button type="button" id="btnRefreshOperaLogJc" class="sup-jc-refresh-btn" title="Actualizar lista de JC desde OperaLog (BT)">🔄 OperaLog</button>
+                                </label>
+                                <div class="sup-jc-combobox">
+                                    <input type="text" id="supInputJefeCuadrilla" autocomplete="off" placeholder="Buscar o escribir JC..." style="width: 100%; box-sizing: border-box; padding: 6px 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 4px; outline: none;">
+                                    <div id="supJcDropdown" class="sup-jc-dropdown" role="listbox" hidden></div>
+                                </div>
                             </div>
                             <div>
                                 <label for="supInputFinEstimado" style="font-size: 10px; font-weight: 700; color: #b45309; display: block; margin-bottom: 3px;">⏱️ Fin Estimado (Fecha y Hora):</label>
                                 <input type="datetime-local" id="supInputFinEstimado" style="width: 100%; box-sizing: border-box; padding: 5px 8px; font-size: 11px; border: 1px solid #fcd34d; border-radius: 4px; background: #fffdf5; outline: none; color: #1e293b;">
                             </div>
                         </div>
+                        <div id="supJcContactCard" class="sup-jc-contact-card" style="display: none;"></div>
                         <div style="margin-bottom: 6px;">
                             <label for="supInputEstadoOperativo" style="font-size: 10px; font-weight: 700; color: #475569; display: block; margin-bottom: 3px;">Estado libre / Otro:</label>
                             <input type="text" id="supInputEstadoOperativo" placeholder="O escribe otro estado..." style="width: 100%; box-sizing: border-box; padding: 6px 10px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 4px; outline: none;">
@@ -1229,13 +1236,13 @@
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
     <!-- Paquete unificado de Estado, Utilidades, Componentes y Servicios Modulares (1 petición en lugar de 13) -->
-    <script src="assets/js/00-modules.bundle.js?v=1f17e0e7"></script>
+    <script src="assets/js/00-modules.bundle.js?v=b2055b8b"></script>
 
     <script src="assets/js/00-core.js?v=1c894c9e"></script>
     <script src="assets/js/sed-geometry.js?v=3bed3b46"></script>
     <script src="assets/js/10-map.js?v=1066a183"></script>
     <script src="assets/js/components/pluz24hMatrix.js?v=4c70deaf"></script>
-    <script src="assets/js/20-dashboard.js?v=cd060262"></script>
+    <script src="assets/js/20-dashboard.js?v=9be2bb0c"></script>
     <script src="assets/js/22-seguimiento-dia.js?v=1c987405"></script>
     <script src="assets/js/25-contractor-report.js?v=365acd1a"></script>
     <script src="assets/js/30-llamadas.js?v=a1479eae"></script>
@@ -1243,7 +1250,7 @@
     <script src="assets/js/40-tecnicos.js?v=1649aa9e"></script>
     <script src="assets/js/45-historial-pluz.js?v=3dcc2ee5"></script>
     <script src="assets/js/50-navigation.js?v=1b4d3173"></script>
-    <script src="assets/js/60-auth.js?v=92a06f60"></script>
+    <script src="assets/js/60-auth.js?v=67ed9b7e"></script>
     <script src="assets/js/70-admin.js?v=8b2c90a2"></script>
     <script src="assets/js/80-bootstrap.js?v=d0fcc834"></script>
 </body>

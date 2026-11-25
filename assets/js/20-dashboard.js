@@ -1739,7 +1739,7 @@
                                 </div>
                                 <span style="font-size: 10px; color: #64748b; font-weight: 600;">🕒 ${escapeHtml(supLatest.fecha || '')} • por <b>${escapeHtml(supLatest.usuario || 'PLUZ')}</b></span>
                             </div>
-                            ${jcVal ? `<div style="font-size: 11px; color: #0f172a; margin-bottom: 4px; font-weight: 700;">JC: <span style="font-weight: 600; color: #1e293b;">${escapeHtml(jcVal)}</span></div>` : ''}
+                            ${jcVal ? `<div class="sup-hero-jc-row"><span>JC: <span style="font-weight: 600; color: #1e293b;">${escapeHtml(jcVal)}</span></span><span id="supHeroJcMeta" class="sup-hero-jc-meta"></span></div>` : ''}
                             ${supLatest && supLatest.finEstimado ? (() => {
                                 const fInfo = getSupervisorFinEstimadoInfo(rec);
                                 if (!fInfo) return `<div style="font-size: 11px; color: #b45309; margin-bottom: 4px; font-weight: 600;">⏱️ Fin Estimado: ${escapeHtml(supLatest.finEstimado)}</div>`;
@@ -1766,6 +1766,14 @@
 
             // Heredar JC, estados seleccionados y detalle de criticidad previo (la nueva novedad operativa sí inicia limpia, nunca 'N/A')
             if (inJc) inJc.value = clean(supLatest ? supLatest.jefeCuadrilla : '');
+            if (typeof ModalsManager !== 'undefined' && typeof ModalsManager.syncSupervisorOperaLogContext === 'function') {
+                ModalsManager.syncSupervisorOperaLogContext({
+                    ticket: cleanTicket,
+                    empresa: clean(rec.empresa) || clean(supLatest ? supLatest.empresa : '') || '',
+                    heroJcName: clean(supLatest ? supLatest.jefeCuadrilla : ''),
+                    inputJcValue: inJc ? inJc.value : ''
+                });
+            }
             if (inEstOp) inEstOp.value = clean(supLatest ? (supLatest.estadoOperativo || supLatest.estado) : '') || 'PENDIENTE';
             if (inDetOp) inDetOp.value = '';
             if (inEstCrit) inEstCrit.value = clean(supLatest ? supLatest.estadoCritico : '');
@@ -1784,6 +1792,9 @@
         }
 
         function closeSupervisorModal() {
+            if (typeof ModalsManager !== 'undefined' && typeof ModalsManager.hideJcDropdown === 'function') {
+                ModalsManager.hideJcDropdown();
+            }
             const modal = document.getElementById("supervisorModalOverlay");
             if (modal) modal.style.display = "none";
             currentSupervisorTicket = null;
@@ -2020,7 +2031,7 @@
                                 </div>
                                 <span style="font-size: 10px; color: #64748b; font-weight: 600;">🕒 ${escapeHtml(supLatest.fecha || '')} • por <b>${escapeHtml(supLatest.usuario || 'PLUZ')}</b></span>
                             </div>
-                            ${jcVal ? `<div style="font-size: 11px; color: #0f172a; margin-bottom: 4px; font-weight: 700;">JC: <span style="font-weight: 600; color: #1e293b;">${escapeHtml(jcVal)}</span></div>` : ''}
+                            ${jcVal ? `<div class="sup-hero-jc-row"><span>JC: <span style="font-weight: 600; color: #1e293b;">${escapeHtml(jcVal)}</span></span><span id="supHeroJcMeta" class="sup-hero-jc-meta"></span></div>` : ''}
                             ${opDet ? `<div style="font-size: 11px; color: #334155; line-height: 1.35; margin-bottom: 3px;"><b>Operativo:</b> ${escapeHtml(opDet)}</div>` : ''}
                             ${critDet && !/^n\/?a$/i.test(critDet) ? `<div style="font-size: 11px; color: #9d174d; line-height: 1.35;"><b>Criticidad:</b> ${escapeHtml(critDet)}</div>` : ''}
                         </div>
@@ -2611,6 +2622,13 @@
                         closeBulkPluzModal();
                     }
                     if (e.key === 'Escape' && modal && modal.style.display !== 'none') {
+                        const dd = document.getElementById('supJcDropdown');
+                        if (dd && !dd.hidden) {
+                            if (typeof ModalsManager !== 'undefined' && typeof ModalsManager.hideJcDropdown === 'function') {
+                                ModalsManager.hideJcDropdown();
+                            }
+                            return;
+                        }
                         closeSupervisorModal();
                     }
                 });
@@ -2661,6 +2679,10 @@
                 inEstCrit.addEventListener('input', () => {
                     updateSupervisorCriticoChipSelection(inEstCrit.value);
                 });
+            }
+
+            if (typeof ModalsManager !== 'undefined' && typeof ModalsManager.initOperaLogJcEvents === 'function') {
+                ModalsManager.initOperaLogJcEvents();
             }
 
             // Checkbox Filtro Quántico / Crítico en la barra de filtros superiores
