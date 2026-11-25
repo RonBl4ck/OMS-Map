@@ -1181,6 +1181,292 @@
         }[c]));
     }
 
+    function cleanSupText(val) {
+        const s = String(val ?? '').trim();
+        if (!s || /^n\/?a$/i.test(s) || s === '-' || s === '--' || s.toLowerCase() === 'null' || s.toLowerCase() === 'undefined') {
+            return '';
+        }
+        return s;
+    }
+
+    /**
+     * Convierte una coordenada decimal a formato sexagesimal (DMS), ej: 11°53'43.5"S
+     */
+    function decimalToDms(value, posHemisphere, negHemisphere) {
+        const num = Number(value);
+        if (!Number.isFinite(num)) return '';
+        const hemisphere = num >= 0 ? posHemisphere : negHemisphere;
+        const abs = Math.abs(num);
+        let deg = Math.floor(abs);
+        const minFloat = (abs - deg) * 60;
+        let min = Math.floor(minFloat);
+        let sec = Math.round((minFloat - min) * 600) / 10;
+
+        if (sec >= 60) {
+            sec = 0;
+            min += 1;
+        }
+        if (min >= 60) {
+            min = 0;
+            deg += 1;
+        }
+
+        const minStr = String(min).padStart(2, '0');
+        const secWhole = Math.floor(sec);
+        const secFrac = Math.round((sec - secWhole) * 10);
+        const secStr = `${String(secWhole).padStart(2, '0')}.${secFrac}`;
+        return `${deg}°${minStr}'${secStr}"${hemisphere}`;
+    }
+
+    /**
+     * Formatea latitud y longitud a DMS estándar: 11°53'43.5"S 77°01'17.4"W
+     */
+    function formatCoordsDms(lat, lon) {
+        const latNum = Number(lat);
+        const lonNum = Number(lon);
+        if (!Number.isFinite(latNum) || !Number.isFinite(lonNum)) return '';
+        return `${decimalToDms(latNum, 'N', 'S')} ${decimalToDms(lonNum, 'E', 'W')}`;
+    }
+
+    /**
+     * Resuelve estado, detalles y Jefe de Cuadrilla (JC) desde los registros de Supervisión PLUZ
+     */
+    function resolveSupervisorContext(ticket, supDataOverride) {
+        const supData = supDataOverride !== undefined
+            ? supDataOverride
+            : (typeof getSupervisorDataForTicket === 'function' ? getSupervisorDataForTicket(ticket) : null);
+
+        if (!supData || !supData.latest) {
+            return {
+                hasData: false,
+                countHist: 0,
+                fecha: '',
+                opEst: '',
+                critEst: '',
+                opDet: '',
+                critDet: '',
+                jefeCuadrilla: '',
+                finEstimado: ''
+            };
+        }
+
+        const latest = supData.latest;
+        const history = Array.isArray(supData.history) ? supData.history : [latest];
+        const opEst = cleanSupText(latest.estadoOperativo || latest.estado);
+        const critEst = cleanSupText(latest.estadoCritico);
+        const opDet = cleanSupText(latest.detalleOperativo || latest.detalle);
+        const critDet = cleanSupText(latest.detalleCritico);
+        const finEstimado = cleanSupText(latest.finEstimado || latest.Fin_Estimado || latest.horaFinEstimada);
+
+        let jefeCuadrilla = cleanSupText(latest.jefeCuadrilla || latest.jc);
+        if (!jefeCuadrilla) {
+            for (const entry of history) {
+                const candidate = cleanSupText(entry && (entry.jefeCuadrilla || entry.jc));
+                if (candidate) {
+                    jefeCuadrilla = candidate;
+                    break;
+                }
+            }
+        }
+        if (!jefeCuadrilla && opDet) {
+            const jcMatch = opDet.match(/(?:^|\n|\|)\s*(?:jc|jefe\s+de\s+cuadrilla)\s*[:\-]\s*([^\n|]+)/i);
+            if (jcMatch && jcMatch[1]) {
+                jefeCuadrilla = cleanSupText(jcMatch[1]);
+            }
+        }
+
+        return {
+            hasData: true,
+            countHist: history.length || 1,
+            fecha: cleanSupText(latest.fecha),
+            opEst: opEst || 'PENDIENTE',
+            critEst,
+            opDet,
+            critDet,
+            jefeCuadrilla,
+            finEstimado
+        };
+    }
+
+    /**
+     * Construye el texto en formato ficha completa para WhatsApp (exclusivo perfil PLUZ)
+     */
+    function buildIncidentWhatsappSummary(loc, supDataOverride) {
+        if (!loc) return '';
+        const clean = (v, fallback = 'N/A') => {
+            const s = cleanSupText(v);
+            return s || fallback;
+        };
+
+        const ticket = clean(loc.ticket, 'S/N');
+        const estado = clean(loc.estado, 'PENDIENTE').toUpperCase();
+        const sla = loc.sla || null;
+        const odm = clean(loc.odm);
+        const empresa = clean(loc.empresa);
+        const falla = clean(loc.falla);
+        const sed = clean(loc.sed);
+        const alimentador = clean(loc.alimentador);
+        const suministro = clean(loc.suministro);
+        const llamadas = (loc.llamadas !== undefined && loc.llamadas !== null && String(loc.llamadas).trim() !== '' && String(loc.llamadas).trim().toUpperCase() !== 'N/A')
+            ? String(loc.llamadas).trim()
+            : '0';
+        const fechaInicio = clean(loc.fecha_inicio || loc.hora_inicio);
+        const direccion = clean(loc.direccion, '');
+        const distrito = clean(loc.distrito, '');
+        const direccionCompleta = [direccion, distrito].filter(Boolean).join(' - ') || 'N/A';
+
+        const sup = resolveSupervisorContext(loc.ticket, supDataOverride);
+        const impInfo = loc.es_suministro_importante
+            ? { titular: loc.suministro_importante_titular || 'CLIENTE IMPORTANTE' }
+            : (typeof getSuministroImportante === 'function' ? getSuministroImportante(loc.suministro) : null);
+        const isSedCrit = Boolean(loc.es_top_critica || loc.es_sed_critica || loc.sed_reincidente);
+        const isSuministroReinc = Boolean(loc.suministro_reincidente || (loc.suministro_count >= 2));
+
+        const lines = [];
+        lines.push(`*OMS ${ticket}* | ${estado}`);
+
+        if (sla && (sla.elapsed !== undefined || sla.label)) {
+            const slaRange = (sla.elapsed !== undefined && sla.maxHours !== undefined)
+                ? `${sla.elapsed}h / ${sla.maxHours}h`
+                : '';
+            const slaLabel = cleanSupText(sla.label);
+            const slaParts = [slaRange, slaLabel].filter(Boolean).join(' — ');
+            if (slaParts) lines.push(`⏱️ *SLA:* ${slaParts}`);
+        }
+
+        if (impInfo) {
+            lines.push(`🔴 *Suministro Importante:* ${clean(impInfo.titular, 'CLIENTE IMPORTANTE')}`);
+        }
+        if (isSedCrit) {
+            const sed7d = loc.sed_count > 0 ? ` (7D: ${loc.sed_count} fallas)` : '';
+            lines.push(`🚨 *SED Crítica:* ${sed}${sed7d}`);
+        }
+        if (isSuministroReinc) {
+            const sumDias = loc.suministro_ventana_dias || 7;
+            const sumCount = loc.suministro_count || 2;
+            lines.push(`⚠️ *Suministro Reincidente:* ${sumCount} fallas (${sumDias}D)`);
+        }
+
+        lines.push(`• *ODM:* ${odm}`);
+        lines.push(`• *Empresa:* ${empresa}`);
+        lines.push(`• *Falla:* ${falla}`);
+        lines.push(`• *SED / Alim:* ${sed} / ${alimentador}`);
+        lines.push(`• *Suministro:* ${suministro} | *Llamadas:* ${llamadas}`);
+        lines.push(`• *Inicio:* ${fechaInicio}`);
+        lines.push(`• *Dirección:* ${direccionCompleta}`);
+
+        if (sup.hasData) {
+            const estadosPluz = [sup.opEst, sup.critEst].filter(Boolean).join(' / ');
+            if (estadosPluz) lines.push(`• *Supervisión PLUZ:* ${estadosPluz}`);
+            if (sup.opDet) lines.push(`• *Detalle PLUZ:* ${sup.opDet}`);
+            if (sup.critDet) lines.push(`• *Detalle Crítico:* ${sup.critDet}`);
+            if (sup.finEstimado) lines.push(`• *Fin Estimado:* ${sup.finEstimado}`);
+        }
+
+        lines.push(`• *Jefe de cuadrilla:*${sup.jefeCuadrilla ? ` ${sup.jefeCuadrilla}` : ''}`);
+
+        const latNum = Number(loc.lat);
+        const lonNum = Number(loc.lon);
+        if (Number.isFinite(latNum) && Number.isFinite(lonNum)) {
+            const dms = formatCoordsDms(latNum, lonNum);
+            lines.push('');
+            if (dms) lines.push(`📍 *Coordenadas:* ${dms}`);
+            lines.push(`🗺️ https://www.google.com/maps?q=${latNum.toFixed(6)},${lonNum.toFixed(6)}`);
+        }
+
+        return lines.join('\n');
+    }
+
+    function fallbackCopyText(text) {
+        if (typeof document === 'undefined' || !document.body) return false;
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.top = '-9999px';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        let ok = false;
+        try {
+            ok = document.execCommand('copy');
+        } catch (_) {
+            ok = false;
+        }
+        document.body.removeChild(ta);
+        return ok;
+    }
+
+    function findIncidentByTicket(ticket) {
+        const key = String(ticket || '').trim().toLowerCase();
+        if (!key) return null;
+
+        const mm = (typeof markerMap !== 'undefined' && markerMap)
+            ? markerMap
+            : (typeof window !== 'undefined' ? window.markerMap : null);
+        if (mm && typeof mm.get === 'function') {
+            const entry = mm.get(key);
+            if (entry && entry.loc) return entry.loc;
+        }
+
+        const locs = (typeof mapLocations !== 'undefined' && Array.isArray(mapLocations))
+            ? mapLocations
+            : (typeof window !== 'undefined' && Array.isArray(window.mapLocations) ? window.mapLocations : []);
+        const foundLoc = locs.find(l => String(l && l.ticket || '').trim().toLowerCase() === key);
+        if (foundLoc) return foundLoc;
+
+        const tdRecs = (typeof tdOmsRecords !== 'undefined' && Array.isArray(tdOmsRecords))
+            ? tdOmsRecords
+            : (typeof window !== 'undefined' && Array.isArray(window.tdOmsRecords) ? window.tdOmsRecords : []);
+        return tdRecs.find(r => String(r && r.ticket || '').trim().toLowerCase() === key) || null;
+    }
+
+    /**
+     * Copia la ficha del ticket al portapapeles (solo perfil PLUZ) y da feedback visual en el botón
+     */
+    async function copyIncidentSummary(ticket, btnEl) {
+        const isAdmin = typeof isCurrentUserAdmin === 'function'
+            ? isCurrentUserAdmin()
+            : (typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem('oms_user_role') === 'admin' || sessionStorage.getItem('oms_user_role') === '*') : true);
+        if (!isAdmin) return false;
+
+        const loc = findIncidentByTicket(ticket);
+        if (!loc) return false;
+
+        const text = buildIncidentWhatsappSummary(loc);
+        if (!text) return false;
+
+        let copied = false;
+        if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+            try {
+                await navigator.clipboard.writeText(text);
+                copied = true;
+            } catch (_) {
+                copied = fallbackCopyText(text);
+            }
+        } else {
+            copied = fallbackCopyText(text);
+        }
+
+        if (copied && btnEl) {
+            const prevText = btnEl.dataset.prevText || btnEl.textContent || '📋';
+            const prevBg = btnEl.dataset.prevBg || btnEl.style.backgroundColor || '#475569';
+            btnEl.dataset.prevText = prevText;
+            btnEl.dataset.prevBg = prevBg;
+            btnEl.textContent = '✅';
+            btnEl.style.backgroundColor = '#16a34a';
+            btnEl.title = '¡Copiado al portapapeles!';
+            if (btnEl._copyResetTimer) clearTimeout(btnEl._copyResetTimer);
+            btnEl._copyResetTimer = setTimeout(() => {
+                btnEl.textContent = prevText;
+                btnEl.style.backgroundColor = prevBg;
+                btnEl.title = 'Copiar ficha para WhatsApp';
+            }, 1500);
+        }
+
+        return copied;
+    }
+
     /**
      * Construye el HTML del popup de incidencia (Ticket / ODM)
      * @param {Object} loc Objeto con datos de la incidencia
@@ -1294,31 +1580,26 @@
 
         let supCardHtml = '';
         if (isAdmin) {
-            const supData = (typeof getSupervisorDataForTicket === 'function') ? getSupervisorDataForTicket(loc.ticket) : null;
-            if (supData && supData.latest) {
-                const supLatest = supData.latest;
-                const countHist = (supData.history && Array.isArray(supData.history)) ? supData.history.length : 1;
-                const opEst = supLatest.estadoOperativo || supLatest.estado || 'PENDIENTE';
-                const critEst = supLatest.estadoCritico || '';
-                const opDet = supLatest.detalleOperativo || supLatest.detalle || '';
-                const critDet = supLatest.detalleCritico || '';
-                const bClass = (typeof getSupervisorBadgeClass === 'function') ? getSupervisorBadgeClass(opEst) : 'sup-status-generic';
-                const cClass = (typeof getCriticoBadgeClass === 'function') ? getCriticoBadgeClass(critEst) : 'sup-status-normal';
+            const supCtx = resolveSupervisorContext(loc.ticket);
+            if (supCtx.hasData) {
+                const bClass = (typeof getSupervisorBadgeClass === 'function') ? getSupervisorBadgeClass(supCtx.opEst) : 'sup-status-generic';
+                const cClass = (typeof getCriticoBadgeClass === 'function') ? getCriticoBadgeClass(supCtx.critEst) : 'sup-status-normal';
 
                 supCardHtml = `
                     <div style="margin-top: 8px; padding: 7px 9px; background: #f0f7ff; border: 1px solid #bae6fd; border-radius: 6px;">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; flex-wrap:wrap; gap:4px;">
                             <span style="font-weight:700; color:#0369a1; font-size:11px;">🛡️ Supervisión PLUZ</span>
                             <div style="display:flex; align-items:center; gap:4px;">
-                                <span class="sup-status-badge ${bClass}" style="font-size:10px; padding:1px 6px;">${escapeHtml(opEst)}</span>
-                                ${critEst ? `<span class="sup-status-badge ${cClass}" style="font-size:10px; padding:1px 6px;">${escapeHtml(critEst)}</span>` : ''}
+                                <span class="sup-status-badge ${bClass}" style="font-size:10px; padding:1px 6px;">${escapeHtml(supCtx.opEst)}</span>
+                                ${supCtx.critEst ? `<span class="sup-status-badge ${cClass}" style="font-size:10px; padding:1px 6px;">${escapeHtml(supCtx.critEst)}</span>` : ''}
                             </div>
                         </div>
-                        ${opDet ? `<div style="font-size:11px; color:#334155; margin-bottom:3px; line-height:1.3; font-style:italic;"><b>Op:</b> "${escapeHtml(opDet)}"</div>` : ''}
-                        ${critDet ? `<div style="font-size:11px; color:#9d174d; margin-bottom:4px; line-height:1.3; font-style:italic;"><b>Crit:</b> "${escapeHtml(critDet)}"</div>` : ''}
+                        ${supCtx.jefeCuadrilla ? `<div style="font-size:11px; color:#0f172a; margin-bottom:3px; line-height:1.3;"><b>👷 JC:</b> ${escapeHtml(supCtx.jefeCuadrilla)}</div>` : ''}
+                        ${supCtx.opDet ? `<div style="font-size:11px; color:#334155; margin-bottom:3px; line-height:1.3; font-style:italic;"><b>Op:</b> "${escapeHtml(supCtx.opDet)}"</div>` : ''}
+                        ${supCtx.critDet ? `<div style="font-size:11px; color:#9d174d; margin-bottom:4px; line-height:1.3; font-style:italic;"><b>Crit:</b> "${escapeHtml(supCtx.critDet)}"</div>` : ''}
                         <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px; color:#64748b;">
-                            <span>🕒 ${escapeHtml(supLatest.fecha || '')}</span>
-                            <button type="button" onclick="openSupervisorModal('${escapeHtml(loc.ticket)}')" style="border:none; background:none; color:#0284c7; font-weight:700; cursor:pointer; text-decoration:underline; padding:0;">Historial (${countHist}) / ✏️ Editar</button>
+                            <span>🕒 ${escapeHtml(supCtx.fecha)}</span>
+                            <button type="button" onclick="openSupervisorModal('${escapeHtml(loc.ticket)}')" style="border:none; background:none; color:#0284c7; font-weight:700; cursor:pointer; text-decoration:underline; padding:0;">Historial (${supCtx.countHist}) / ✏️ Editar</button>
                         </div>
                     </div>
                 `;
@@ -1395,6 +1676,22 @@
                         font-size: 13px;
                         box-shadow: 0 1px 3px rgba(0,0,0,0.2);
                     ">🚗</a>
+                    ${isAdmin ? `
+                    <button type="button" class="popup-copy-btn" onclick="copyIncidentSummary('${escapeHtml(loc.ticket)}', this)" title="Copiar ficha para WhatsApp" aria-label="Copiar ficha del ticket para WhatsApp" style="
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                        background-color: #475569;
+                        color: white;
+                        border: none;
+                        padding: 6px 11px;
+                        font-weight: bold;
+                        border-radius: 6px;
+                        font-size: 13px;
+                        cursor: pointer;
+                        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+                        transition: background-color 0.15s ease;
+                    ">📋</button>` : ''}
                 </div>
             </div>
         `;
@@ -1483,6 +1780,10 @@
         renderIncidentPopup,
         renderIncidentIcon,
         renderSedPopup,
+        formatCoordsDms,
+        resolveSupervisorContext,
+        buildIncidentWhatsappSummary,
+        copyIncidentSummary,
         escapeHtml: getEscapeHtml()
     };
 }));

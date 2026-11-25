@@ -527,6 +527,7 @@
                         const critEst = supLatest.estadoCritico || '';
                         const opDet = supLatest.detalleOperativo || supLatest.detalle || '';
                         const critDet = supLatest.detalleCritico || '';
+                        const jcVal = supLatest.jefeCuadrilla || supLatest.jc || '';
                         const bClass = (typeof getSupervisorBadgeClass === 'function') ? getSupervisorBadgeClass(opEst) : 'sup-status-generic';
                         const cClass = (typeof getCriticoBadgeClass === 'function') ? getCriticoBadgeClass(critEst) : 'sup-status-normal';
 
@@ -539,6 +540,7 @@
                                         ${critEst ? `<span class="sup-status-badge ${cClass}" style="font-size:10px; padding:1px 6px;">${escapeHtml(critEst)}</span>` : ''}
                                     </div>
                                 </div>
+                                ${jcVal ? `<div style="font-size:11px; color:#0f172a; margin-bottom:3px; line-height:1.3;"><b>👷 JC:</b> ${escapeHtml(jcVal)}</div>` : ''}
                                 ${opDet ? `<div style="font-size:11px; color:#334155; margin-bottom:3px; line-height:1.3; font-style:italic;"><b>Op:</b> "${escapeHtml(opDet)}"</div>` : ''}
                                 ${critDet ? `<div style="font-size:11px; color:#9d174d; margin-bottom:4px; line-height:1.3; font-style:italic;"><b>Crit:</b> "${escapeHtml(critDet)}"</div>` : ''}
                                 <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px; color:#64748b;">
@@ -618,6 +620,22 @@
                                 font-size: 13px;
                                 box-shadow: 0 1px 3px rgba(0,0,0,0.2);
                             ">🚗</a>
+                            ${isAdmin ? `
+                            <button type="button" class="popup-copy-btn" onclick="copyIncidentSummary('${escapeHtml(loc.ticket)}', this)" title="Copiar ficha para WhatsApp" aria-label="Copiar ficha del ticket para WhatsApp" style="
+                                display: inline-flex;
+                                align-items: center;
+                                justify-content: center;
+                                background-color: #475569;
+                                color: white;
+                                border: none;
+                                padding: 6px 11px;
+                                font-weight: bold;
+                                border-radius: 6px;
+                                font-size: 13px;
+                                cursor: pointer;
+                                box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+                                transition: background-color 0.15s ease;
+                            ">📋</button>` : ''}
                         </div>
                     </div>
                 `;
