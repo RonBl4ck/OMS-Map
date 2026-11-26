@@ -230,6 +230,118 @@
         return phone.digits ? phone : null;
     }
 
+    function levenshteinBounded(a, b, maxDist = 2) {
+        if (a === b) return 0;
+        if (Math.abs(a.length - b.length) > maxDist) return maxDist + 1;
+        let prev = new Array(b.length + 1);
+        let curr = new Array(b.length + 1);
+        for (let j = 0; j <= b.length; j++) prev[j] = j;
+        for (let i = 1; i <= a.length; i++) {
+            curr[0] = i;
+            let rowMin = curr[0];
+            for (let j = 1; j <= b.length; j++) {
+                const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+                curr[j] = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost);
+                if (curr[j] < rowMin) rowMin = curr[j];
+            }
+            if (rowMin > maxDist) return maxDist + 1;
+            const tmp = prev;
+            prev = curr;
+            curr = tmp;
+        }
+        return prev[b.length];
+    }
+
+    function scoreFieldCandidate(rawTokens, rawNorm, row, targetCompany) {
+        const candNorm = normalizeText(row.nombres);
+        if (!candNorm) return 0;
+        const sameCompany = Boolean(targetCompany && normalizeText(row.contratista) === targetCompany);
+        if (candNorm === rawNorm) {
+            return sameCompany ? 120 : 100;
+        }
+        const candTokens = candNorm.split(' ').filter(Boolean);
+        if (rawTokens.length === 0 || candTokens.length === 0) return 0;
+
+        let matchedTokens = 0;
+        let qualitySum = 0;
+
+        rawTokens.forEach(rt => {
+            let best = 0;
+            candTokens.forEach(ct => {
+                if (ct === rt) {
+                    best = Math.max(best, 1.0);
+                } else if (rt.length === 1 && ct.startsWith(rt)) {
+                    best = Math.max(best, 0.55);
+                } else if (rt.length >= 3 && (ct.startsWith(rt) || rt.startsWith(ct))) {
+                    best = Math.max(best, 0.85);
+                } else if (rt.length >= 4 && ct.length >= 4) {
+                    const dist = levenshteinBounded(rt, ct, 2);
+                    if (dist === 1) best = Math.max(best, 0.8);
+                    else if (dist === 2 && Math.min(rt.length, ct.length) >= 6) best = Math.max(best, 0.65);
+                }
+            });
+            if (best > 0) {
+                matchedTokens++;
+                qualitySum += best;
+            }
+        });
+
+        if (matchedTokens === 0) return 0;
+        const rawCoverage = qualitySum / rawTokens.length;
+        const candCoverage = matchedTokens / candTokens.length;
+        let score = Math.round((rawCoverage * 65) + (candCoverage * 15));
+        if (candNorm.includes(rawNorm) && rawNorm.length >= 4) score += 8;
+        if (sameCompany) score += 20;
+        return score;
+    }
+
+    function findSimilarFieldMatches(rawJc, contratista = '') {
+        const targetCompany = normalizeText(contratista);
+        const rawNorm = normalizeText(rawJc).replace(/[^A-Z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+        const rawTokens = rawNorm ? rawNorm.split(' ').filter(Boolean) : [];
+
+        const fieldRows = cachedRows.filter(r => FIELD_FRONTS.has(normalizeText(r.frente)));
+        const sameCompanyAll = fieldRows
+            .filter(r => targetCompany && normalizeText(r.contratista) === targetCompany)
+            .sort((a, b) => a.nombres.localeCompare(b.nombres));
+
+        if (!rawNorm) {
+            return { exactMatch: null, autoSelected: null, suggestions: [], sameCompanyAll };
+        }
+
+        const exactSame = fieldRows.find(r => normalizeText(r.nombres) === rawNorm && targetCompany && normalizeText(r.contratista) === targetCompany);
+        const exactAny = exactSame || fieldRows.find(r => normalizeText(r.nombres) === rawNorm) || null;
+
+        const scored = fieldRows
+            .map(row => ({
+                row,
+                sameCompany: Boolean(targetCompany && normalizeText(row.contratista) === targetCompany),
+                score: scoreFieldCandidate(rawTokens, rawNorm, row, targetCompany)
+            }))
+            .filter(item => item.score >= 45)
+            .sort((a, b) => b.score - a.score || (b.sameCompany ? 1 : 0) - (a.sameCompany ? 1 : 0) || a.row.nombres.localeCompare(b.row.nombres));
+
+        const suggestions = scored.slice(0, 8);
+        let autoSelected = exactAny;
+
+        if (!autoSelected && suggestions.length > 0) {
+            const top = suggestions[0];
+            const second = suggestions[1];
+            const meetsThreshold = top.sameCompany ? top.score >= 60 : (!targetCompany && top.score >= 70);
+            const isClearWinner = !second || (top.score - second.score >= 15);
+            if (meetsThreshold && isClearWinner) {
+                autoSelected = top.row;
+            }
+        }
+
+        return {
+            exactMatch: exactAny,
+            autoSelected,
+            suggestions,
+            sameCompanyAll
+        };
+    }
+
     function copyPhoneNumber(digits, btnEl) {
         if (!digits) return;
         const onSuccess = () => {
@@ -276,6 +388,7 @@
         findMatchByJcName,
         formatPhoneForCopy,
         getPhoneForJc,
+        findSimilarFieldMatches,
         copyPhoneNumber,
         getLimaTodayStr,
         getCachedRows,

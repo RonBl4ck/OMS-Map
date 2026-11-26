@@ -104,3 +104,34 @@ test('getPhoneForJc devuelve display/digits solo para JC registrados en OperaLog
   assert.equal(OperaLogService.getPhoneForJc('SIN TELEFONO', 'LARI'), null);
   assert.equal(OperaLogService.getPhoneForJc('JUNIOR PERSONALIZADO', 'LARI'), null);
 });
+
+test('findSimilarFieldMatches pre-selecciona automáticamente un apellido único de la misma contrata (Opción 2)', () => {
+  OperaLogService._setCachedRows([
+    { id: '1', contratista: 'LARI', frente: 'REPARACIONES', nombres: 'MOGOLLON ROSALES JEANPIERRE JESUS', skill: 'BT', celular: '945413156' },
+    { id: '2', contratista: 'LARI', frente: 'RECLAMOS', nombres: 'QUISPE LOPEZ CARLOS', skill: 'BT', celular: '911222333' },
+    { id: '3', contratista: 'COBRA', frente: 'REPARACIONES', nombres: 'QUISPE RAMOS CARLOS', skill: 'BT', celular: '922333444' },
+  ]);
+
+  const bySurname = OperaLogService.findSimilarFieldMatches('MOGOLLON', 'LARI');
+  assert.equal(bySurname.exactMatch, null);
+  assert.ok(bySurname.autoSelected);
+  assert.equal(bySurname.autoSelected.nombres, 'MOGOLLON ROSALES JEANPIERRE JESUS');
+
+  const withTypo = OperaLogService.findSimilarFieldMatches('MOGOLON', 'LARI');
+  assert.ok(withTypo.autoSelected);
+  assert.equal(withTypo.autoSelected.nombres, 'MOGOLLON ROSALES JEANPIERRE JESUS');
+
+  const sameCompanyWin = OperaLogService.findSimilarFieldMatches('CARLOS QUISPE', 'LARI');
+  assert.ok(sameCompanyWin.autoSelected);
+  assert.equal(sameCompanyWin.autoSelected.nombres, 'QUISPE LOPEZ CARLOS');
+});
+
+test('findSimilarFieldMatches no pre-selecciona a ciegas si hay empate ambiguo en la misma contrata', () => {
+  OperaLogService._setCachedRows([
+    { id: '1', contratista: 'LARI', frente: 'REPARACIONES', nombres: 'PEREZ GOMEZ JUAN', skill: 'BT', celular: '900111222' },
+    { id: '2', contratista: 'LARI', frente: 'RECLAMOS', nombres: 'PEREZ DIAZ LUIS', skill: 'BT', celular: '900333444' },
+  ]);
+  const ambiguous = OperaLogService.findSimilarFieldMatches('PEREZ', 'LARI');
+  assert.equal(ambiguous.autoSelected, null);
+  assert.equal(ambiguous.suggestions.length, 2);
+});

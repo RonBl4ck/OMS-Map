@@ -2341,11 +2341,55 @@
             return 'EN EJECUCION';
         }
 
+        const bulkJcUserOverrides = new Map();
+
+        function findBulkTicketEmpresa(ticket) {
+            const key = String(ticket || '').trim().toLowerCase();
+            if (!key) return '';
+            const rec = (Array.isArray(tdOmsRecords) ? tdOmsRecords.find(r => String(r.ticket || '').trim().toLowerCase() === key) : null) ||
+                        (Array.isArray(mapLocations) ? mapLocations.find(l => String(l.ticket || '').trim().toLowerCase() === key) : null) || null;
+            if (rec && rec.empresa && String(rec.empresa).trim().toUpperCase() !== 'N/A') {
+                return String(rec.empresa).trim().toUpperCase();
+            }
+            const supData = (typeof getSupervisorDataForTicket === 'function') ? getSupervisorDataForTicket(ticket) : null;
+            if (supData && supData.latest && supData.latest.empresa && String(supData.latest.empresa).trim().toUpperCase() !== 'N/A') {
+                return String(supData.latest.empresa).trim().toUpperCase();
+            }
+            return '';
+        }
+
+        function resolveBulkJcForItem(item, empresa) {
+            const ticketKey = String(item.ticket || '').trim().toLowerCase();
+            const rawJc = String(item.jc || '').trim().toUpperCase();
+            const hasSvc = (typeof OperaLogService !== 'undefined' && typeof OperaLogService.findSimilarFieldMatches === 'function');
+            const matchInfo = hasSvc
+                ? OperaLogService.findSimilarFieldMatches(rawJc, empresa)
+                : { exactMatch: null, autoSelected: null, suggestions: [], sameCompanyAll: [] };
+
+            if (bulkJcUserOverrides.has(ticketKey)) {
+                const chosen = String(bulkJcUserOverrides.get(ticketKey) || '').trim().toUpperCase();
+                const isOperaLogMatch = hasSvc && chosen ? Boolean(OperaLogService.findMatchByJcName(chosen, empresa)) : false;
+                return {
+                    value: chosen,
+                    mode: !chosen ? 'empty' : (isOperaLogMatch ? 'exact' : 'custom'),
+                    matchInfo
+                };
+            }
+            if (matchInfo.exactMatch) {
+                return { value: matchInfo.exactMatch.nombres, mode: 'exact', matchInfo };
+            }
+            if (matchInfo.autoSelected) {
+                return { value: matchInfo.autoSelected.nombres, mode: 'auto', matchInfo };
+            }
+            return { value: rawJc, mode: rawJc ? 'custom' : 'empty', matchInfo };
+        }
+
         function openBulkPluzModal() {
             if (typeof isCurrentUserAdmin === 'function' && !isCurrentUserAdmin()) return;
             const modal = document.getElementById('bulkPluzModalOverlay');
             if (!modal) return;
 
+            bulkJcUserOverrides.clear();
             const inputTickets = document.getElementById('bulkPluzTicketsInput');
             const alertEl = document.getElementById('bulkPluzAlert');
             const previewContainer = document.getElementById('bulkPluzPreviewContainer');
@@ -2362,6 +2406,11 @@
             setBulkPluzSelectedEstado('EN EJECUCION');
             updateBulkPluzCounter();
             modal.style.display = 'flex';
+            if (typeof OperaLogService !== 'undefined' && typeof OperaLogService.loadTodayTurns === 'function' && OperaLogService.getCachedRows().length === 0) {
+                OperaLogService.loadTodayTurns(false).then(() => {
+                    if (modal.style.display !== 'none') updateBulkPluzCounter();
+                }).catch(() => {});
+            }
             if (inputTickets) {
                 setTimeout(() => inputTickets.focus(), 80);
             }
@@ -2370,6 +2419,7 @@
         function closeBulkPluzModal() {
             const modal = document.getElementById('bulkPluzModalOverlay');
             if (modal) modal.style.display = 'none';
+            bulkJcUserOverrides.clear();
         }
 
         function updateBulkPluzCounter() {
@@ -2423,14 +2473,84 @@
                         previewSummary.textContent = `${total} total | ${assignedJcCount} con JC | ${assignedFinCount} con Hora Límite | ${matched} en OMS`;
                     }
                     const limaToday = getLimaTodayStr();
+                    let operaLogMatchedCount = 0;
+                    const prevScrollTop = previewList.scrollTop || 0;
                     previewList.innerHTML = items.map(it => {
                         const inOms = activeSet.has(it.ticket.toLowerCase());
+                        const empVal = findBulkTicketEmpresa(it.ticket);
+                        const resolved = resolveBulkJcForItem(it, empVal);
+                        if (resolved.mode === 'exact' || resolved.mode === 'auto') operaLogMatchedCount++;
+
                         const omsBadge = inOms
                             ? `<span style="display: inline-block; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; border-radius: 3px; padding: 0 4px; font-size: 9px; font-weight: 700;">OMS ✓</span>`
                             : `<span style="display: inline-block; background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; border-radius: 3px; padding: 0 4px; font-size: 9px;">no en vista</span>`;
-                        const jcBadge = it.jc
-                            ? `<span style="font-weight: 700; color: #0369a1; background: #e0f2fe; padding: 2px 6px; border-radius: 4px; border: 1px solid #bae6fd; font-size: 10px;">👷 ${it.jc}</span>`
-                            : `<span style="font-style: italic; color: #94a3b8; font-size: 10px;">(Sin JC)</span>`;
+                        const empBadge = empVal
+                            ? `<span class="bulk-emp-pill">${escapeHtml(empVal)}</span>`
+                            : '';
+
+                        const hasOperaLogOptions = (resolved.matchInfo.suggestions.length > 0 || resolved.matchInfo.sameCompanyAll.length > 0);
+                        let jcControlHtml = '';
+
+                        if (hasOperaLogOptions) {
+                            const seenNames = new Set();
+                            const formatOptLabel = (row, prefix = '') => {
+                                const parts = [row.nombres];
+                                if (row.frente) parts.push(`[${row.frente}]`);
+                                return `${prefix}${parts.join(' ')}`;
+                            };
+
+                            let optsHtml = '';
+                            if (resolved.matchInfo.suggestions.length > 0) {
+                                optsHtml += `<optgroup label="✨ Sugeridos OperaLog">`;
+                                resolved.matchInfo.suggestions.forEach(s => {
+                                    const nameKey = s.row.nombres;
+                                    if (seenNames.has(nameKey)) return;
+                                    seenNames.add(nameKey);
+                                    const sel = resolved.value === nameKey ? ' selected' : '';
+                                    optsHtml += `<option value="${escapeHtml(nameKey)}"${sel}>${escapeHtml(formatOptLabel(s.row, '✨ '))}</option>`;
+                                });
+                                optsHtml += `</optgroup>`;
+                            }
+
+                            const rawJc = String(it.jc || '').trim().toUpperCase();
+                            if (rawJc && !seenNames.has(rawJc)) {
+                                const sel = resolved.value === rawJc ? ' selected' : '';
+                                optsHtml += `<option value="${escapeHtml(rawJc)}"${sel}>Mantener: "${escapeHtml(rawJc)}"</option>`;
+                                seenNames.add(rawJc);
+                            } else if (!rawJc) {
+                                const sel = !resolved.value ? ' selected' : '';
+                                optsHtml += `<option value=""${sel}>(Sin JC)</option>`;
+                            }
+
+                            const remainingSame = resolved.matchInfo.sameCompanyAll.filter(r => !seenNames.has(r.nombres));
+                            if (remainingSame.length > 0) {
+                                optsHtml += `<optgroup label="En turno — ${escapeHtml(empVal || 'BT')}">`;
+                                remainingSame.forEach(r => {
+                                    const sel = resolved.value === r.nombres ? ' selected' : '';
+                                    optsHtml += `<option value="${escapeHtml(r.nombres)}"${sel}>${escapeHtml(formatOptLabel(r))}</option>`;
+                                });
+                                optsHtml += `</optgroup>`;
+                            }
+
+                            const statusTag = resolved.mode === 'auto'
+                                ? `<span class="bulk-jc-tag bulk-jc-tag-auto" title="Pre-seleccionado automáticamente desde OperaLog">✨ Auto</span>`
+                                : (resolved.mode === 'exact'
+                                    ? `<span class="bulk-jc-tag bulk-jc-tag-exact" title="Coincide con OperaLog BT hoy">✓ OperaLog</span>`
+                                    : '');
+
+                            jcControlHtml = `
+                                <div class="bulk-jc-selector-wrap">
+                                    <select class="bulk-jc-select is-${resolved.mode}" data-bulk-ticket="${escapeHtml(it.ticket)}" aria-label="Seleccionar JC para ticket ${escapeHtml(it.ticket)}">
+                                        ${optsHtml}
+                                    </select>
+                                    ${statusTag}
+                                </div>
+                            `;
+                        } else {
+                            jcControlHtml = it.jc
+                                ? `<span style="font-weight: 700; color: #0369a1; background: #e0f2fe; padding: 2px 6px; border-radius: 4px; border: 1px solid #bae6fd; font-size: 10px;">👷 ${escapeHtml(it.jc)}</span>`
+                                : `<span style="font-style: italic; color: #94a3b8; font-size: 10px;">(Sin JC)</span>`;
+                        }
                         
                         let finBadge = `<span style="font-style: italic; color: #94a3b8; font-size: 10px;">(Sin hora límite)</span>`;
                         if (it.finEstimado) {
@@ -2451,18 +2571,24 @@
                         }
 
                         return `
-                            <div style="display: flex; justify-content: space-between; align-items: center; background: #ffffff; padding: 4px 8px; border-radius: 4px; border: 1px solid #e2e8f0; gap: 8px;">
-                                <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
-                                    <span style="font-weight: 700; color: #1e293b; font-family: monospace;">#${it.ticket}</span>
+                            <div style="display: flex; justify-content: space-between; align-items: center; background: #ffffff; padding: 5px 8px; border-radius: 4px; border: 1px solid #e2e8f0; gap: 8px;">
+                                <div style="display: flex; align-items: center; gap: 5px; flex-shrink: 0;">
+                                    <span style="font-weight: 700; color: #1e293b; font-family: monospace;">#${escapeHtml(it.ticket)}</span>
                                     ${omsBadge}
+                                    ${empBadge}
                                 </div>
-                                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end;">
-                                    ${jcBadge}
+                                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; min-width: 0;">
+                                    ${jcControlHtml}
                                     ${finBadge}
                                 </div>
                             </div>
                         `;
                     }).join('');
+                    previewList.scrollTop = prevScrollTop;
+                    if (previewSummary) {
+                        const opStr = operaLogMatchedCount > 0 ? ` | ✨ ${operaLogMatchedCount} OperaLog` : '';
+                        previewSummary.textContent = `${total} total | ${assignedJcCount} con JC${opStr} | ${assignedFinCount} con Hora Límite | ${matched} en OMS`;
+                    }
                 }
             }
         }
@@ -2498,7 +2624,6 @@
             const entries = [];
             items.forEach(it => {
                 const t = it.ticket;
-                const jcVal = clean(it.jc).toUpperCase();
 
                 const targetRec = (typeof tdOmsRecords !== 'undefined' && Array.isArray(tdOmsRecords) ? tdOmsRecords.find(r => String(r.ticket || '').trim().toLowerCase() === t.toLowerCase()) : null) ||
                                   (typeof mapLocations !== 'undefined' && Array.isArray(mapLocations) ? mapLocations.find(l => String(l.ticket || '').trim().toLowerCase() === t.toLowerCase()) : null) || {};
@@ -2510,6 +2635,8 @@
                 const horaIniVal = clean(targetRec.hora_inicio || targetRec.fecha_inicio) || clean(supLatest ? supLatest.horaInicio : '');
                 const aliVal = clean(targetRec.alimentador) || clean(supLatest ? supLatest.alimentador : '');
                 const empVal = clean(targetRec.empresa) || clean(supLatest ? supLatest.empresa : '');
+                const resolvedJc = resolveBulkJcForItem(it, empVal);
+                const jcVal = clean(resolvedJc.value).toUpperCase();
                 const prevDetOp = supLatest ? clean(supLatest.detalleOperativo || supLatest.detalle) : '';
                 const prevEstCrit = supLatest ? clean(supLatest.estadoCritico) : '';
                 const prevDetCrit = supLatest ? clean(supLatest.detalleCritico) : '';
@@ -2732,6 +2859,17 @@
             if (inputBulkTickets) {
                 inputBulkTickets.addEventListener('input', updateBulkPluzCounter);
                 inputBulkTickets.addEventListener('paste', () => setTimeout(updateBulkPluzCounter, 50));
+            }
+            const previewListBulk = document.getElementById('bulkPluzPreviewList');
+            if (previewListBulk) {
+                previewListBulk.addEventListener('change', (e) => {
+                    const sel = e.target.closest('.bulk-jc-select');
+                    if (!sel) return;
+                    const tk = String(sel.getAttribute('data-bulk-ticket') || '').trim().toLowerCase();
+                    if (!tk) return;
+                    bulkJcUserOverrides.set(tk, sel.value);
+                    updateBulkPluzCounter();
+                });
             }
             if (btnSubmitBulk) {
                 btnSubmitBulk.addEventListener('click', executeBulkPluzEnEjecucion);
